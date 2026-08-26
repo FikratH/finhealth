@@ -27,3 +27,14 @@ def test_benchmarks_schema_is_validated():
         _validate_benchmarks({"industries": {"x": {"name": "X", "category_weights": {},
                               "ratios": {"roa": {"weight": 1, "direction": "sideways",
                                                  "good": [0, 1], "acceptable": [0, 1]}}}}})
+
+
+def test_completeness_measured_against_core_dictionary_not_payload():
+    from app.schemas import AnalysisRequest, ExtractedValue, Scale
+    from app.services.analysis import run_analysis
+    vals = [ExtractedValue(metric=m, original_label=m, value=100.0)
+            for m in ("revenue", "net_income", "total_assets",
+                      "current_assets", "current_liabilities")]
+    res = run_analysis(AnalysisRequest(industry="manufacturing",
+                                       scale=Scale.units, values=vals))
+    assert res.confidence.data_completeness < 50  # 5 of ~19 core metrics, not 100

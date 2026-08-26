@@ -68,7 +68,7 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
     has_prev = bool(previous)
     confidence = compute_confidence(
         values=req.values, ratios=ratios, has_previous=has_prev,
-        industry_ok=True, audited=req.audited)
+        industry_ok=bool(industry_cfg.get("ratios")), audited=req.audited)
 
     strengths, risks = strengths_and_risks(ratios)
     recs = build_recommendations(ratios)

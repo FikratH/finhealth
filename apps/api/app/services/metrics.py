@@ -147,6 +147,10 @@ METRICS: dict[str, dict] = {
 EXPENSE_MAGNITUDE_METRICS: frozenset[str] = frozenset(
     {"cost_of_goods_sold", "interest_expense", "capital_expenditures"})
 
+MARKET_METRICS: frozenset[str] = frozenset(
+    {"market_cap", "share_price", "eps", "shares_outstanding"})
+CORE_METRICS: frozenset[str] = frozenset(METRICS) - MARKET_METRICS
+
 _norm_re = re.compile(r"[^a-zа-яё0-9 ]+")
 
 
