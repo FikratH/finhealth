@@ -6,12 +6,14 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from ..schemas import (SCALE_MULTIPLIER, AnalysisRequest, AnalysisResult,
-                       ExtractedValue, Warning_, health_label)
+                       ExtractedValue, Scale, Warning_, health_label)
 from . import metrics as M
 from .ratios import Inputs, altman_z, compute_all, has_market_data
 from .recommendations import build_recommendations
 from .scoring import (apply_benchmarks, category_scores, compute_confidence,
                       get_industry, overall_score, strengths_and_risks)
+
+NON_SCALED_METRICS = {"share_price", "eps", "shares_outstanding"}
 
 
 def _to_absolute(values: list[ExtractedValue]) -> dict[str, Optional[float]]:
@@ -20,9 +22,9 @@ def _to_absolute(values: list[ExtractedValue]) -> dict[str, Optional[float]]:
         if v.value is None:
             out.setdefault(v.metric, None)
             continue
-        mult = SCALE_MULTIPLIER[v.scale]
+        mult = SCALE_MULTIPLIER[v.scale or Scale.units]
         # per-share and per-unit metrics are not scaled
-        if v.metric in {"share_price", "eps"}:
+        if v.metric in NON_SCALED_METRICS:
             mult = 1
         value = abs(v.value) if v.metric in M.EXPENSE_MAGNITUDE_METRICS else v.value
         out[v.metric] = value * mult

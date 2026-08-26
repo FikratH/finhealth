@@ -35,7 +35,7 @@ class ExtractedValue(BaseModel):
     original_label: str              # label as it appears in the document
     value: Optional[float] = None    # numeric value in document scale; None => N/A
     currency: Optional[str] = None
-    scale: Scale = Scale.units
+    scale: Optional[Scale] = None
     period: Optional[str] = None
     source: str = ""                 # page / sheet / cell reference
     confidence: float = Field(0, ge=0, le=100)
