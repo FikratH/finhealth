@@ -15,11 +15,29 @@ from .ratios import CATEGORY_LABELS
 
 BENCHMARKS_PATH = Path(__file__).resolve().parent.parent / "data" / "benchmarks.json"
 
+_ALLOWED_DIRECTIONS = {"higher", "lower", "range"}
+
+
+def _validate_benchmarks(data: dict) -> dict:
+    for ind_id, cfg in data.get("industries", {}).items():
+        for rk, bm in cfg.get("ratios", {}).items():
+            path = f"industries.{ind_id}.ratios.{rk}"
+            if bm.get("direction") not in _ALLOWED_DIRECTIONS:
+                raise ValueError(f"{path}: unknown direction {bm.get('direction')!r}")
+            for field in ("good", "acceptable"):
+                v = bm.get(field)
+                if (not isinstance(v, list) or len(v) != 2
+                        or not all(isinstance(x, (int, float)) for x in v) or v[0] > v[1]):
+                    raise ValueError(f"{path}.{field}: expected [lo, hi] with lo <= hi")
+            if not isinstance(bm.get("weight"), (int, float)) or bm["weight"] < 0:
+                raise ValueError(f"{path}.weight: expected non-negative number")
+    return data
+
 
 @lru_cache(maxsize=1)
 def load_benchmarks() -> dict:
     with open(BENCHMARKS_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        return _validate_benchmarks(json.load(f))
 
 
 def list_industries() -> list[dict]:
@@ -102,13 +120,11 @@ def apply_benchmarks(ratios: list[RatioResult], industry_id: str) -> list[RatioR
                                  + ", ".join(missing) + "." if missing else
                                  "Недостаточно данных для расчёта.")
             continue
-        if bm is None or r.key == "net_debt" or r.key == "ev" or r.unit == "money":
-            # informational values (money amounts) are not scored
-            r.status = RatioStatus.na if r.key in {"net_debt", "ev", "free_cash_flow"} and False else r.status
-            if r.key in {"net_debt", "ev"}:
-                r.status = RatioStatus.na
-                r.explanation = "Справочная величина, не участвует в балльной оценке."
-                continue
+        if r.unit == "money":
+            r.status = RatioStatus.na
+            r.score = None
+            r.explanation = "Справочная величина, не участвует в балльной оценке."
+            continue
         if bm is None:
             if r.key != "altman_z":
                 r.status = RatioStatus.na
