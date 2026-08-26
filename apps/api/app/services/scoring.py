@@ -166,12 +166,15 @@ def category_scores(ratios: list[RatioResult], industry_id: str) -> list[Categor
     return out
 
 
-def overall_score(cats: list[CategoryScore]) -> tuple[float, list[str]]:
-    """Weighted average over available categories with weight renormalization."""
+def overall_score(cats: list[CategoryScore]) -> tuple[Optional[float], list[str]]:
+    """Weighted average over available categories with weight renormalization.
+
+    Returns None when no category has data.
+    """
     available = [c for c in cats if c.score is not None and c.weight > 0]
     notes: list[str] = []
     if not available:
-        return 0.0, ["Недостаточно данных ни для одной категории оценки."]
+        return None, ["Недостаточно данных ни для одной категории оценки."]
     total_w = sum(c.weight for c in available)
     score = sum(c.score * c.weight for c in available) / total_w
     skipped = [c.label for c in cats if c.score is None and c.weight > 0]

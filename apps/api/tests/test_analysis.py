@@ -25,3 +25,11 @@ def test_per_share_metrics_are_never_scaled():
     pb = next(r for r in res.ratios if r.key == "pb")
     # mc = 10 * 1_000_000 (unscaled) ; equity = 500_000 * 1000
     assert abs(pb.value - (10 * 1_000_000) / (500_000 * 1000)) < 1e-9
+
+
+def test_no_data_reports_insufficient_not_critical():
+    req = AnalysisRequest(industry="manufacturing", scale=Scale.units, values=[])
+    res = run_analysis(req)
+    assert res.overall_score is None
+    assert "недостаточно данных" in res.health_label.lower()
+    assert "критическое" not in res.health_label.lower()

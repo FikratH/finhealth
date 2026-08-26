@@ -147,7 +147,7 @@ class AnalysisResult(BaseModel):
     scale: Scale
     latest_period: Optional[str] = None
     previous_period: Optional[str] = None
-    overall_score: float
+    overall_score: Optional[float]
     health_label: str
     category_scores: list[CategoryScore]
     ratios: list[RatioResult]
@@ -164,7 +164,9 @@ class AnalysisResult(BaseModel):
     )
 
 
-def health_label(score: float) -> str:
+def health_label(score: Optional[float]) -> str:
+    if score is None:
+        return "Недостаточно данных для оценки"
     if score < 25:
         return "Критическое состояние"
     if score < 45:
