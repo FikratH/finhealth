@@ -26,6 +26,17 @@ def test_docx_zip_is_rejected_not_treated_as_xlsx():
     assert resp.status_code == 415
 
 
+def test_zip_bomb_decompressed_size_cap_returns_413():
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("xl/sharedStrings.xml", b"0" * (250 * 1024 * 1024))
+    resp = client.post("/api/upload",
+                       files={"file": ("bomb.xlsx", buf.getvalue(), "application/octet-stream")})
+    assert resp.status_code == 413
+
+
 def test_extract_rejects_non_object_body_with_422():
     resp = client.post("/api/extract", json=["not", "an", "object"])
     assert resp.status_code == 422  # Pydantic validation, not a 500

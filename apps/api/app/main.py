@@ -51,6 +51,11 @@ def _detect_kind(filename: str, data: bytes) -> str:
         import zipfile
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as z:
+                decompressed = sum(i.file_size for i in z.infolist())
+                if decompressed > 200 * 1024 * 1024:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Архив Excel распакованного размера более 200 МБ не поддерживается.")
                 if any(n.startswith("xl/") for n in z.namelist()):
                     return "xlsx"
         except zipfile.BadZipFile:
