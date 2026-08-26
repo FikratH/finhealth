@@ -8,6 +8,7 @@ Security notes:
 """
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import os
 
@@ -27,6 +28,8 @@ log = logging.getLogger("finhealth")
 
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE_MB", "15")) * 1024 * 1024
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+EXTRACT_TIMEOUT_SECONDS = int(os.environ.get("EXTRACT_TIMEOUT_SECONDS", "90"))
+_extract_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(title="FinHealth MVP", version="0.1.0")
 app.add_middleware(
@@ -136,9 +139,18 @@ def extract(payload: ExtractRequest):
                             detail="Загруженный файл не найден или уже удалён. Загрузите файл заново.")
     data, kind = stored
     try:
-        result = extraction.extract(data, kind)
+        future = _extract_pool.submit(extraction.extract, data, kind)
+        result = future.result(timeout=EXTRACT_TIMEOUT_SECONDS)
     except extraction.ScannedPdfError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    except concurrent.futures.TimeoutError:
+        # NB: concurrent.futures.TimeoutError aliases the builtin TimeoutError
+        # on Python 3.11+; this except must precede the generic Exception
+        # handler below or the timeout would be reported as a parse failure.
+        log.warning("extraction timed out id=%s kind=%s", upload_id, kind)
+        raise HTTPException(
+            status_code=422,
+            detail="Файл слишком сложен для разбора за отведённое время. Попробуйте Excel/CSV.")
     except Exception:
         log.exception("extraction failed id=%s kind=%s", upload_id, kind)
         raise HTTPException(status_code=422,

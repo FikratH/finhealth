@@ -29,3 +29,21 @@ def test_docx_zip_is_rejected_not_treated_as_xlsx():
 def test_extract_rejects_non_object_body_with_422():
     resp = client.post("/api/extract", json=["not", "an", "object"])
     assert resp.status_code == 422  # Pydantic validation, not a 500
+
+
+def test_huge_sheet_is_capped_not_materialized():
+    import io
+    import time
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Показатель", "2024"])
+    for n in range(40_000):
+        ws.append([f"строка {n}", 1])
+    buf = io.BytesIO()
+    wb.save(buf)
+    from app.services.extraction import extract_from_xlsx
+    t0 = time.monotonic()
+    res = extract_from_xlsx(buf.getvalue())
+    assert time.monotonic() - t0 < 15
+    assert any("усечён" in w.lower() for w in res.warnings)

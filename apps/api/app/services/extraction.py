@@ -14,6 +14,16 @@ from typing import Optional
 from ..schemas import ExtractedValue, ExtractionResult, Scale
 from . import metrics as M
 
+# Resource caps: a hostile or pathological file (e.g. a 40k-row "sheet of
+# junk") must not be fully materialized in memory or take minutes to parse.
+# Real financial statements are tiny relative to these limits (findings 6, 26).
+MAX_ROWS_PER_SHEET = 5000
+MAX_COLS = 64
+MAX_SHEETS = 20
+MAX_PDF_PAGES = 60
+TRUNCATION_WARNING = ("Файл усечён при разборе: обработаны не все строки/листы/страницы. "
+                      "Финансовые отчёты обычно значительно меньше этих лимитов.")
+
 
 class ScannedPdfError(Exception):
     """PDF contains no extractable text (likely a scan)."""
@@ -182,34 +192,63 @@ def extract_from_xlsx(data: bytes) -> ExtractionResult:
     wb = load_workbook(io.BytesIO(data), data_only=True, read_only=True)
     tables: list[_Table] = []
     full_text_parts: list[str] = []
-    for ws in wb.worksheets:
-        matrix = [[c for c in row] for row in ws.iter_rows(values_only=True)]
+    truncated = False
+    for ws in wb.worksheets[:MAX_SHEETS]:
+        matrix: list[list] = []
+        for r_i, row in enumerate(ws.iter_rows(values_only=True)):
+            if r_i >= MAX_ROWS_PER_SHEET:
+                truncated = True
+                break
+            matrix.append(list(row[:MAX_COLS]))
         for row in matrix:
             full_text_parts.extend(str(c) for c in row if c is not None)
         tables.append(_rows_from_matrix(matrix, f"Лист «{ws.title}»"))
+    if len(wb.worksheets) > MAX_SHEETS:
+        truncated = True
     wb.close()
-    return _extract_from_tables(tables, " ".join(full_text_parts))
+    result = _extract_from_tables(tables, " ".join(full_text_parts))
+    if truncated:
+        result.warnings.append(TRUNCATION_WARNING)
+    return result
 
 
 def extract_from_xls(data: bytes) -> ExtractionResult:
     import pandas as pd
-    sheets = pd.read_excel(io.BytesIO(data), sheet_name=None, header=None, dtype=str)
+    sheets = pd.read_excel(io.BytesIO(data), sheet_name=None, header=None,
+                           dtype=str, nrows=MAX_ROWS_PER_SHEET)
     tables: list[_Table] = []
     full_text_parts: list[str] = []
-    for name, df in sheets.items():
-        matrix = df.fillna("").values.tolist()
+    truncated = False
+    sheet_names = list(sheets.keys())
+    if len(sheet_names) > MAX_SHEETS:
+        truncated = True
+    for name in sheet_names[:MAX_SHEETS]:
+        df = sheets[name]
+        # pandas' nrows caps rows read but can't tell us whether the sheet
+        # was actually longer than the cap — a sheet with exactly
+        # MAX_ROWS_PER_SHEET rows read is treated as (possibly) truncated,
+        # which is a conservative approximation (finding 6, 26).
+        if len(df) >= MAX_ROWS_PER_SHEET:
+            truncated = True
+        matrix = df.iloc[:, :MAX_COLS].fillna("").values.tolist()
         for row in matrix:
             full_text_parts.extend(str(c) for c in row if c)
         tables.append(_rows_from_matrix(matrix, f"Лист «{name}»"))
-    return _extract_from_tables(tables, " ".join(full_text_parts))
+    result = _extract_from_tables(tables, " ".join(full_text_parts))
+    if truncated:
+        result.warnings.append(TRUNCATION_WARNING)
+    return result
 
 
 def extract_from_pdf(data: bytes) -> ExtractionResult:
     import pdfplumber
     tables: list[_Table] = []
     text_parts: list[str] = []
+    truncated = False
     with pdfplumber.open(io.BytesIO(data)) as pdf:
-        for page_no, page in enumerate(pdf.pages, start=1):
+        if len(pdf.pages) > MAX_PDF_PAGES:
+            truncated = True
+        for page_no, page in enumerate(pdf.pages[:MAX_PDF_PAGES], start=1):
             page_text = page.extract_text() or ""
             text_parts.append(page_text)
             page_tables = page.extract_tables() or []
@@ -233,6 +272,8 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
             "Загрузите Excel/CSV либо PDF более высокого качества."
         )
     result = _extract_from_tables(tables, full_text, base_confidence_penalty=15.0)
+    if truncated:
+        result.warnings.append(TRUNCATION_WARNING)
     return result
 
 
