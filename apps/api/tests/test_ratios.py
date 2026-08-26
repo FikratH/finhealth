@@ -1,5 +1,5 @@
 from app.services.metrics import detect_scale, match_label, parse_number
-from app.services.ratios import Inputs, compute_all, safe_div
+from app.services.ratios import Inputs, compute_all, safe_div, _roe, _quick_ratio
 from app.schemas import Scale
 
 
@@ -87,3 +87,21 @@ def test_average_fallback_warns_without_previous():
     roa = r(compute_all(i), "roa")
     assert abs(roa.value - 10.0) < 1e-9
     assert roa.warnings  # reduced-accuracy warning present
+
+
+def test_roe_na_when_average_equity_negative():
+    i = Inputs(latest={"net_income": 100, "shareholders_equity": 100},
+               previous={"shareholders_equity": -500})
+    value, _, warnings = _roe(i)
+    assert value is None
+    assert any("капитал" in w.lower() for w in warnings)
+
+
+def test_quick_ratio_warns_for_each_zeroed_component():
+    i = Inputs(latest={"accounts_receivable": 100, "current_liabilities": 200},
+               previous={})
+    value, _, warnings = _quick_ratio(i)
+    assert value == 0.5
+    joined = " ".join(warnings).lower()
+    assert "денежные средства" in joined      # missing cash disclosed
+    assert "нижн" in joined                    # explicit lower-bound wording

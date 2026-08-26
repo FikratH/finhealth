@@ -74,8 +74,12 @@ def _quick_ratio(i: Inputs):
                           "accounts_receivable": ar, "current_liabilities": cl})
     numer = (cash or 0) + (sti or 0) + (ar or 0)
     w = []
-    if sti is None:
-        w.append("Краткосрочные фин. вложения не найдены и приняты равными нулю в числителе Quick Ratio.")
+    for key_, val, label in (("cash", cash, "Денежные средства"),
+                             ("short_term_investments", sti, "Краткосрочные фин. вложения"),
+                             ("accounts_receivable", ar, "Дебиторская задолженность")):
+        if val is None:
+            w.append(f"{label} не найдены и приняты равными нулю — "
+                     "Quick Ratio является нижней оценкой.")
     return _mk(safe_div(numer, cl), {"cash": cash, "short_term_investments": sti,
                                      "accounts_receivable": ar, "current_liabilities": cl}, w)
 
@@ -168,6 +172,9 @@ def _roe(i: Inputs):
     if e is not None and e < 0:
         return _mk(None, {"net_income": ni, "average_shareholders_equity": avg_e},
                    ["Собственный капитал отрицателен — ROE не интерпретируем."])
+    if avg_e is not None and avg_e <= 0:
+        return _mk(None, {"net_income": ni, "average_shareholders_equity": avg_e},
+                   ["Средний собственный капитал не положителен — ROE не интерпретируем."])
     if i.p("shareholders_equity") is None and e is not None:
         w.append("Нет данных предыдущего периода: ROE рассчитан по капиталу на конец периода (точность снижена).")
     v = safe_div(ni, avg_e)
