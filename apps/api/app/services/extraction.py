@@ -32,21 +32,32 @@ class _Table:
     rows: list[_Row] = field(default_factory=list)
 
 
+def _find_header_index(rows: list[list[str]]) -> Optional[int]:
+    """Best header = the row (within the first 20 non-empty rows) whose
+    non-first cells carry the most distinct years. A title like
+    «Отчёт ... за 2024 год» has its year in cell 0 and scores 0 (finding 3)."""
+    best_idx, best_count = None, 0
+    for i, cells in enumerate(rows[:20]):
+        count = sum(1 for c in cells[1:] if M.detect_periods([c]))
+        if count > best_count:
+            best_idx, best_count = i, count
+    return best_idx
+
+
 def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
     table = _Table()
-    header_found = False
+    norm_rows: list[tuple[int, list[str]]] = []
     for i, row in enumerate(matrix):
         cells = ["" if c is None else str(c).strip() for c in row]
-        if not any(cells):
-            continue
-        label = cells[0]
-        rest = cells[1:]
-        if not header_found and M.detect_periods(cells):
+        if any(cells):
+            norm_rows.append((i, cells))
+    header_pos = _find_header_index([cells for _, cells in norm_rows])
+    for pos, (i, cells) in enumerate(norm_rows):
+        if pos == header_pos:
             table.header = cells
-            header_found = True
             continue
-        if label:
-            table.rows.append(_Row(label=label, cells=rest,
+        if cells[0]:
+            table.rows.append(_Row(label=cells[0], cells=cells[1:],
                                    source=f"{source_prefix}, строка {i + 1}"))
     return table
 
@@ -79,6 +90,7 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                 ys = M.detect_periods([cell])
                 if ys:
                     col_period[idx] = ys[0]
+        has_year_columns = bool(col_period)
         for row in t.rows:
             matched = M.match_label(row.label)
             if not matched:
@@ -92,10 +104,11 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                     continue
                 period = col_period.get(idx)
                 if period is None:
-                    # no header: first numeric column = latest, second = previous
+                    if has_year_columns:
+                        continue  # e.g. «Код» — a labeled non-year column is not data (finding 2)
                     period = latest if latest and (latest not in values) else previous
-                if period is None:
-                    period = "latest"
+                    if period is None:
+                        period = "latest"
                 if period not in values:
                     values[period] = num
             snippet = (row.label + " | " + " | ".join(c for c in row.cells if c))[:200]
@@ -104,13 +117,15 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                 if value is None:
                     return
                 existing = store.get(key)
-                if existing is not None:
-                    if existing.value is not None and existing.value != value:
-                        warnings.append(
-                            f"Дублирующиеся значения для «{M.METRICS[key]['name']}»: "
-                            f"{existing.value} и {value}. Использовано первое найденное."
-                        )
-                    return
+                if existing is not None and existing.value is not None:
+                    if conf <= existing.confidence:
+                        if existing.value != value:
+                            warnings.append(
+                                f"Дублирующиеся значения для «{M.METRICS[key]['name']}»: "
+                                f"{existing.value} и {value}. Использовано более надёжное совпадение."
+                            )
+                        return
+                    # new match is more confident (e.g. exact «Итого активы» later in the file)
                 store[key] = ExtractedValue(
                     metric=key, original_label=row.label, value=value,
                     currency=currency, scale=scale, period=period_label,
@@ -191,11 +206,12 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
         for page_no, page in enumerate(pdf.pages, start=1):
             page_text = page.extract_text() or ""
             text_parts.append(page_text)
-            for t_no, raw_table in enumerate(page.extract_tables() or [], start=1):
+            page_tables = page.extract_tables() or []
+            for t_no, raw_table in enumerate(page_tables, start=1):
                 tables.append(_rows_from_matrix(
                     raw_table, f"PDF, стр. {page_no}, таблица {t_no}"))
             # line-based fallback: "Label ....  1 234  5 678"
-            if not tables:
+            if not page_tables:
                 matrix = []
                 for line in page_text.splitlines():
                     parts = [p for p in line.replace("\u00a0", " ").rsplit("  ") if p.strip()]
