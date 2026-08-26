@@ -383,9 +383,9 @@ def compute_all(i: Inputs) -> list[RatioResult]:
 
 
 # ---------------------------------------------------------------------------
-# Altman Z-Score (original model for public manufacturing-type companies;
-# Z'' variant would be needed for private/other firms — out of MVP scope).
-# Never applied to banks / financial institutions.
+# Altman Z-Score: the public-model coefficients when a market cap is
+# available (X4 = MVE/TL), otherwise the private-company Z′ branch below
+# (X4 = BVE/TL). Never applied to banks / financial institutions.
 # ---------------------------------------------------------------------------
 def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
     if industry in {"banking"}:
@@ -407,7 +407,6 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
     public_model = mcap is not None
     tl = i.g("total_liabilities")
     rev = i.g("revenue")
-    ni = i.g("net_income")  # proxy for retained earnings is NOT used — see below
     needed = [ta, wc, ebit, x4_value, tl, rev]
     if any(v is None for v in needed) or ta == 0 or tl == 0:
         return RatioResult(
@@ -436,7 +435,6 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
         formula = "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)"
     status = (RatioStatus.good if z > good_cut
               else RatioStatus.attention if z >= grey_cut else RatioStatus.critical)
-    _ = ni
     return RatioResult(
         key="altman_z", name=model_name, category="leverage",
         formula=formula,

@@ -155,7 +155,7 @@ _norm_re = re.compile(r"[^a-zа-яё0-9 ]+")
 
 
 def normalize_label(label: str) -> str:
-    s = str(label).lower().replace("ё", "е").replace("’", "’")
+    s = str(label).lower().replace("ё", "е")
     s = _norm_re.sub(" ", s)
     return re.sub(r"\s+", " ", s).strip()
 

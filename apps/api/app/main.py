@@ -41,8 +41,7 @@ app.add_middleware(
 
 
 def _detect_kind(filename: str, data: bytes) -> str:
-    """Detect file kind by magic bytes; the extension is only a hint."""
-    ext = os.path.splitext(filename or "")[1].lower().lstrip(".")
+    """Detect file kind by magic bytes; the filename extension is not trusted at all."""
     if data[:5] == b"%PDF-":
         return "pdf"
     if data[:4] == b"PK\x03\x04":
@@ -56,7 +55,7 @@ def _detect_kind(filename: str, data: bytes) -> str:
                     raise HTTPException(
                         status_code=413,
                         detail="Архив Excel распакованного размера более 200 МБ не поддерживается.")
-                if any(n.startswith("xl/") for n in z.namelist()):
+                if "xl/workbook.xml" in z.namelist():
                     return "xlsx"
         except zipfile.BadZipFile:
             pass
@@ -80,7 +79,6 @@ def _detect_kind(filename: str, data: bytes) -> str:
             detail="Формат файла не распознан. Поддерживаются PDF, XLSX, XLS и CSV.")
     if not any(b < 9 or (13 < b < 32) for b in sample):
         return "csv"
-    _ = ext
     raise HTTPException(
         status_code=415,
         detail="Формат файла не распознан. Поддерживаются PDF, XLSX, XLS и CSV.")

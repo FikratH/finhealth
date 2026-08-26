@@ -190,9 +190,9 @@ def compute_confidence(*, values, ratios: list[RatioResult], has_previous: bool,
     present = [v for v in values if v.value is not None]
     present_core = {v.metric for v in values if v.value is not None} & CORE_METRICS
     completeness = len(present_core) / len(CORE_METRICS) * 100
-    extraction_conf = (sum(v.confidence for v in present) / len(present)) if present else 0
     manual = sum(1 for v in present if v.manually_edited)
     # manually verified values are treated as fully trusted
+    extraction_conf = 0
     if present:
         extraction_conf = (sum(100 if v.manually_edited else v.confidence
                                for v in present) / len(present))
