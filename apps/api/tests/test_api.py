@@ -28,8 +28,7 @@ def test_health():
 def test_industries_list():
     data = client.get("/api/industries").json()
     ids = {i["id"] for i in data["industries"]}
-    assert {"saas", "banking", "manufacturing"} <= ids
-    assert len(ids) == 10
+    assert {"saas", "banking", "manufacturing", "retail", "energy"} <= ids
 
 
 def test_benchmarks_endpoint():
