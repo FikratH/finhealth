@@ -1,1 +1,968 @@
-{"analysis_id":"d1d3057b3c984c02af202a6ac9471010","created_at":"2026-07-17T03:22:45.467771+00:00","industry":"manufacturing","industry_name":"Производство","currency":"KZT","scale":"thousands","latest_period":"2024","previous_period":"2023","overall_score":86.5,"health_label":"Сильное состояние","category_scores":[{"category":"liquidity","label":"Ликвидность","score":88.8,"weight":0.2,"ratios_used":4},{"category":"leverage","label":"Долговая нагрузка","score":79.4,"weight":0.25,"ratios_used":4},{"category":"profitability","label":"Рентабельность","score":86.9,"weight":0.2,"ratios_used":5},{"category":"efficiency","label":"Операционная эффективность","score":90.3,"weight":0.2,"ratios_used":4},{"category":"cashflow","label":"Денежные потоки","score":89.4,"weight":0.15,"ratios_used":3},{"category":"market","label":"Рыночная оценка","score":null,"weight":0.0,"ratios_used":0}],"ratios":[{"key":"current_ratio","name":"Current Ratio","category":"liquidity","formula":"current_assets / current_liabilities","inputs":{"current_assets":808750000.0,"current_liabilities":486200000.0},"substitution":"current_assets / current_liabilities  →  current_assets = 808 750 000 ; current_liabilities = 486 200 000","value":1.6634101192924722,"unit":"x","status":"good","score":92.0,"benchmark":{"ratio":"current_ratio","weight":1.0,"direction":"range","good":[1.5,3.0],"acceptable":[1.1,4.0],"note":""},"explanation":"Значение 1.66. Демонстрационный отраслевой диапазон: 1.5–3. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"quick_ratio","name":"Quick Ratio","category":"liquidity","formula":"(cash + short_term_investments + accounts_receivable) / current_liabilities","inputs":{"cash":185400000.0,"short_term_investments":42000000.0,"accounts_receivable":268750000.0,"current_liabilities":486200000.0},"substitution":"(cash + short_term_investments + accounts_receivable) / current_liabilities  →  cash = 185 400 000 ; short_term_investments = 42 000 000 ; accounts_receivable = 268 750 000 ; current_liabilities = 486 200 000","value":1.0204648292883587,"unit":"x","status":"good","score":86.6,"benchmark":{"ratio":"quick_ratio","weight":1.0,"direction":"higher","good":[0.9,2.0],"acceptable":[0.6,3.0],"note":""},"explanation":"Значение 1.02. Демонстрационный отраслевой диапазон: 0.9–2. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"cash_ratio","name":"Cash Ratio","category":"liquidity","formula":"(cash + short_term_investments) / current_liabilities","inputs":{"cash":185400000.0,"short_term_investments":42000000.0,"current_liabilities":486200000.0},"substitution":"(cash + short_term_investments) / current_liabilities  →  cash = 185 400 000 ; short_term_investments = 42 000 000 ; current_liabilities = 486 200 000","value":0.46770876182640886,"unit":"x","status":"good","score":90.0,"benchmark":{"ratio":"cash_ratio","weight":0.6,"direction":"higher","good":[0.2,1.0],"acceptable":[0.1,2.0],"note":""},"explanation":"Значение 0.47. Демонстрационный отраслевой диапазон: 0.2–1. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"ocf_ratio","name":"Operating Cash Flow Ratio","category":"liquidity","formula":"operating_cash_flow / current_liabilities","inputs":{"operating_cash_flow":287300000.0,"current_liabilities":486200000.0},"substitution":"operating_cash_flow / current_liabilities  →  operating_cash_flow = 287 300 000 ; current_liabilities = 486 200 000","value":0.5909090909090909,"unit":"x","status":"good","score":86.8,"benchmark":{"ratio":"ocf_ratio","weight":0.8,"direction":"higher","good":[0.4,2.0],"acceptable":[0.2,3.0],"note":""},"explanation":"Значение 0.59. Демонстрационный отраслевой диапазон: 0.4–2. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"debt_to_equity","name":"Debt-to-Equity","category":"leverage","formula":"total_debt / shareholders_equity","inputs":{"total_debt":540000000.0,"shareholders_equity":1430600000.0},"substitution":"total_debt / shareholders_equity  →  total_debt = 540 000 000 ; shareholders_equity = 1 430 600 000","value":0.37746400111841183,"unit":"x","status":"good","score":95.0,"benchmark":{"ratio":"debt_to_equity","weight":1.2,"direction":"lower","good":[0.0,1.0],"acceptable":[0.0,1.8],"note":""},"explanation":"Значение 0.38. Демонстрационный отраслевой диапазон: ≤ 1. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"liabilities_to_equity","name":"Liabilities-to-Equity","category":"leverage","formula":"total_liabilities / shareholders_equity","inputs":{"total_liabilities":1026200000.0,"shareholders_equity":1430600000.0},"substitution":"total_liabilities / shareholders_equity  →  total_liabilities = 1 026 200 000 ; shareholders_equity = 1 430 600 000","value":0.7173214036068782,"unit":"x","status":"good","score":95.0,"benchmark":{"ratio":"liabilities_to_equity","weight":0.8,"direction":"lower","good":[0.0,1.8],"acceptable":[0.0,2.8],"note":""},"explanation":"Значение 0.72. Демонстрационный отраслевой диапазон: ≤ 1.8. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"debt_ratio","name":"Debt Ratio","category":"leverage","formula":"total_liabilities / total_assets","inputs":{"total_liabilities":1026200000.0,"total_assets":2456800000.0},"substitution":"total_liabilities / total_assets  →  total_liabilities = 1 026 200 000 ; total_assets = 2 456 800 000","value":0.41769781830022795,"unit":"x","status":"good","score":95.0,"benchmark":{"ratio":"debt_ratio","weight":1.0,"direction":"lower","good":[0.0,0.55],"acceptable":[0.0,0.7],"note":""},"explanation":"Значение 0.42. Демонстрационный отраслевой диапазон: ≤ 0.55. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"interest_coverage","name":"Interest Coverage","category":"leverage","formula":"EBIT / interest_expense","inputs":{"ebit":356400000.0,"interest_expense":148200000.0},"substitution":"EBIT / interest_expense  →  ebit = 356 400 000 ; interest_expense = 148 200 000","value":2.4048582995951415,"unit":"x","status":"critical","score":48.1,"benchmark":{"ratio":"interest_coverage","weight":1.5,"direction":"higher","good":[5.0,1000.0],"acceptable":[2.5,1000.0],"note":"Покрытие процентов критично для капиталоёмкого бизнеса."},"explanation":"Значение 2.40. Демонстрационный отраслевой диапазон: 5–1000. Вывод: существенно вне отраслевого ориентира. Покрытие процентов критично для капиталоёмкого бизнеса.","applicable":true,"warnings":[]},{"key":"net_debt","name":"Net Debt","category":"leverage","formula":"total_debt - cash","inputs":{"total_debt":540000000.0,"cash":185400000.0},"substitution":"total_debt - cash  →  total_debt = 540 000 000 ; cash = 185 400 000","value":354600000.0,"unit":"money","status":"na","score":null,"benchmark":null,"explanation":"Справочная величина, не участвует в балльной оценке.","applicable":true,"warnings":[]},{"key":"net_debt_to_ebitda","name":"Net Debt / EBITDA","category":"leverage","formula":"(total_debt - cash) / EBITDA","inputs":{"net_debt":354600000.0,"ebitda":null},"substitution":"","value":null,"unit":"x","status":"na","score":null,"benchmark":{"ratio":"net_debt_to_ebitda","weight":1.2,"direction":"lower","good":[-100.0,2.5],"acceptable":[-100.0,4.0],"note":""},"explanation":"Недостаточно данных: не найдены значения ebitda.","applicable":true,"warnings":[]},{"key":"gross_margin","name":"Gross Margin","category":"profitability","formula":"gross_profit / revenue","inputs":{"gross_profit":974800000.0,"revenue":3245900000.0},"substitution":"gross_profit / revenue  →  gross_profit = 974 800 000 ; revenue = 3 245 900 000","value":30.03173233925876,"unit":"%","status":"good","score":88.8,"benchmark":{"ratio":"gross_margin","weight":1.0,"direction":"higher","good":[25.0,45.0],"acceptable":[15.0,60.0],"note":""},"explanation":"Значение 30.03%. Демонстрационный отраслевой диапазон: 25–45%. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"operating_margin","name":"Operating Margin","category":"profitability","formula":"operating_income / revenue","inputs":{"operating_income":356400000.0,"revenue":3245900000.0},"substitution":"operating_income / revenue  →  operating_income = 356 400 000 ; revenue = 3 245 900 000","value":10.980005545457345,"unit":"%","status":"good","score":88.7,"benchmark":{"ratio":"operating_margin","weight":1.0,"direction":"higher","good":[8.0,20.0],"acceptable":[3.0,30.0],"note":""},"explanation":"Значение 10.98%. Демонстрационный отраслевой диапазон: 8–20%. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"ebitda_margin","name":"EBITDA Margin","category":"profitability","formula":"EBITDA / revenue","inputs":{"ebitda":null,"revenue":3245900000.0},"substitution":"","value":null,"unit":"%","status":"na","score":null,"benchmark":{"ratio":"ebitda_margin","weight":1.0,"direction":"higher","good":[12.0,25.0],"acceptable":[6.0,40.0],"note":""},"explanation":"Недостаточно данных: не найдены значения ebitda.","applicable":true,"warnings":[]},{"key":"net_margin","name":"Net Profit Margin","category":"profitability","formula":"net_income / revenue","inputs":{"net_income":148500000.0,"revenue":3245900000.0},"substitution":"net_income / revenue  →  net_income = 148 500 000 ; revenue = 3 245 900 000","value":4.5750023106072275,"unit":"%","status":"attention","score":81.8,"benchmark":{"ratio":"net_margin","weight":1.0,"direction":"higher","good":[5.0,12.0],"acceptable":[1.0,25.0],"note":""},"explanation":"Значение 4.58%. Демонстрационный отраслевой диапазон: 5–12%. Вывод: вне желательного диапазона — требует внимания.","applicable":true,"warnings":[]},{"key":"roa","name":"Return on Assets","category":"profitability","formula":"net_income / average_total_assets","inputs":{"net_income":148500000.0,"average_total_assets":2377650000.0},"substitution":"net_income / average_total_assets  →  net_income = 148 500 000 ; average_total_assets = 2 377 650 000","value":6.2456627342123525,"unit":"%","status":"good","score":89.2,"benchmark":{"ratio":"roa","weight":1.0,"direction":"higher","good":[4.0,12.0],"acceptable":[1.0,20.0],"note":""},"explanation":"Значение 6.25%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"roe","name":"Return on Equity","category":"profitability","formula":"net_income / average_shareholders_equity","inputs":{"net_income":148500000.0,"average_shareholders_equity":1338700000.0},"substitution":"net_income / average_shareholders_equity  →  net_income = 148 500 000 ; average_shareholders_equity = 1 338 700 000","value":11.092851273623666,"unit":"%","status":"good","score":86.1,"benchmark":{"ratio":"roe","weight":1.0,"direction":"higher","good":[10.0,25.0],"acceptable":[4.0,45.0],"note":""},"explanation":"Значение 11.09%. Демонстрационный отраслевой диапазон: 10–25%. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"asset_turnover","name":"Asset Turnover","category":"efficiency","formula":"revenue / average_total_assets","inputs":{"revenue":3245900000.0,"average_total_assets":2377650000.0},"substitution":"revenue / average_total_assets  →  revenue = 3 245 900 000 ; average_total_assets = 2 377 650 000","value":1.3651714928605976,"unit":"x","status":"good","score":92.1,"benchmark":{"ratio":"asset_turnover","weight":1.0,"direction":"higher","good":[0.8,2.0],"acceptable":[0.5,3.0],"note":""},"explanation":"Значение 1.37. Демонстрационный отраслевой диапазон: 0.8–2. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"inventory_turnover","name":"Inventory Turnover","category":"efficiency","formula":"cost_of_goods_sold / average_inventory","inputs":{"cost_of_goods_sold":2271100000.0,"average_inventory":301000000.0},"substitution":"cost_of_goods_sold / average_inventory  →  cost_of_goods_sold = 2 271 100 000 ; average_inventory = 301 000 000","value":7.545182724252491,"unit":"x","status":"good","score":93.9,"benchmark":{"ratio":"inventory_turnover","weight":1.2,"direction":"higher","good":[4.0,10.0],"acceptable":[2.5,18.0],"note":""},"explanation":"Значение 7.55. Демонстрационный отраслевой диапазон: 4–10. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"receivables_turnover","name":"Receivables Turnover","category":"efficiency","formula":"revenue / average_accounts_receivable","inputs":{"revenue":3245900000.0,"average_accounts_receivable":284975000.0},"substitution":"revenue / average_accounts_receivable  →  revenue = 3 245 900 000 ; average_accounts_receivable = 284 975 000","value":11.390121940521098,"unit":"x","status":"good","score":98.5,"benchmark":{"ratio":"receivables_turnover","weight":1.0,"direction":"higher","good":[6.0,12.0],"acceptable":[4.0,20.0],"note":""},"explanation":"Значение 11.39. Демонстрационный отраслевой диапазон: 6–12. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"payables_turnover","name":"Payables Turnover","category":"efficiency","formula":"cost_of_goods_sold / average_accounts_payable","inputs":{"cost_of_goods_sold":2271100000.0,"average_accounts_payable":187400000.0},"substitution":"cost_of_goods_sold / average_accounts_payable  →  cost_of_goods_sold = 2 271 100 000 ; average_accounts_payable = 187 400 000","value":12.118996798292423,"unit":"x","status":"attention","score":72.3,"benchmark":{"ratio":"payables_turnover","weight":0.8,"direction":"range","good":[4.0,10.0],"acceptable":[2.0,15.0],"note":""},"explanation":"Значение 12.12. Демонстрационный отраслевой диапазон: 4–10. Вывод: вне желательного диапазона — требует внимания.","applicable":true,"warnings":[]},{"key":"free_cash_flow","name":"Free Cash Flow","category":"cashflow","formula":"operating_cash_flow - capital_expenditures","inputs":{"operating_cash_flow":287300000.0,"capital_expenditures":96500000.0},"substitution":"operating_cash_flow - capital_expenditures  →  operating_cash_flow = 287 300 000 ; capital_expenditures = 96 500 000","value":190800000.0,"unit":"money","status":"good","score":85.0,"benchmark":{"ratio":"free_cash_flow","weight":1.0,"direction":"higher","good":[0.0,1000000000000000.0],"acceptable":[-1000000000000.0,1000000000000000.0],"note":""},"explanation":"Значение 190800000.00. Демонстрационный отраслевой диапазон: ≥ 0. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"fcf_margin","name":"FCF Margin","category":"cashflow","formula":"free_cash_flow / revenue","inputs":{"free_cash_flow":190800000.0,"revenue":3245900000.0},"substitution":"free_cash_flow / revenue  →  free_cash_flow = 190 800 000 ; revenue = 3 245 900 000","value":5.878184786962014,"unit":"%","status":"good","score":88.5,"benchmark":{"ratio":"fcf_margin","weight":1.0,"direction":"higher","good":[4.0,12.0],"acceptable":[0.0,25.0],"note":""},"explanation":"Значение 5.88%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"cash_conversion","name":"Cash Conversion","category":"cashflow","formula":"operating_cash_flow / net_income","inputs":{"operating_cash_flow":287300000.0,"net_income":148500000.0},"substitution":"operating_cash_flow / net_income  →  operating_cash_flow = 287 300 000 ; net_income = 148 500 000","value":1.9346801346801348,"unit":"x","status":"good","score":94.7,"benchmark":{"ratio":"cash_conversion","weight":1.0,"direction":"higher","good":[0.9,2.5],"acceptable":[0.6,4.0],"note":""},"explanation":"Значение 1.93. Демонстрационный отраслевой диапазон: 0.9–2.5. Вывод: в пределах отраслевого ориентира.","applicable":true,"warnings":[]},{"key":"pe","name":"P/E Ratio","category":"market","formula":"market_capitalization / net_income","inputs":{},"substitution":"","value":null,"unit":"x","status":"na","score":null,"benchmark":{"ratio":"pe","weight":1.0,"direction":"range","good":[8.0,20.0],"acceptable":[5.0,35.0],"note":""},"explanation":"Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.","applicable":false,"warnings":[]},{"key":"pb","name":"P/B Ratio","category":"market","formula":"market_capitalization / shareholders_equity","inputs":{},"substitution":"","value":null,"unit":"x","status":"na","score":null,"benchmark":{"ratio":"pb","weight":0.6,"direction":"range","good":[1.0,4.0],"acceptable":[0.5,8.0],"note":""},"explanation":"Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.","applicable":false,"warnings":[]},{"key":"ev","name":"Enterprise Value","category":"market","formula":"market_capitalization + total_debt - cash","inputs":{},"substitution":"","value":null,"unit":"money","status":"na","score":null,"benchmark":null,"explanation":"Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.","applicable":false,"warnings":[]},{"key":"ev_ebitda","name":"EV/EBITDA","category":"market","formula":"enterprise_value / EBITDA","inputs":{},"substitution":"","value":null,"unit":"x","status":"na","score":null,"benchmark":{"ratio":"ev_ebitda","weight":1.0,"direction":"range","good":[5.0,10.0],"acceptable":[3.0,16.0],"note":""},"explanation":"Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.","applicable":false,"warnings":[]},{"key":"altman_z","name":"Altman Z-Score (без X2)","category":"leverage","formula":"1.2·(WC/TA) + 3.3·(EBIT/TA) + 0.6·(Equity/TL) + 1.0·(Rev/TA)","inputs":{"working_capital":322550000.0,"total_assets":2456800000.0,"ebit":356400000.0,"equity_or_market_cap":1430600000.0,"total_liabilities":1026200000.0,"revenue":3245900000.0},"substitution":"","value":2.7939019918449235,"unit":"x","status":"attention","score":null,"benchmark":null,"explanation":"Компонент X2 (нераспределённая прибыль / активы) исключён, так как нераспределённая прибыль не извлекается в MVP; значение занижено относительно полной модели. Ориентиры полной модели: > 2.99 — безопасная зона, 1.81–2.99 — серая зона, < 1.81 — зона риска.","applicable":true,"warnings":["Упрощённый расчёт: без компонента X2."]}],"strengths":["Current Ratio: 1.66 — Значение 1.66. Демонстрационный отраслевой диапазон: 1.5–3.","Quick Ratio: 1.02 — Значение 1.02. Демонстрационный отраслевой диапазон: 0.9–2.","Cash Ratio: 0.47 — Значение 0.47. Демонстрационный отраслевой диапазон: 0.2–1.","Operating Cash Flow Ratio: 0.59 — Значение 0.59. Демонстрационный отраслевой диапазон: 0.4–2.","Debt-to-Equity: 0.38 — Значение 0.38. Демонстрационный отраслевой диапазон: ≤ 1."],"risks":["Interest Coverage: 2.40 — вне отраслевого ориентира."],"recommendations":[{"problem":"Операционная прибыль слабо покрывает процентные расходы.","ratio":"Interest Coverage","current_value":2.4,"benchmark_hint":"желательно 5–1000 (демо-диапазон)","action":"Рефинансировать дорогой долг по более низкой ставке и/или работать над операционной маржинальностью (пересмотр расходов, цен, ассортимента).","expected_effect":"Рост запаса прочности по обслуживанию долга.","tradeoffs":"Рефинансирование может потребовать залогов и ковенант; сокращение расходов способно затронуть развитие.","priority":"high","difficulty":"high"},{"problem":"Чистая маржа ниже отраслевого ориентира.","ratio":"Net Profit Margin","current_value":4.58,"benchmark_hint":"желательно 5–12% (демо-диапазон)","action":"Помимо операционных мер — проанализировать финансовые расходы, налоговую нагрузку и разовые статьи; снизить стоимость обслуживания долга.","expected_effect":"Рост чистой прибыли и ROE.","tradeoffs":"Часть факторов (налоги, ставки) слабо управляема; оптимизация не должна создавать налоговых рисков.","priority":"medium","difficulty":"medium"}],"warnings":[{"code":"altman_z","message":"Упрощённый расчёт: без компонента X2."},{"code":"market","message":"Рыночные данные отсутствуют — рыночные мультипликаторы (P/E, P/B, EV/EBITDA) не рассчитывались."},{"code":"benchmarks","message":"Отраслевые диапазоны в текущем прототипе являются демонстрационными и должны быть заменены на проверенные данные из надёжных отраслевых источников."}],"confidence":{"total":90.6,"data_completeness":79.2,"extraction_confidence":95.0,"manual_corrections":0,"has_previous_period":true,"has_industry_benchmarks":true,"audited":true,"notes":["В документе обнаружено упоминание аудита отчётности.","Для повышения точности добавьте: ebitda, shares_outstanding, eps, share_price, market_cap."]},"missing_metrics":["EBITDA","Количество акций","Прибыль на акцию (EPS)","Цена акции","Рыночная капитализация"],"disclaimer":"Сервис не заменяет профессиональную финансовую консультацию. Отраслевые диапазоны в текущем прототипе являются демонстрационными и должны быть заменены на проверенные данные из надёжных отраслевых источников."}
+{
+  "analysis_id": "5bc5ec1efeec483f827c4bf5fe2a285b",
+  "created_at": "2026-08-26T21:47:33.868980+00:00",
+  "industry": "manufacturing",
+  "industry_name": "Производство",
+  "currency": "KZT",
+  "scale": "thousands",
+  "latest_period": "2024",
+  "previous_period": "2023",
+  "overall_score": 86.8,
+  "health_label": "Сильное состояние",
+  "category_scores": [
+    {
+      "category": "liquidity",
+      "label": "Ликвидность",
+      "score": 88.8,
+      "weight": 0.2,
+      "ratios_used": 4
+    },
+    {
+      "category": "leverage",
+      "label": "Долговая нагрузка",
+      "score": 79.4,
+      "weight": 0.25,
+      "ratios_used": 4
+    },
+    {
+      "category": "profitability",
+      "label": "Рентабельность",
+      "score": 86.9,
+      "weight": 0.2,
+      "ratios_used": 5
+    },
+    {
+      "category": "efficiency",
+      "label": "Операционная эффективность",
+      "score": 90.3,
+      "weight": 0.2,
+      "ratios_used": 4
+    },
+    {
+      "category": "cashflow",
+      "label": "Денежные потоки",
+      "score": 91.6,
+      "weight": 0.15,
+      "ratios_used": 2
+    },
+    {
+      "category": "market",
+      "label": "Рыночная оценка",
+      "score": null,
+      "weight": 0.0,
+      "ratios_used": 0
+    }
+  ],
+  "ratios": [
+    {
+      "key": "current_ratio",
+      "name": "Current Ratio",
+      "category": "liquidity",
+      "formula": "current_assets / current_liabilities",
+      "inputs": {
+        "current_assets": 808750000.0,
+        "current_liabilities": 486200000.0
+      },
+      "substitution": "current_assets / current_liabilities  →  current_assets = 808 750 000 ; current_liabilities = 486 200 000",
+      "value": 1.6634101192924722,
+      "unit": "x",
+      "status": "good",
+      "score": 92.0,
+      "benchmark": {
+        "ratio": "current_ratio",
+        "weight": 1.0,
+        "direction": "range",
+        "good": [
+          1.5,
+          3.0
+        ],
+        "acceptable": [
+          1.1,
+          4.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 1.66. Демонстрационный отраслевой диапазон: 1.5–3. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "quick_ratio",
+      "name": "Quick Ratio",
+      "category": "liquidity",
+      "formula": "(cash + short_term_investments + accounts_receivable) / current_liabilities",
+      "inputs": {
+        "cash": 185400000.0,
+        "short_term_investments": 42000000.0,
+        "accounts_receivable": 268750000.0,
+        "current_liabilities": 486200000.0
+      },
+      "substitution": "(cash + short_term_investments + accounts_receivable) / current_liabilities  →  cash = 185 400 000 ; short_term_investments = 42 000 000 ; accounts_receivable = 268 750 000 ; current_liabilities = 486 200 000",
+      "value": 1.0204648292883587,
+      "unit": "x",
+      "status": "good",
+      "score": 86.6,
+      "benchmark": {
+        "ratio": "quick_ratio",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          0.9,
+          2.0
+        ],
+        "acceptable": [
+          0.6,
+          3.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 1.02. Демонстрационный отраслевой диапазон: 0.9–2. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "cash_ratio",
+      "name": "Cash Ratio",
+      "category": "liquidity",
+      "formula": "(cash + short_term_investments) / current_liabilities",
+      "inputs": {
+        "cash": 185400000.0,
+        "short_term_investments": 42000000.0,
+        "current_liabilities": 486200000.0
+      },
+      "substitution": "(cash + short_term_investments) / current_liabilities  →  cash = 185 400 000 ; short_term_investments = 42 000 000 ; current_liabilities = 486 200 000",
+      "value": 0.46770876182640886,
+      "unit": "x",
+      "status": "good",
+      "score": 90.0,
+      "benchmark": {
+        "ratio": "cash_ratio",
+        "weight": 0.6,
+        "direction": "higher",
+        "good": [
+          0.2,
+          1.0
+        ],
+        "acceptable": [
+          0.1,
+          2.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 0.47. Демонстрационный отраслевой диапазон: 0.2–1. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "ocf_ratio",
+      "name": "Operating Cash Flow Ratio",
+      "category": "liquidity",
+      "formula": "operating_cash_flow / current_liabilities",
+      "inputs": {
+        "operating_cash_flow": 287300000.0,
+        "current_liabilities": 486200000.0
+      },
+      "substitution": "operating_cash_flow / current_liabilities  →  operating_cash_flow = 287 300 000 ; current_liabilities = 486 200 000",
+      "value": 0.5909090909090909,
+      "unit": "x",
+      "status": "good",
+      "score": 86.8,
+      "benchmark": {
+        "ratio": "ocf_ratio",
+        "weight": 0.8,
+        "direction": "higher",
+        "good": [
+          0.4,
+          2.0
+        ],
+        "acceptable": [
+          0.2,
+          3.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 0.59. Демонстрационный отраслевой диапазон: 0.4–2. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "debt_to_equity",
+      "name": "Debt-to-Equity",
+      "category": "leverage",
+      "formula": "total_debt / shareholders_equity",
+      "inputs": {
+        "total_debt": 540000000.0,
+        "shareholders_equity": 1430600000.0
+      },
+      "substitution": "total_debt / shareholders_equity  →  total_debt = 540 000 000 ; shareholders_equity = 1 430 600 000",
+      "value": 0.37746400111841183,
+      "unit": "x",
+      "status": "good",
+      "score": 95.0,
+      "benchmark": {
+        "ratio": "debt_to_equity",
+        "weight": 1.2,
+        "direction": "lower",
+        "good": [
+          0.0,
+          1.0
+        ],
+        "acceptable": [
+          0.0,
+          1.8
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 0.38. Демонстрационный отраслевой диапазон: ≤ 1. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "liabilities_to_equity",
+      "name": "Liabilities-to-Equity",
+      "category": "leverage",
+      "formula": "total_liabilities / shareholders_equity",
+      "inputs": {
+        "total_liabilities": 1026200000.0,
+        "shareholders_equity": 1430600000.0
+      },
+      "substitution": "total_liabilities / shareholders_equity  →  total_liabilities = 1 026 200 000 ; shareholders_equity = 1 430 600 000",
+      "value": 0.7173214036068782,
+      "unit": "x",
+      "status": "good",
+      "score": 95.0,
+      "benchmark": {
+        "ratio": "liabilities_to_equity",
+        "weight": 0.8,
+        "direction": "lower",
+        "good": [
+          0.0,
+          1.8
+        ],
+        "acceptable": [
+          0.0,
+          2.8
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 0.72. Демонстрационный отраслевой диапазон: ≤ 1.8. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "debt_ratio",
+      "name": "Debt Ratio",
+      "category": "leverage",
+      "formula": "total_liabilities / total_assets",
+      "inputs": {
+        "total_liabilities": 1026200000.0,
+        "total_assets": 2456800000.0
+      },
+      "substitution": "total_liabilities / total_assets  →  total_liabilities = 1 026 200 000 ; total_assets = 2 456 800 000",
+      "value": 0.41769781830022795,
+      "unit": "x",
+      "status": "good",
+      "score": 95.0,
+      "benchmark": {
+        "ratio": "debt_ratio",
+        "weight": 1.0,
+        "direction": "lower",
+        "good": [
+          0.0,
+          0.55
+        ],
+        "acceptable": [
+          0.0,
+          0.7
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 0.42. Демонстрационный отраслевой диапазон: ≤ 0.55. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "interest_coverage",
+      "name": "Interest Coverage",
+      "category": "leverage",
+      "formula": "EBIT / interest_expense",
+      "inputs": {
+        "ebit": 356400000.0,
+        "interest_expense": 148200000.0
+      },
+      "substitution": "EBIT / interest_expense  →  ebit = 356 400 000 ; interest_expense = 148 200 000",
+      "value": 2.4048582995951415,
+      "unit": "x",
+      "status": "critical",
+      "score": 48.1,
+      "benchmark": {
+        "ratio": "interest_coverage",
+        "weight": 1.5,
+        "direction": "higher",
+        "good": [
+          5.0,
+          1000.0
+        ],
+        "acceptable": [
+          2.5,
+          1000.0
+        ],
+        "note": "Покрытие процентов критично для капиталоёмкого бизнеса."
+      },
+      "explanation": "Значение 2.40. Демонстрационный отраслевой диапазон: 5–1000. Вывод: существенно вне отраслевого ориентира. Покрытие процентов критично для капиталоёмкого бизнеса.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "net_debt",
+      "name": "Net Debt",
+      "category": "leverage",
+      "formula": "total_debt - cash",
+      "inputs": {
+        "total_debt": 540000000.0,
+        "cash": 185400000.0
+      },
+      "substitution": "total_debt - cash  →  total_debt = 540 000 000 ; cash = 185 400 000",
+      "value": 354600000.0,
+      "unit": "money",
+      "status": "na",
+      "score": null,
+      "benchmark": null,
+      "explanation": "Справочная величина, не участвует в балльной оценке.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "net_debt_to_ebitda",
+      "name": "Net Debt / EBITDA",
+      "category": "leverage",
+      "formula": "(total_debt - cash) / EBITDA",
+      "inputs": {
+        "net_debt": 354600000.0,
+        "ebitda": null
+      },
+      "substitution": "",
+      "value": null,
+      "unit": "x",
+      "status": "na",
+      "score": null,
+      "benchmark": {
+        "ratio": "net_debt_to_ebitda",
+        "weight": 1.2,
+        "direction": "lower",
+        "good": [
+          -100.0,
+          2.5
+        ],
+        "acceptable": [
+          -100.0,
+          4.0
+        ],
+        "note": ""
+      },
+      "explanation": "Недостаточно данных: не найдены значения ebitda.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "gross_margin",
+      "name": "Gross Margin",
+      "category": "profitability",
+      "formula": "gross_profit / revenue",
+      "inputs": {
+        "gross_profit": 974800000.0,
+        "revenue": 3245900000.0
+      },
+      "substitution": "gross_profit / revenue  →  gross_profit = 974 800 000 ; revenue = 3 245 900 000",
+      "value": 30.03173233925876,
+      "unit": "%",
+      "status": "good",
+      "score": 88.8,
+      "benchmark": {
+        "ratio": "gross_margin",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          25.0,
+          45.0
+        ],
+        "acceptable": [
+          15.0,
+          60.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 30.03%. Демонстрационный отраслевой диапазон: 25–45%. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "operating_margin",
+      "name": "Operating Margin",
+      "category": "profitability",
+      "formula": "operating_income / revenue",
+      "inputs": {
+        "operating_income": 356400000.0,
+        "revenue": 3245900000.0
+      },
+      "substitution": "operating_income / revenue  →  operating_income = 356 400 000 ; revenue = 3 245 900 000",
+      "value": 10.980005545457345,
+      "unit": "%",
+      "status": "good",
+      "score": 88.7,
+      "benchmark": {
+        "ratio": "operating_margin",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          8.0,
+          20.0
+        ],
+        "acceptable": [
+          3.0,
+          30.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 10.98%. Демонстрационный отраслевой диапазон: 8–20%. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "ebitda_margin",
+      "name": "EBITDA Margin",
+      "category": "profitability",
+      "formula": "EBITDA / revenue",
+      "inputs": {
+        "ebitda": null,
+        "revenue": 3245900000.0
+      },
+      "substitution": "",
+      "value": null,
+      "unit": "%",
+      "status": "na",
+      "score": null,
+      "benchmark": {
+        "ratio": "ebitda_margin",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          12.0,
+          25.0
+        ],
+        "acceptable": [
+          6.0,
+          40.0
+        ],
+        "note": ""
+      },
+      "explanation": "Недостаточно данных: не найдены значения ebitda.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "net_margin",
+      "name": "Net Profit Margin",
+      "category": "profitability",
+      "formula": "net_income / revenue",
+      "inputs": {
+        "net_income": 148500000.0,
+        "revenue": 3245900000.0
+      },
+      "substitution": "net_income / revenue  →  net_income = 148 500 000 ; revenue = 3 245 900 000",
+      "value": 4.5750023106072275,
+      "unit": "%",
+      "status": "attention",
+      "score": 81.8,
+      "benchmark": {
+        "ratio": "net_margin",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          5.0,
+          12.0
+        ],
+        "acceptable": [
+          1.0,
+          25.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 4.58%. Демонстрационный отраслевой диапазон: 5–12%. Вывод: вне желательного диапазона — требует внимания.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "roa",
+      "name": "Return on Assets",
+      "category": "profitability",
+      "formula": "net_income / average_total_assets",
+      "inputs": {
+        "net_income": 148500000.0,
+        "average_total_assets": 2377650000.0
+      },
+      "substitution": "net_income / average_total_assets  →  net_income = 148 500 000 ; average_total_assets = 2 377 650 000",
+      "value": 6.2456627342123525,
+      "unit": "%",
+      "status": "good",
+      "score": 89.2,
+      "benchmark": {
+        "ratio": "roa",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          4.0,
+          12.0
+        ],
+        "acceptable": [
+          1.0,
+          20.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 6.25%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "roe",
+      "name": "Return on Equity",
+      "category": "profitability",
+      "formula": "net_income / average_shareholders_equity",
+      "inputs": {
+        "net_income": 148500000.0,
+        "average_shareholders_equity": 1338700000.0
+      },
+      "substitution": "net_income / average_shareholders_equity  →  net_income = 148 500 000 ; average_shareholders_equity = 1 338 700 000",
+      "value": 11.092851273623666,
+      "unit": "%",
+      "status": "good",
+      "score": 86.1,
+      "benchmark": {
+        "ratio": "roe",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          10.0,
+          25.0
+        ],
+        "acceptable": [
+          4.0,
+          45.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 11.09%. Демонстрационный отраслевой диапазон: 10–25%. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "asset_turnover",
+      "name": "Asset Turnover",
+      "category": "efficiency",
+      "formula": "revenue / average_total_assets",
+      "inputs": {
+        "revenue": 3245900000.0,
+        "average_total_assets": 2377650000.0
+      },
+      "substitution": "revenue / average_total_assets  →  revenue = 3 245 900 000 ; average_total_assets = 2 377 650 000",
+      "value": 1.3651714928605976,
+      "unit": "x",
+      "status": "good",
+      "score": 92.1,
+      "benchmark": {
+        "ratio": "asset_turnover",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          0.8,
+          2.0
+        ],
+        "acceptable": [
+          0.5,
+          3.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 1.37. Демонстрационный отраслевой диапазон: 0.8–2. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "inventory_turnover",
+      "name": "Inventory Turnover",
+      "category": "efficiency",
+      "formula": "cost_of_goods_sold / average_inventory",
+      "inputs": {
+        "cost_of_goods_sold": 2271100000.0,
+        "average_inventory": 301000000.0
+      },
+      "substitution": "cost_of_goods_sold / average_inventory  →  cost_of_goods_sold = 2 271 100 000 ; average_inventory = 301 000 000",
+      "value": 7.545182724252491,
+      "unit": "x",
+      "status": "good",
+      "score": 93.9,
+      "benchmark": {
+        "ratio": "inventory_turnover",
+        "weight": 1.2,
+        "direction": "higher",
+        "good": [
+          4.0,
+          10.0
+        ],
+        "acceptable": [
+          2.5,
+          18.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 7.55. Демонстрационный отраслевой диапазон: 4–10. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "receivables_turnover",
+      "name": "Receivables Turnover",
+      "category": "efficiency",
+      "formula": "revenue / average_accounts_receivable",
+      "inputs": {
+        "revenue": 3245900000.0,
+        "average_accounts_receivable": 284975000.0
+      },
+      "substitution": "revenue / average_accounts_receivable  →  revenue = 3 245 900 000 ; average_accounts_receivable = 284 975 000",
+      "value": 11.390121940521098,
+      "unit": "x",
+      "status": "good",
+      "score": 98.5,
+      "benchmark": {
+        "ratio": "receivables_turnover",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          6.0,
+          12.0
+        ],
+        "acceptable": [
+          4.0,
+          20.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 11.39. Демонстрационный отраслевой диапазон: 6–12. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "payables_turnover",
+      "name": "Payables Turnover",
+      "category": "efficiency",
+      "formula": "cost_of_goods_sold / average_accounts_payable",
+      "inputs": {
+        "cost_of_goods_sold": 2271100000.0,
+        "average_accounts_payable": 187400000.0
+      },
+      "substitution": "cost_of_goods_sold / average_accounts_payable  →  cost_of_goods_sold = 2 271 100 000 ; average_accounts_payable = 187 400 000",
+      "value": 12.118996798292423,
+      "unit": "x",
+      "status": "attention",
+      "score": 72.3,
+      "benchmark": {
+        "ratio": "payables_turnover",
+        "weight": 0.8,
+        "direction": "range",
+        "good": [
+          4.0,
+          10.0
+        ],
+        "acceptable": [
+          2.0,
+          15.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 12.12. Демонстрационный отраслевой диапазон: 4–10. Вывод: вне желательного диапазона — требует внимания.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "free_cash_flow",
+      "name": "Free Cash Flow",
+      "category": "cashflow",
+      "formula": "operating_cash_flow - capital_expenditures",
+      "inputs": {
+        "operating_cash_flow": 287300000.0,
+        "capital_expenditures": 96500000.0
+      },
+      "substitution": "operating_cash_flow - capital_expenditures  →  operating_cash_flow = 287 300 000 ; capital_expenditures = 96 500 000",
+      "value": 190800000.0,
+      "unit": "money",
+      "status": "na",
+      "score": null,
+      "benchmark": null,
+      "explanation": "Справочная величина, не участвует в балльной оценке.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "fcf_margin",
+      "name": "FCF Margin",
+      "category": "cashflow",
+      "formula": "free_cash_flow / revenue",
+      "inputs": {
+        "free_cash_flow": 190800000.0,
+        "revenue": 3245900000.0
+      },
+      "substitution": "free_cash_flow / revenue  →  free_cash_flow = 190 800 000 ; revenue = 3 245 900 000",
+      "value": 5.878184786962014,
+      "unit": "%",
+      "status": "good",
+      "score": 88.5,
+      "benchmark": {
+        "ratio": "fcf_margin",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          4.0,
+          12.0
+        ],
+        "acceptable": [
+          0.0,
+          25.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 5.88%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "cash_conversion",
+      "name": "Cash Conversion",
+      "category": "cashflow",
+      "formula": "operating_cash_flow / net_income",
+      "inputs": {
+        "operating_cash_flow": 287300000.0,
+        "net_income": 148500000.0
+      },
+      "substitution": "operating_cash_flow / net_income  →  operating_cash_flow = 287 300 000 ; net_income = 148 500 000",
+      "value": 1.9346801346801348,
+      "unit": "x",
+      "status": "good",
+      "score": 94.7,
+      "benchmark": {
+        "ratio": "cash_conversion",
+        "weight": 1.0,
+        "direction": "higher",
+        "good": [
+          0.9,
+          2.5
+        ],
+        "acceptable": [
+          0.6,
+          4.0
+        ],
+        "note": ""
+      },
+      "explanation": "Значение 1.93. Демонстрационный отраслевой диапазон: 0.9–2.5. Вывод: в пределах отраслевого ориентира.",
+      "applicable": true,
+      "warnings": []
+    },
+    {
+      "key": "pe",
+      "name": "P/E Ratio",
+      "category": "market",
+      "formula": "market_capitalization / net_income",
+      "inputs": {},
+      "substitution": "",
+      "value": null,
+      "unit": "x",
+      "status": "na",
+      "score": null,
+      "benchmark": {
+        "ratio": "pe",
+        "weight": 1.0,
+        "direction": "range",
+        "good": [
+          8.0,
+          20.0
+        ],
+        "acceptable": [
+          5.0,
+          35.0
+        ],
+        "note": ""
+      },
+      "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
+      "applicable": false,
+      "warnings": []
+    },
+    {
+      "key": "pb",
+      "name": "P/B Ratio",
+      "category": "market",
+      "formula": "market_capitalization / shareholders_equity",
+      "inputs": {},
+      "substitution": "",
+      "value": null,
+      "unit": "x",
+      "status": "na",
+      "score": null,
+      "benchmark": {
+        "ratio": "pb",
+        "weight": 0.6,
+        "direction": "range",
+        "good": [
+          1.0,
+          4.0
+        ],
+        "acceptable": [
+          0.5,
+          8.0
+        ],
+        "note": ""
+      },
+      "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
+      "applicable": false,
+      "warnings": []
+    },
+    {
+      "key": "ev",
+      "name": "Enterprise Value",
+      "category": "market",
+      "formula": "market_capitalization + total_debt - cash",
+      "inputs": {},
+      "substitution": "",
+      "value": null,
+      "unit": "money",
+      "status": "na",
+      "score": null,
+      "benchmark": null,
+      "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
+      "applicable": false,
+      "warnings": []
+    },
+    {
+      "key": "ev_ebitda",
+      "name": "EV/EBITDA",
+      "category": "market",
+      "formula": "enterprise_value / EBITDA",
+      "inputs": {},
+      "substitution": "",
+      "value": null,
+      "unit": "x",
+      "status": "na",
+      "score": null,
+      "benchmark": {
+        "ratio": "ev_ebitda",
+        "weight": 1.0,
+        "direction": "range",
+        "good": [
+          5.0,
+          10.0
+        ],
+        "acceptable": [
+          3.0,
+          16.0
+        ],
+        "note": ""
+      },
+      "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
+      "applicable": false,
+      "warnings": []
+    },
+    {
+      "key": "altman_z",
+      "name": "Altman Z′ (частная компания, без X2)",
+      "category": "leverage",
+      "formula": "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)",
+      "inputs": {
+        "working_capital": 322550000.0,
+        "total_assets": 2456800000.0,
+        "ebit": 356400000.0,
+        "equity_or_market_cap": 1430600000.0,
+        "total_liabilities": 1026200000.0,
+        "revenue": 3245900000.0
+      },
+      "substitution": "",
+      "value": 2.4489157601331915,
+      "unit": "x",
+      "status": "attention",
+      "score": null,
+      "benchmark": null,
+      "explanation": "Ориентиры модели: > 2.9 — безопасная зона, 1.23–2.9 — серая зона, < 1.23 — зона риска. Компонент X2 исключён (нераспределённая прибыль не извлекается); значение занижено.",
+      "applicable": true,
+      "warnings": [
+        "Упрощённый расчёт: без компонента X2."
+      ]
+    }
+  ],
+  "strengths": [
+    "Current Ratio: 1.66 — Значение 1.66. Демонстрационный отраслевой диапазон: 1.5–3.",
+    "Quick Ratio: 1.02 — Значение 1.02. Демонстрационный отраслевой диапазон: 0.9–2.",
+    "Cash Ratio: 0.47 — Значение 0.47. Демонстрационный отраслевой диапазон: 0.2–1.",
+    "Operating Cash Flow Ratio: 0.59 — Значение 0.59. Демонстрационный отраслевой диапазон: 0.4–2.",
+    "Debt-to-Equity: 0.38 — Значение 0.38. Демонстрационный отраслевой диапазон: ≤ 1."
+  ],
+  "risks": [
+    "Interest Coverage: 2.40 — вне отраслевого ориентира."
+  ],
+  "recommendations": [
+    {
+      "problem": "Операционная прибыль слабо покрывает процентные расходы.",
+      "ratio": "Interest Coverage",
+      "current_value": 2.4,
+      "benchmark_hint": "желательно 5–1000 (демо-диапазон)",
+      "action": "Рефинансировать дорогой долг по более низкой ставке и/или работать над операционной маржинальностью (пересмотр расходов, цен, ассортимента).",
+      "expected_effect": "Рост запаса прочности по обслуживанию долга.",
+      "tradeoffs": "Рефинансирование может потребовать залогов и ковенант; сокращение расходов способно затронуть развитие.",
+      "priority": "high",
+      "difficulty": "high"
+    },
+    {
+      "problem": "Чистая маржа ниже отраслевого ориентира.",
+      "ratio": "Net Profit Margin",
+      "current_value": 4.58,
+      "benchmark_hint": "желательно 5–12% (демо-диапазон)",
+      "action": "Помимо операционных мер — проанализировать финансовые расходы, налоговую нагрузку и разовые статьи; снизить стоимость обслуживания долга.",
+      "expected_effect": "Рост чистой прибыли и ROE.",
+      "tradeoffs": "Часть факторов (налоги, ставки) слабо управляема; оптимизация не должна создавать налоговых рисков.",
+      "priority": "medium",
+      "difficulty": "medium"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "altman_z",
+      "message": "Упрощённый расчёт: без компонента X2."
+    },
+    {
+      "code": "market",
+      "message": "Рыночные данные отсутствуют — рыночные мультипликаторы (P/E, P/B, EV/EBITDA) не рассчитывались."
+    },
+    {
+      "code": "benchmarks",
+      "message": "Отраслевые диапазоны в текущем прототипе являются демонстрационными и должны быть заменены на проверенные данные из надёжных отраслевых источников."
+    }
+  ],
+  "confidence": {
+    "total": 95.3,
+    "data_completeness": 95.0,
+    "extraction_confidence": 95.0,
+    "manual_corrections": 0,
+    "has_previous_period": true,
+    "has_industry_benchmarks": true,
+    "audited": true,
+    "notes": [
+      "В документе обнаружено упоминание аудита отчётности.",
+      "Для повышения точности добавьте: ebitda, shares_outstanding, eps, share_price, market_cap."
+    ]
+  },
+  "missing_metrics": [
+    "EBITDA",
+    "Количество акций",
+    "Прибыль на акцию (EPS)",
+    "Цена акции",
+    "Рыночная капитализация"
+  ],
+  "disclaimer": "Сервис не заменяет профессиональную финансовую консультацию. Отраслевые диапазоны в текущем прототипе являются демонстрационными и должны быть заменены на проверенные данные из надёжных отраслевых источников."
+}
