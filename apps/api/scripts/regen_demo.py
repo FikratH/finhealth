@@ -79,7 +79,7 @@ def regen_demo():
         print(f"  Risk radar keys: {list(rr.keys())}")
         if "piotroski" in rr and rr["piotroski"]:
             p = rr["piotroski"]
-            print(f"    Piotroski score: {p.get('score')}/{p.get('max_score')}")
+            print(f"    Piotroski score: {p.get('score')}/{p.get('max')}")
         if "beneish" in rr and rr["beneish"]:
             b = rr["beneish"]
             print(f"    Beneish m_score: {b.get('m_score')}")
@@ -101,7 +101,7 @@ def regen_demo():
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(analysis, f, indent=2, ensure_ascii=False)
 
-    print(f"\nDemanded analysis saved to {output_file}")
+    print(f"\nDemo analysis saved to {output_file}")
     return True
 
 if __name__ == "__main__":
