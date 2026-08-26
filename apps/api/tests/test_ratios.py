@@ -1,5 +1,5 @@
 from app.services.metrics import detect_scale, match_label, parse_number
-from app.services.ratios import Inputs, compute_all, safe_div, _roe, _quick_ratio
+from app.services.ratios import Inputs, compute_all, safe_div, _roe, _quick_ratio, altman_z
 from app.schemas import Scale
 
 
@@ -105,3 +105,20 @@ def test_quick_ratio_warns_for_each_zeroed_component():
     joined = " ".join(warnings).lower()
     assert "денежные средства" in joined      # missing cash disclosed
     assert "нижн" in joined                    # explicit lower-bound wording
+
+
+def test_altman_uses_private_z_prime_without_market_data():
+    i = Inputs(latest={
+        "total_assets": 2456800, "current_assets": 808750,
+        "current_liabilities": 486200, "operating_income": 356400,
+        "shareholders_equity": 1430600, "total_liabilities": 1026200,
+        "revenue": 3245900}, previous={})
+    r = altman_z(i, "manufacturing")
+    ta = 2456800
+    expected = (0.717 * ((808750 - 486200) / ta) + 3.107 * (356400 / ta)
+                + 0.420 * (1430600 / 1026200) + 0.998 * (3245900 / ta))
+    assert abs(r.value - expected) < 1e-9
+    assert "Z′" in r.name or "Z'" in r.name
+    # Z′ grey zone is 1.23–2.9
+    assert r.status.value == ("good" if expected > 2.9 else
+                              "attention" if expected >= 1.23 else "critical")

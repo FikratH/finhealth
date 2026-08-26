@@ -401,11 +401,14 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
     if i.g("current_assets") is not None and i.g("current_liabilities") is not None:
         wc = i.g("current_assets") - i.g("current_liabilities")
     ebit = i.g("operating_income")
-    equity_or_mcap = _market_cap(i) or i.g("shareholders_equity")
+    mcap = _market_cap(i)
+    equity = i.g("shareholders_equity")
+    x4_value = mcap if mcap is not None else equity
+    public_model = mcap is not None
     tl = i.g("total_liabilities")
     rev = i.g("revenue")
     ni = i.g("net_income")  # proxy for retained earnings is NOT used — see below
-    needed = [ta, wc, ebit, equity_or_mcap, tl, rev]
+    needed = [ta, wc, ebit, x4_value, tl, rev]
     if any(v is None for v in needed) or ta == 0 or tl == 0:
         return RatioResult(
             key="altman_z", name="Altman Z-Score", category="leverage",
@@ -416,22 +419,34 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
         )
     # X2 requires retained earnings which the dictionary does not extract;
     # per "do not invent data" we omit X2 and clearly disclose it.
-    z = (1.2 * (wc / ta) + 3.3 * (ebit / ta) + 0.6 * (equity_or_mcap / tl)
-         + 1.0 * (rev / ta))
-    status = (RatioStatus.good if z > 2.99
-              else RatioStatus.attention if z >= 1.81 else RatioStatus.critical)
+    ta_ = ta
+    x1 = wc / ta_
+    x3 = ebit / ta_
+    x4 = x4_value / tl
+    x5 = rev / ta_
+    if public_model:
+        z = 1.2 * x1 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
+        good_cut, grey_cut = 2.99, 1.81
+        model_name = "Altman Z (публичная модель, без X2)"
+        formula = "1.2·(WC/TA) + 3.3·(EBIT/TA) + 0.6·(MVE/TL) + 1.0·(Rev/TA)"
+    else:
+        z = 0.717 * x1 + 3.107 * x3 + 0.420 * x4 + 0.998 * x5
+        good_cut, grey_cut = 2.9, 1.23
+        model_name = "Altman Z′ (частная компания, без X2)"
+        formula = "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)"
+    status = (RatioStatus.good if z > good_cut
+              else RatioStatus.attention if z >= grey_cut else RatioStatus.critical)
     _ = ni
     return RatioResult(
-        key="altman_z", name="Altman Z-Score (без X2)", category="leverage",
-        formula="1.2·(WC/TA) + 3.3·(EBIT/TA) + 0.6·(Equity/TL) + 1.0·(Rev/TA)",
+        key="altman_z", name=model_name, category="leverage",
+        formula=formula,
         inputs={"working_capital": wc, "total_assets": ta, "ebit": ebit,
-                "equity_or_market_cap": equity_or_mcap, "total_liabilities": tl,
+                "equity_or_market_cap": x4_value, "total_liabilities": tl,
                 "revenue": rev},
         value=z, status=status, applicable=True,
-        explanation="Компонент X2 (нераспределённая прибыль / активы) исключён, "
-                    "так как нераспределённая прибыль не извлекается в MVP; "
-                    "значение занижено относительно полной модели. "
-                    "Ориентиры полной модели: > 2.99 — безопасная зона, "
-                    "1.81–2.99 — серая зона, < 1.81 — зона риска.",
+        explanation=f"Ориентиры модели: > {good_cut} — безопасная зона, "
+                    f"{grey_cut}–{good_cut} — серая зона, < {grey_cut} — зона риска. "
+                    "Компонент X2 исключён (нераспределённая прибыль не извлекается); "
+                    "значение занижено.",
         warnings=["Упрощённый расчёт: без компонента X2."],
     )
