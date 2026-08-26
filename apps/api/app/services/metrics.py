@@ -142,6 +142,11 @@ METRICS: dict[str, dict] = {
     },
 }
 
+# Metrics reported in statements as parenthesized outflows; the engine works
+# with their positive magnitude and formulas subtract them explicitly.
+EXPENSE_MAGNITUDE_METRICS: frozenset[str] = frozenset(
+    {"cost_of_goods_sold", "interest_expense", "capital_expenditures"})
+
 _norm_re = re.compile(r"[^a-zа-яё0-9 ]+")
 
 

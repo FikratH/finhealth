@@ -47,7 +47,7 @@ def test_extraction_of_demo_file():
     assert ex["audited"] is True
     by = {v["metric"]: v for v in ex["values"]}
     assert by["revenue"]["value"] == 3245900
-    assert by["cost_of_goods_sold"]["value"] == -2271100  # parentheses negative
+    assert by["cost_of_goods_sold"]["value"] == 2271100  # sign normalized
     assert by["current_assets"]["value"] == 808750        # «Итого по разделу II»
     assert by["ebitda"]["value"] is None                  # missing => N/A, not 0
     assert by["revenue"]["source"]                        # traceable source
@@ -60,18 +60,7 @@ def test_extraction_of_demo_file():
 
 def _analysis_request(ex, industry="manufacturing"):
     vals = copy.deepcopy(ex["values"])
-    for v in vals:
-        if v["metric"] == "cost_of_goods_sold" and v["value"] is not None:
-            v["value"] = abs(v["value"])
-        if v["metric"] == "interest_expense" and v["value"] is not None:
-            v["value"] = abs(v["value"])
-        if v["metric"] == "capital_expenditures" and v["value"] is not None:
-            v["value"] = abs(v["value"])
     prev = copy.deepcopy(ex["previous_values"])
-    for v in prev:
-        if v["value"] is not None and v["metric"] in (
-                "cost_of_goods_sold", "interest_expense", "capital_expenditures"):
-            v["value"] = abs(v["value"])
     return {
         "upload_id": ex["upload_id"], "industry": industry,
         "currency": ex["currency"], "scale": ex["scale"],
@@ -146,3 +135,11 @@ def test_unknown_and_known_industries(industry):
     assert ok.status_code == 200
     bad = client.post("/api/analyze", json=_analysis_request(ex, "unknown"))
     assert bad.status_code == 400
+
+
+def test_turnovers_positive_without_client_side_sign_fixes():
+    ex = _upload_and_extract()
+    res = client.post("/api/analyze", json=_analysis_request(ex)).json()
+    ratios = {r["key"]: r for r in res["ratios"]}
+    assert ratios["inventory_turnover"]["value"] is None or ratios["inventory_turnover"]["value"] > 0
+    assert ratios["interest_coverage"]["value"] > 0

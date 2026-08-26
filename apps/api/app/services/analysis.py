@@ -24,7 +24,8 @@ def _to_absolute(values: list[ExtractedValue]) -> dict[str, Optional[float]]:
         # per-share and per-unit metrics are not scaled
         if v.metric in {"share_price", "eps"}:
             mult = 1
-        out[v.metric] = v.value * mult
+        value = abs(v.value) if v.metric in M.EXPENSE_MAGNITUDE_METRICS else v.value
+        out[v.metric] = value * mult
     return out
 
 

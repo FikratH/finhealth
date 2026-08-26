@@ -126,6 +126,12 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                             )
                         return
                     # new match is more confident (e.g. exact «Итого активы» later in the file)
+                if key in M.EXPENSE_MAGNITUDE_METRICS and value is not None and value < 0:
+                    value = abs(value)
+                    note = (f"Знак «{M.METRICS[key]['name']}» нормализован: значение в скобках "
+                            "приведено к положительной величине расхода.")
+                    if note not in warnings:
+                        warnings.append(note)
                 store[key] = ExtractedValue(
                     metric=key, original_label=row.label, value=value,
                     currency=currency, scale=scale, period=period_label,

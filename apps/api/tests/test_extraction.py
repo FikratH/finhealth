@@ -39,3 +39,17 @@ def test_exact_total_beats_earlier_fuzzy_match():
     assert _values(res)["total_assets"] == 2456800
     ev = {v.metric: v for v in res.values}["total_assets"]
     assert ev.value == 2456800 and ev.confidence == 95.0
+
+
+def test_expense_signs_are_normalized_positive():
+    csv = (
+        "Показатель;2024;2023\n"
+        "Доход от реализации;3 245 900;2 987 400\n"
+        "Себестоимость реализованной продукции;(2 271 100);(2 122 300)\n"
+        "Проценты к уплате;(148 200);(139 700)\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["cost_of_goods_sold"] == 2271100
+    assert vals["interest_expense"] == 148200
+    assert any("знак" in w.lower() for w in res.warnings)
