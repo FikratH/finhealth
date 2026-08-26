@@ -146,7 +146,7 @@ _norm_re = re.compile(r"[^a-zа-яё0-9 ]+")
 
 
 def normalize_label(label: str) -> str:
-    s = str(label).lower().replace("ё", "е").replace("’", "'")
+    s = str(label).lower().replace("ё", "е").replace("’", "’")
     s = _norm_re.sub(" ", s)
     return re.sub(r"\s+", " ", s).strip()
 
@@ -159,13 +159,25 @@ for _key, _cfg in METRICS.items():
 _SYNONYM_INDEX.sort(key=lambda t: len(t[0]), reverse=True)
 
 
-def match_label(label: str) -> Optional[tuple[str, float]]:
-    """Return (metric_key, confidence 0..100) for a document row label, or None.
+QUALIFIER_TOKENS: frozenset[str] = frozenset({
+    # RU qualifiers that flip a line’s meaning relative to the base metric
+    "нематериальн", "прочие", "прочая", "прочий", "отложенн", "изменени",
+    "уменьшени", "увеличени", "поступлени", "выбыти", "авансы",
+    # EN equivalents
+    "decrease", "increase", "investing", "financing", "used in", "changes",
+    "deferred", "other", "intangible",
+})
 
-    Exact normalized match wins (95). Otherwise the longest synonym contained
-    in the label as a whole phrase wins (80). Substring-only matches are not
-    accepted for very short synonyms to avoid false positives.
-    """
+
+def _has_qualifier(norm: str, syn: str) -> bool:
+    remainder = norm.replace(syn, " ")
+    return any(tok in remainder for tok in QUALIFIER_TOKENS)
+
+
+def match_label(label: str) -> Optional[tuple[str, float]]:
+    """Exact normalized match → 95. Whole-phrase containment → 80, only when
+    the synonym covers ≥55% of the label and the remainder carries no
+    meaning-flipping qualifier (see audit finding 1)."""
     norm = normalize_label(label)
     if not norm:
         return None
@@ -175,10 +187,13 @@ def match_label(label: str) -> Optional[tuple[str, float]]:
     for syn, key in _SYNONYM_INDEX:
         if len(syn) < 4:
             continue
-        if re.search(rf"(?:^|\s){re.escape(syn)}(?:$|\s|,)", norm):
-            # Guard: "total assets" must not be captured by "assets" first —
-            # ordering by length already ensures the longer phrase wins.
-            return key, 80.0
+        if not re.search(rf"(?:^|\s){re.escape(syn)}(?:$|\s)", norm):
+            continue
+        if len(syn) / len(norm) < 0.55:
+            continue
+        if _has_qualifier(norm, syn):
+            continue
+        return key, 80.0
     return None
 
 
