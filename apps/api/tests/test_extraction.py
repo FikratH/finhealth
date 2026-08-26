@@ -91,3 +91,30 @@ def test_duplicate_parenthesized_value_across_sections_no_false_dup_warning():
     vals = _values(res)
     assert vals["cost_of_goods_sold"] == 2271100
     assert not any("дублирующ" in w.lower() for w in res.warnings)
+
+
+def test_advanced_metrics_net_ppe():
+    """Test extraction of net_ppe (Основные средства) metric."""
+    csv = (
+        "Показатель;2024;2023\n"
+        "Основные средства;850 000;830 000\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["net_ppe"] == 850000
+    prev = {v.metric: v.value for v in res.previous_values}
+    assert prev["net_ppe"] == 830000
+
+
+def test_advanced_metrics_sga_expense_with_sign_warning():
+    """Test extraction of sga_expense (Управленческие расходы) with parenthesized negatives."""
+    csv = (
+        "Показатель;2024;2023\n"
+        "Управленческие расходы;(120 000);(110 000)\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["sga_expense"] == 120000
+    prev = {v.metric: v.value for v in res.previous_values}
+    assert prev["sga_expense"] == 110000
+    assert any("знак" in w.lower() for w in res.warnings)

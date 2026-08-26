@@ -140,16 +140,48 @@ METRICS: dict[str, dict] = {
         "synonyms": ["market capitalization", "market cap",
                      "рыночная капитализация"],
     },
+    "retained_earnings": {
+        "name": "Нераспределённая прибыль",
+        "synonyms": ["retained earnings", "нераспределенная прибыль",
+                     "нераспределенная прибыль (непокрытый убыток)"],
+    },
+    "net_ppe": {
+        "name": "Основные средства",
+        "synonyms": ["property, plant and equipment", "net property plant and equipment",
+                     "основные средства", "основные средства (нетто)"],
+    },
+    "long_term_debt": {
+        "name": "Долгосрочные займы",
+        "synonyms": ["long-term debt", "long term borrowings",
+                     "долгосрочные займы", "долгосрочные займы и кредиты",
+                     "долгосрочные кредиты и займы", "долгосрочные заемные средства"],
+    },
+    "depreciation_amortization": {
+        "name": "Амортизация",
+        "synonyms": ["depreciation and amortization", "depreciation",
+                     "амортизация", "износ и амортизация", "амортизация основных средств"],
+    },
+    "sga_expense": {
+        "name": "Коммерческие и управленческие расходы",
+        "synonyms": ["selling, general and administrative expenses", "sga",
+                     "коммерческие расходы", "управленческие расходы",
+                     "коммерческие и административные расходы",
+                     "общие и административные расходы"],
+    },
 }
 
 # Metrics reported in statements as parenthesized outflows; the engine works
 # with their positive magnitude and formulas subtract them explicitly.
 EXPENSE_MAGNITUDE_METRICS: frozenset[str] = frozenset(
-    {"cost_of_goods_sold", "interest_expense", "capital_expenditures"})
+    {"cost_of_goods_sold", "interest_expense", "capital_expenditures",
+     "sga_expense", "depreciation_amortization"})
 
 MARKET_METRICS: frozenset[str] = frozenset(
     {"market_cap", "share_price", "eps", "shares_outstanding"})
-CORE_METRICS: frozenset[str] = frozenset(METRICS) - MARKET_METRICS
+ADVANCED_METRICS: frozenset[str] = frozenset(
+    {"retained_earnings", "net_ppe", "long_term_debt",
+     "depreciation_amortization", "sga_expense"})
+CORE_METRICS: frozenset[str] = frozenset(METRICS) - MARKET_METRICS - ADVANCED_METRICS
 
 _norm_re = re.compile(r"[^a-zа-яё0-9 ]+")
 
