@@ -92,7 +92,9 @@ def health():
 @app.get("/api/industries")
 def industries():
     return {"industries": list_industries(),
-            "disclaimer": "Отраслевые диапазоны являются демонстрационными."}
+            "disclaimer": "Часть отраслевых ориентиров основана на данных Damodaran "
+                          "(NYU Stern, янв. 2026); остальные являются демонстрационными "
+                          "и помечены соответствующим образом."}
 
 
 @app.get("/api/industries/{industry_id}/benchmarks")
@@ -102,7 +104,9 @@ def industry_benchmarks(industry_id: str):
     except KeyError:
         raise HTTPException(status_code=404, detail="Отрасль не найдена.")
     return {"industry": industry_id, **cfg,
-            "disclaimer": "Демонстрационные диапазоны — замените проверенными отраслевыми данными."}
+            "disclaimer": "Часть отраслевых ориентиров основана на данных Damodaran "
+                          "(NYU Stern, янв. 2026); остальные являются демонстрационными "
+                          "и помечены соответствующим образом."}
 
 
 @app.post("/api/upload", response_model=UploadedDocument)

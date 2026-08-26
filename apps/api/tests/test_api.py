@@ -29,12 +29,16 @@ def test_industries_list():
     data = client.get("/api/industries").json()
     ids = {i["id"] for i in data["industries"]}
     assert {"saas", "banking", "manufacturing", "retail", "energy"} <= ids
+    assert "Damodaran" in data["disclaimer"]
+    assert "демонстрационными" in data["disclaimer"]
 
 
 def test_benchmarks_endpoint():
     resp = client.get("/api/industries/saas/benchmarks")
     assert resp.status_code == 200
     assert "inventory_turnover" in resp.json()["excluded_ratios"]
+    assert "Damodaran" in resp.json()["disclaimer"]
+    assert "демонстрационными" in resp.json()["disclaimer"]
     assert client.get("/api/industries/nope/benchmarks").status_code == 404
 
 

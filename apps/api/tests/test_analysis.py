@@ -123,3 +123,36 @@ def test_no_data_reports_insufficient_not_critical():
     assert res.overall_score is None
     assert "недостаточно данных" in res.health_label.lower()
     assert "критическое" not in res.health_label.lower()
+
+
+# --- Method-aware benchmark wording (fix wave / F1) -------------------------
+# manufacturing.net_margin is Damodaran-sourced (method=band-around-center-v1);
+# manufacturing.current_ratio is still method=demo. Both ship in the same
+# analysis, so the explanation text must reflect each ratio's own provenance.
+
+def test_damodaran_sourced_ratio_explanation_cites_source_not_demo():
+    res = run_analysis(_demo_shaped_request())
+    net_margin = next(r for r in res.ratios if r.key == "net_margin")
+    assert "Damodaran" in net_margin.explanation
+    assert "Демонстрационный" not in net_margin.explanation
+
+
+def test_demo_method_ratio_explanation_still_says_demonstrational():
+    res = run_analysis(_demo_shaped_request())
+    current_ratio = next(r for r in res.ratios if r.key == "current_ratio")
+    assert "Демонстрационный" in current_ratio.explanation
+
+
+def test_benchmarks_warning_discloses_mixed_sourcing():
+    res = run_analysis(_demo_shaped_request())
+    bm_warning = next(w for w in res.warnings if w.code == "benchmarks")
+    assert "Damodaran" in bm_warning.message
+    assert "демонстрационными" in bm_warning.message
+
+
+def test_default_disclaimer_leads_with_professional_advice_notice():
+    res = run_analysis(_demo_shaped_request())
+    assert res.disclaimer.startswith(
+        "Сервис не заменяет профессиональную финансовую консультацию.")
+    assert "Damodaran" in res.disclaimer
+    assert "демонстрационными" in res.disclaimer

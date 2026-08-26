@@ -141,8 +141,12 @@ def apply_benchmarks(ratios: list[RatioResult], industry_id: str) -> list[RatioR
         verdict = {"good": "в пределах отраслевого ориентира",
                    "attention": "вне желательного диапазона — требует внимания",
                    "critical": "существенно вне отраслевого ориентира"}[status.value]
-        r.explanation = (f"Значение {r.value:.2f}{u}. Демонстрационный отраслевой "
-                         f"диапазон: {rng}. Вывод: {verdict}."
+        if bm.get("method") != "demo" and bm.get("source"):
+            bm_phrase = (f"Отраслевой ориентир (источник: {bm['source']}, "
+                        f"данные {bm.get('as_of', '')}): {rng}.")
+        else:
+            bm_phrase = f"Демонстрационный отраслевой диапазон: {rng}."
+        r.explanation = (f"Значение {r.value:.2f}{u}. {bm_phrase} Вывод: {verdict}."
                          + (f" {bm.get('note')}" if bm.get("note") else ""))
     return ratios
 
