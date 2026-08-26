@@ -1,0 +1,155 @@
+"""FinHealth MVP — FastAPI backend.
+
+Security notes:
+- file size limit + magic-byte MIME check (extension alone is not trusted);
+- uploads stored under random UUID names, deleted right after extraction;
+- logging never includes financial values, only ids and technical metadata;
+- no secrets in the repository, configuration via environment (.env.example).
+"""
+from __future__ import annotations
+
+import logging
+import os
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
+from . import storage
+from .schemas import AnalysisRequest, ExtractionResult, UploadedDocument
+from .services import extraction
+from .services.analysis import run_analysis
+from .services.scoring import get_industry, list_industries
+
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("finhealth")
+
+MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE_MB", "15")) * 1024 * 1024
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+app = FastAPI(title="FinHealth MVP", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["*"],
+)
+
+
+def _detect_kind(filename: str, data: bytes) -> str:
+    """Detect file kind by magic bytes; the extension is only a hint."""
+    ext = os.path.splitext(filename or "")[1].lower().lstrip(".")
+    if data[:5] == b"%PDF-":
+        return "pdf"
+    if data[:4] == b"PK\x03\x04":
+        # zip container: xlsx (docx/pptx are rejected later by extractor)
+        if ext in ("xlsx", "xlsm"):
+            return "xlsx"
+        return "xlsx"
+    if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        return "xls"
+    # plausibly text → CSV: must decode AND contain no control bytes
+    try:
+        sample = data[:4096]
+        sample.decode("utf-8-sig")
+        if not any(b < 9 or (13 < b < 32) for b in sample):
+            return "csv"
+    except UnicodeDecodeError:
+        pass
+    _ = ext
+    raise HTTPException(
+        status_code=415,
+        detail="Формат файла не распознан. Поддерживаются PDF, XLSX, XLS и CSV.")
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/industries")
+def industries():
+    return {"industries": list_industries(),
+            "disclaimer": "Отраслевые диапазоны являются демонстрационными."}
+
+
+@app.get("/api/industries/{industry_id}/benchmarks")
+def industry_benchmarks(industry_id: str):
+    try:
+        cfg = get_industry(industry_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Отрасль не найдена.")
+    return {"industry": industry_id, **cfg,
+            "disclaimer": "Демонстрационные диапазоны — замените проверенными отраслевыми данными."}
+
+
+@app.post("/api/upload", response_model=UploadedDocument)
+async def upload(file: UploadFile = File(...)):
+    storage.cleanup_stale_uploads()
+    data = await file.read()
+    if len(data) == 0:
+        raise HTTPException(status_code=400, detail="Файл пуст.")
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Файл больше {MAX_FILE_SIZE // (1024 * 1024)} МБ. Уменьшите размер файла.")
+    kind = _detect_kind(file.filename or "", data)
+    upload_id = storage.save_upload(data, kind)
+    log.info("upload accepted id=%s kind=%s size=%d", upload_id, kind, len(data))
+    return UploadedDocument(
+        upload_id=upload_id,
+        filename=os.path.basename(file.filename or "document"),
+        content_type=file.content_type or "application/octet-stream",
+        size_bytes=len(data), detected_kind=kind)
+
+
+@app.post("/api/extract", response_model=ExtractionResult)
+def extract(payload: dict):
+    upload_id = str(payload.get("upload_id", ""))
+    stored = storage.read_upload(upload_id)
+    if stored is None:
+        raise HTTPException(status_code=404,
+                            detail="Загруженный файл не найден или уже удалён. Загрузите файл заново.")
+    data, kind = stored
+    try:
+        result = extraction.extract(data, kind)
+    except extraction.ScannedPdfError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception:
+        log.exception("extraction failed id=%s kind=%s", upload_id, kind)
+        raise HTTPException(status_code=422,
+                            detail="Не удалось извлечь данные из файла. Попробуйте Excel/CSV.")
+    finally:
+        # the document itself is never stored permanently
+        storage.delete_upload(upload_id)
+        log.info("upload deleted id=%s", upload_id)
+    result.upload_id = upload_id
+    result.suggested_industry = extraction.suggest_industry(result)
+    return result
+
+
+@app.post("/api/analyze")
+def analyze(req: AnalysisRequest):
+    try:
+        result = run_analysis(req)
+    except KeyError:
+        raise HTTPException(status_code=400, detail="Неизвестная отрасль.")
+    payload = result.model_dump(mode="json")
+    storage.save_analysis(result.analysis_id, result.created_at, payload)
+    log.info("analysis saved id=%s industry=%s", result.analysis_id, req.industry)
+    return payload
+
+
+@app.get("/api/analysis/{analysis_id}")
+def get_analysis(analysis_id: str):
+    payload = storage.get_analysis(analysis_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Анализ не найден.")
+    return payload
+
+
+@app.delete("/api/analysis/{analysis_id}")
+def delete_analysis(analysis_id: str):
+    if not storage.delete_analysis(analysis_id):
+        raise HTTPException(status_code=404, detail="Анализ не найден.")
+    return {"deleted": analysis_id}

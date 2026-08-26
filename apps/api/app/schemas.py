@@ -1,0 +1,176 @@
+"""Pydantic schemas shared across the API."""
+from __future__ import annotations
+
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+
+class Scale(str, Enum):
+    units = "units"
+    thousands = "thousands"
+    millions = "millions"
+    billions = "billions"
+
+
+SCALE_MULTIPLIER = {
+    Scale.units: 1,
+    Scale.thousands: 1_000,
+    Scale.millions: 1_000_000,
+    Scale.billions: 1_000_000_000,
+}
+
+
+class UploadedDocument(BaseModel):
+    upload_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    detected_kind: str  # pdf | xlsx | xls | csv
+
+
+class ExtractedValue(BaseModel):
+    metric: str                      # standardized key, e.g. "revenue"
+    original_label: str              # label as it appears in the document
+    value: Optional[float] = None    # numeric value in document scale; None => N/A
+    currency: Optional[str] = None
+    scale: Scale = Scale.units
+    period: Optional[str] = None
+    source: str = ""                 # page / sheet / cell reference
+    confidence: float = Field(0, ge=0, le=100)
+    snippet: str = ""                # raw fragment from the document
+    manually_edited: bool = False
+
+
+class ExtractionResult(BaseModel):
+    upload_id: str
+    periods: list[str] = []
+    latest_period: Optional[str] = None
+    previous_period: Optional[str] = None
+    currency: Optional[str] = None
+    scale: Scale = Scale.units
+    audited: bool = False
+    values: list[ExtractedValue] = []          # latest period
+    previous_values: list[ExtractedValue] = [] # previous period, when present
+    warnings: list[str] = []
+    suggested_industry: Optional[str] = None
+
+
+class RatioStatus(str, Enum):
+    good = "good"
+    attention = "attention"
+    critical = "critical"
+    na = "na"
+
+
+class IndustryBenchmark(BaseModel):
+    ratio: str
+    weight: float
+    direction: str                   # higher | lower | range
+    good: list[float]
+    acceptable: list[float]
+    note: str = ""
+
+
+class RatioResult(BaseModel):
+    key: str
+    name: str
+    category: str
+    formula: str
+    inputs: dict[str, Optional[float]] = {}
+    substitution: str = ""
+    value: Optional[float] = None
+    unit: str = "x"                  # x | % | money
+    status: RatioStatus = RatioStatus.na
+    score: Optional[float] = None    # 0..100 inside its category
+    benchmark: Optional[IndustryBenchmark] = None
+    explanation: str = ""
+    applicable: bool = True
+    warnings: list[str] = []
+
+
+class Recommendation(BaseModel):
+    problem: str
+    ratio: str
+    current_value: Optional[float] = None
+    benchmark_hint: str = ""
+    action: str
+    expected_effect: str
+    tradeoffs: str
+    priority: str                    # high | medium | low
+    difficulty: str                  # low | medium | high
+
+
+class Warning_(BaseModel):
+    code: str
+    message: str
+
+
+class ConfidenceBreakdown(BaseModel):
+    total: float = Field(0, ge=0, le=100)
+    data_completeness: float = 0
+    extraction_confidence: float = 0
+    manual_corrections: int = 0
+    has_previous_period: bool = False
+    has_industry_benchmarks: bool = False
+    audited: bool = False
+    notes: list[str] = []
+
+
+class CategoryScore(BaseModel):
+    category: str
+    label: str
+    score: Optional[float] = None    # None => not enough data
+    weight: float = 0
+    ratios_used: int = 0
+
+
+class AnalysisRequest(BaseModel):
+    upload_id: Optional[str] = None
+    industry: str
+    currency: Optional[str] = None
+    scale: Scale = Scale.units
+    latest_period: Optional[str] = None
+    previous_period: Optional[str] = None
+    audited: bool = False
+    values: list[ExtractedValue]
+    previous_values: list[ExtractedValue] = []
+
+
+class AnalysisResult(BaseModel):
+    analysis_id: str
+    created_at: str
+    industry: str
+    industry_name: str
+    currency: Optional[str] = None
+    scale: Scale
+    latest_period: Optional[str] = None
+    previous_period: Optional[str] = None
+    overall_score: float
+    health_label: str
+    category_scores: list[CategoryScore]
+    ratios: list[RatioResult]
+    strengths: list[str]
+    risks: list[str]
+    recommendations: list[Recommendation]
+    warnings: list[Warning_]
+    confidence: ConfidenceBreakdown
+    missing_metrics: list[str] = []
+    disclaimer: str = (
+        "Сервис не заменяет профессиональную финансовую консультацию. "
+        "Отраслевые диапазоны в текущем прототипе являются демонстрационными "
+        "и должны быть заменены на проверенные данные из надёжных отраслевых источников."
+    )
+
+
+def health_label(score: float) -> str:
+    if score < 25:
+        return "Критическое состояние"
+    if score < 45:
+        return "Слабое состояние"
+    if score < 65:
+        return "Удовлетворительное состояние"
+    if score < 80:
+        return "Хорошее состояние"
+    return "Сильное состояние"

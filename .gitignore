@@ -1,0 +1,15 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.db
+# node (Phase 3)
+node_modules/
+.next/
+# env & os
+.env
+.env.local
+.DS_Store
+# workspace
+.superpowers/

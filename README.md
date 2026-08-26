@@ -1,0 +1,14 @@
+# Tonus AI (working title; repo: finhealth)
+
+Financial-health diagnostics: upload a financial statement, verify the
+extracted numbers, receive an auditable 0–100 diagnosis with industry
+benchmarks and prioritized recommendations.
+
+- `apps/api` — FastAPI analysis engine (deterministic; no LLM in the numbers)
+- `apps/web` — Next.js 15 frontend (Phase 3)
+- `docs/spec` — product spec · `docs/roadmap.md` — phases · `docs/audit` — backend audit
+
+## Develop
+
+API: `cd apps/api && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/uvicorn app.main:app --reload --port 8000`
+Tests: `cd apps/api && .venv/bin/python -m pytest tests -q`
