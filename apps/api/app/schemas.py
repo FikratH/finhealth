@@ -75,6 +75,7 @@ class IndustryBenchmark(BaseModel):
     good: list[float]
     acceptable: list[float]
     note: str = ""
+    source: str = ""
 
 
 class RatioResult(BaseModel):

@@ -111,7 +111,8 @@ def apply_benchmarks(ratios: list[RatioResult], industry_id: str) -> list[RatioR
         if bm:
             r.benchmark = IndustryBenchmark(
                 ratio=r.key, weight=bm["weight"], direction=bm["direction"],
-                good=bm["good"], acceptable=bm["acceptable"], note=bm.get("note", ""))
+                good=bm["good"], acceptable=bm["acceptable"], note=bm.get("note", ""),
+                source=bm.get("source", ""))
         if r.value is None:
             r.status = RatioStatus.na
             if not r.explanation:

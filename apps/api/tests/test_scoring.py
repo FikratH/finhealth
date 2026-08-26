@@ -68,3 +68,45 @@ def test_overall_score_renormalizes_weights():
     score, notes = overall_score(cats)
     assert score == 80.0          # only the available category counts
     assert notes                  # renormalization disclosed
+
+
+# --- Damodaran-derived benchmarks (Plan 2 / Task 6) ------------------------
+
+def test_every_benchmark_entry_has_a_method():
+    data = load_benchmarks()
+    for ind_id, cfg in data["industries"].items():
+        for rk, bm in cfg["ratios"].items():
+            assert bm.get("method"), f"{ind_id}.{rk} is missing a method field"
+
+
+def test_damodaran_sourced_entries_carry_full_citation():
+    data = load_benchmarks()
+    for ind_id, cfg in data["industries"].items():
+        for rk, bm in cfg["ratios"].items():
+            if bm.get("method") == "band-around-center-v1":
+                for field in ("source", "source_url", "as_of"):
+                    assert bm.get(field), f"{ind_id}.{rk} missing {field}"
+
+
+def test_saas_gross_margin_exceeds_manufacturing():
+    # Software margins should structurally exceed heavy-industry margins.
+    data = load_benchmarks()
+    saas_lo = data["industries"]["saas"]["ratios"]["gross_margin"]["good"][0]
+    mfg_lo = data["industries"]["manufacturing"]["ratios"]["gross_margin"]["good"][0]
+    assert saas_lo > mfg_lo
+
+
+def test_manufacturing_inventory_turnover_center_is_plausible():
+    data = load_benchmarks()
+    bm = data["industries"]["manufacturing"]["ratios"]["inventory_turnover"]
+    assert bm["method"] == "band-around-center-v1"
+    # good = [center * 0.85, center * 1.8] for direction "higher" (band-around-center-v1)
+    center = bm["good"][0] / 0.85
+    assert 2 <= center <= 20
+
+
+def test_benchmarks_still_validate_after_damodaran_merge():
+    # load_benchmarks() runs _validate_benchmarks(); this just re-asserts it
+    # doesn't raise against the live (non-mocked) benchmarks.json.
+    data = load_benchmarks()
+    assert len(data["industries"]) == 10
