@@ -196,6 +196,8 @@ def parse_number(raw) -> Optional[float]:
     """
     if raw is None:
         return None
+    if isinstance(raw, bool):          # bool subclasses int; TRUE cells are not numbers
+        return None
     if isinstance(raw, (int, float)):
         return float(raw)
     s = str(raw).strip().lower()
@@ -222,6 +224,16 @@ def parse_number(raw) -> Optional[float]:
             s = s.replace(",", ".")       # decimal comma
         else:
             s = s.replace(",", "")        # thousands comma
+    elif "." in s:
+        parts = s.split(".")
+        if len(parts) > 2:
+            if all(len(p) == 3 for p in parts[1:]):
+                s = s.replace(".", "")   # 1.234.567 → 1234567
+            else:
+                return None
+        elif (len(parts) == 2 and len(parts[1]) == 3
+              and parts[0] not in {"0", "-0", "+0"}):
+            s = s.replace(".", "")       # 1.234 → 1234 (mirror of '1,234')
     try:
         value = float(s)
     except ValueError:
