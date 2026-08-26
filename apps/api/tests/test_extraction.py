@@ -79,3 +79,15 @@ def test_headerless_two_numeric_column_table_triggers_safety_net():
     matched = [v for v in res.values if v.value is not None]
     assert matched
     assert all(v.confidence <= 50 for v in matched)
+
+
+def test_duplicate_parenthesized_value_across_sections_no_false_dup_warning():
+    csv = (
+        "Показатель;2024;2023\n"
+        "Себестоимость реализованной продукции;(2 271 100);(2 122 300)\n"
+        "Себестоимость продаж;(2 271 100);(2 122 300)\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["cost_of_goods_sold"] == 2271100
+    assert not any("дублирующ" in w.lower() for w in res.warnings)
