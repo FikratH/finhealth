@@ -42,16 +42,68 @@ class _Table:
     rows: list[_Row] = field(default_factory=list)
 
 
+_HEADER_LABEL_TOKENS = ("наименование", "показател")
+_LATEST_MARKERS = ("на конец", "end of")
+_PREVIOUS_MARKERS = ("на начало", "beginning of")
+_PERIOD_MARKER_PHRASES = _LATEST_MARKERS + _PREVIOUS_MARKERS + (
+    "конец отчетного", "начало отчетного")
+_KOD_TOKEN = "код"
+
+
 def _find_header_index(rows: list[list[str]]) -> Optional[int]:
     """Best header = the row (within the first 20 non-empty rows) whose
-    non-first cells carry the most distinct years. A title like
-    «Отчёт ... за 2024 год» has its year in cell 0 and scores 0 (finding 3)."""
+    non-first cells carry the most year-bearing cells. A title like
+    «Отчёт ... за 2024 год» has its year in cell 0 and scores 0 (finding 3).
+
+    Some statutory layouts (e.g. KZ RSBU) never put a year in the header at
+    all — columns are labelled «На конец / начало отчётного периода»
+    instead. When no row scores any year-bearing cells, fall back to
+    recognizing the header by its label content: cell 0 reads as
+    "наименование"/"показатель" and at least one other cell carries a
+    period-marker phrase (finding F1)."""
     best_idx, best_count = None, 0
     for i, cells in enumerate(rows[:20]):
         count = sum(1 for c in cells[1:] if M.detect_periods([c]))
         if count > best_count:
             best_idx, best_count = i, count
+    if best_count > 0:
+        return best_idx
+    for i, cells in enumerate(rows[:20]):
+        if not cells:
+            continue
+        first = M.normalize_label(cells[0])
+        if not any(tok in first for tok in _HEADER_LABEL_TOKENS):
+            continue
+        if any(any(marker in M.normalize_label(c) for marker in _PERIOD_MARKER_PHRASES)
+               for c in cells[1:]):
+            return i
     return best_idx
+
+
+def _label_based_column_roles(header: list[str]) -> dict[int, str]:
+    """When a table's header has no year cells at all, map columns to
+    latest/previous by header label content instead. «Код» columns are
+    skipped — they hold line codes, not values. Columns carrying an
+    explicit «на конец»/«на начало» (or «end of»/«beginning of») marker are
+    assigned by that marker; any remaining, unmarked columns fall back to
+    positional order (first → latest, second → previous)."""
+    candidates: list[int] = []
+    roles: dict[int, str] = {}
+    for idx, cell in enumerate(header[1:]):
+        norm = M.normalize_label(cell)
+        if _KOD_TOKEN in norm:
+            continue
+        candidates.append(idx)
+        if any(m in norm for m in _LATEST_MARKERS):
+            roles[idx] = "latest"
+        elif any(m in norm for m in _PREVIOUS_MARKERS):
+            roles[idx] = "previous"
+    remaining_roles = [r for r in ("latest", "previous") if r not in roles.values()]
+    for idx in candidates:
+        if idx in roles or not remaining_roles:
+            continue
+        roles[idx] = remaining_roles.pop(0)
+    return roles
 
 
 def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
@@ -92,8 +144,7 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     warnings: list[str] = []
 
     for t in tables:
-        header_periods = M.detect_periods(t.header)
-        # map column index -> period label
+        # map column index -> period label, from year-bearing header cells
         col_period: dict[int, str] = {}
         if t.header:
             for idx, cell in enumerate(t.header[1:]):
@@ -101,24 +152,60 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                 if ys:
                     col_period[idx] = ys[0]
         has_year_columns = bool(col_period)
+
+        # No year cells anywhere in the header: try to recognize it by label
+        # content instead (e.g. KZ statutory «Наименование показателя / Код
+        # строки / На конец / На начало отчётного периода», finding F1).
+        col_role: dict[int, str] = {}
+        label_header_recognized = False
+        if not has_year_columns and t.header:
+            first_norm = M.normalize_label(t.header[0])
+            label_header_recognized = any(tok in first_norm for tok in _HEADER_LABEL_TOKENS)
+            if label_header_recognized:
+                col_role = _label_based_column_roles(t.header)
+
+        # Safety net: neither a year-bearing header nor a recognized label
+        # header — we cannot reliably tell period columns from service
+        # columns like «Код». Warn once and cap confidence for this table if
+        # any matched row actually carries ≥2 numeric cells (finding F1b).
+        safety_net_active = False
+        if not has_year_columns and not label_header_recognized:
+            for row in t.rows:
+                if M.match_label(row.label) is None:
+                    continue
+                if sum(1 for c in row.cells if M.parse_number(c) is not None) >= 2:
+                    safety_net_active = True
+                    break
+            if safety_net_active:
+                note = ("Колонки периодов не распознаны — проверьте, что значения не взяты "
+                        "из служебной колонки (например, «Код»).")
+                if note not in warnings:
+                    warnings.append(note)
+
         for row in t.rows:
             matched = M.match_label(row.label)
             if not matched:
                 continue
             key, conf = matched
             conf = max(0.0, conf - base_confidence_penalty)
+            if safety_net_active:
+                conf = min(conf, 50.0)
             values: dict[str, float | None] = {}
             for idx, raw in enumerate(row.cells):
                 num = M.parse_number(raw)
                 if num is None:
                     continue
-                period = col_period.get(idx)
-                if period is None:
-                    if has_year_columns:
-                        continue  # e.g. «Код» — a labeled non-year column is not data (finding 2)
-                    period = latest if latest and (latest not in values) else previous
+                if has_year_columns:
+                    period = col_period.get(idx)
                     if period is None:
-                        period = "latest"
+                        continue  # e.g. «Код» — a labeled non-year column is not data (finding 2)
+                elif label_header_recognized:
+                    role = col_role.get(idx)
+                    if role is None:
+                        continue  # «Код» column, or an extra column beyond latest/previous
+                    period = role  # synthetic "latest"/"previous" key, resolved below
+                else:
+                    period = "latest"  # legacy fully-positional fallback (safety-net path)
                 if period not in values:
                     values[period] = num
             snippet = (row.label + " | " + " | ".join(c for c in row.cells if c))[:200]
@@ -136,7 +223,7 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                             )
                         return
                     # new match is more confident (e.g. exact «Итого активы» later in the file)
-                if key in M.EXPENSE_MAGNITUDE_METRICS and value is not None and value < 0:
+                if key in M.EXPENSE_MAGNITUDE_METRICS and value < 0:
                     value = abs(value)
                     note = (f"Знак «{M.METRICS[key]['name']}» нормализован: значение в скобках "
                             "приведено к положительной величине расхода.")
@@ -148,12 +235,21 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                     source=row.source, confidence=conf, snippet=snippet,
                 )
 
-            lp = latest or "latest"
-            put(found, latest, values.get(lp) if lp in values else
-                (list(values.values())[0] if values and latest is None else values.get(lp)))
-            if previous and previous in values:
-                put(found_prev, previous, values[previous])
-            _ = header_periods
+            latest_val = None
+            if latest is not None and latest in values:
+                latest_val = values[latest]
+            elif "latest" in values:
+                latest_val = values["latest"]
+            if latest_val is not None:
+                put(found, latest, latest_val)
+
+            prev_val = None
+            if previous is not None and previous in values:
+                prev_val = values[previous]
+            elif "previous" in values:
+                prev_val = values["previous"]
+            if prev_val is not None:
+                put(found_prev, previous, prev_val)
 
     # N/A entries for every dictionary metric that was not found
     for key, cfg in M.METRICS.items():

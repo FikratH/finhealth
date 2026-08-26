@@ -53,3 +53,29 @@ def test_expense_signs_are_normalized_positive():
     assert vals["cost_of_goods_sold"] == 2271100
     assert vals["interest_expense"] == 148200
     assert any("знак" in w.lower() for w in res.warnings)
+
+
+def test_kz_no_year_header_maps_kod_and_period_columns_by_label():
+    res = extract_from_csv((GOLDEN / "rsbu_kod_no_year_header.csv").read_bytes())
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["current_assets"] == 808750
+    assert vals["total_assets"] == 2456800
+    assert vals["current_liabilities"] == 486200
+    prev = {v.metric: v.value for v in res.previous_values}
+    assert prev["total_assets"] == 2298500
+    codes = {1210, 1200, 1600, 1500}
+    assert not (set(vals.values()) & codes)
+    assert not (set(prev.values()) & codes)
+
+
+def test_headerless_two_numeric_column_table_triggers_safety_net():
+    csv = (
+        "Запасы;1210;312 600\n"
+        "Итого активы;1600;2 456 800\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    assert any("не распознаны" in w.lower() for w in res.warnings)
+    matched = [v for v in res.values if v.value is not None]
+    assert matched
+    assert all(v.confidence <= 50 for v in matched)
