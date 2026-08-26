@@ -6,9 +6,13 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from ..schemas import (SCALE_MULTIPLIER, AnalysisRequest, AnalysisResult,
-                       ExtractedValue, Scale, Warning_, health_label)
+                       BeneishResult, DuPontResult, ExtractedValue,
+                       PiotroskiResult, RiskRadar, Scale, Warning_,
+                       health_label)
 from . import metrics as M
-from .ratios import Inputs, altman_z, compute_all, has_market_data
+from .beneish import beneish_m
+from .piotroski import piotroski_f
+from .ratios import Inputs, altman_z, compute_all, dupont, has_market_data
 from .recommendations import build_recommendations
 from .scoring import (apply_benchmarks, category_scores, compute_confidence,
                       get_industry, overall_score, strengths_and_risks)
@@ -52,6 +56,17 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
     cats = category_scores(ratios, req.industry)
     score, score_notes = overall_score(cats)
 
+    piotroski = PiotroskiResult(**piotroski_f(inputs))
+    beneish = BeneishResult(**beneish_m(inputs))
+    # dupont() only guards avg equity <= 0, while ratios._roe additionally
+    # excludes a negative ending equity even when the average is positive —
+    # the two can diverge on a company recovering from a negative-equity year.
+    dupont_dict = dupont(inputs)
+    dupont_result = DuPontResult(**dupont_dict) if dupont_dict is not None else None
+    altman_ratio = next((r for r in ratios if r.key == "altman_z"), None)
+    risk_radar = RiskRadar(altman=altman_ratio, piotroski=piotroski,
+                            beneish=beneish, dupont=dupont_result)
+
     warnings: list[Warning_] = [Warning_(code="score", message=n) for n in score_notes]
     for r in ratios:
         for w in r.warnings:
@@ -60,6 +75,12 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
         warnings.append(Warning_(
             code="market",
             message="Рыночные данные отсутствуют — рыночные мультипликаторы (P/E, P/B, EV/EBITDA) не рассчитывались."))
+    if beneish.m_score is None:
+        warnings.append(Warning_(
+            code="beneish",
+            message="M-Score Бениша не рассчитан: модели требуются данные за два периода и "
+                    "дополнительные метрики (основные средства, амортизация, коммерческие/"
+                    "управленческие расходы), которых недостаточно в извлечённых данных."))
     warnings.append(Warning_(
         code="benchmarks",
         message="Отраслевые диапазоны в текущем прототипе являются демонстрационными "
@@ -94,4 +115,5 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
         warnings=warnings,
         confidence=confidence,
         missing_metrics=missing,
+        risk_radar=risk_radar,
     )

@@ -122,6 +122,42 @@ class ConfidenceBreakdown(BaseModel):
     notes: list[str] = []
 
 
+class PiotroskiSignal(BaseModel):
+    key: str
+    name: str
+    value: Optional[bool] = None
+    detail: str = ""
+
+
+class PiotroskiResult(BaseModel):
+    score: int
+    max: int
+    signals: list[PiotroskiSignal] = []
+    interpretation: str = ""
+
+
+class BeneishResult(BaseModel):
+    m_score: Optional[float] = None
+    indices: dict[str, Optional[float]] = {}
+    flag: Optional[str] = None
+    substituted: list[str] = []
+    interpretation: str = ""
+
+
+class DuPontResult(BaseModel):
+    net_margin: Optional[float] = None
+    asset_turnover: Optional[float] = None
+    equity_multiplier: Optional[float] = None
+    roe: Optional[float] = None
+
+
+class RiskRadar(BaseModel):
+    altman: Optional[RatioResult] = None
+    piotroski: PiotroskiResult
+    beneish: BeneishResult
+    dupont: Optional[DuPontResult] = None
+
+
 class CategoryScore(BaseModel):
     category: str
     label: str
@@ -161,6 +197,7 @@ class AnalysisResult(BaseModel):
     warnings: list[Warning_]
     confidence: ConfidenceBreakdown
     missing_metrics: list[str] = []
+    risk_radar: Optional[RiskRadar] = None
     disclaimer: str = (
         "Сервис не заменяет профессиональную финансовую консультацию. "
         "Отраслевые диапазоны в текущем прототипе являются демонстрационными "
