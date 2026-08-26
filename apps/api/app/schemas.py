@@ -22,6 +22,10 @@ SCALE_MULTIPLIER = {
 }
 
 
+class ExtractRequest(BaseModel):
+    upload_id: str
+
+
 class UploadedDocument(BaseModel):
     upload_id: str
     filename: str

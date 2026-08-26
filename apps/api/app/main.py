@@ -12,10 +12,11 @@ import logging
 import os
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import storage
-from .schemas import AnalysisRequest, ExtractionResult, UploadedDocument
+from .schemas import AnalysisRequest, ExtractRequest, ExtractionResult, UploadedDocument
 from .services import extraction
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
@@ -42,20 +43,35 @@ def _detect_kind(filename: str, data: bytes) -> str:
     if data[:5] == b"%PDF-":
         return "pdf"
     if data[:4] == b"PK\x03\x04":
-        # zip container: xlsx (docx/pptx are rejected later by extractor)
-        if ext in ("xlsx", "xlsm"):
-            return "xlsx"
-        return "xlsx"
+        # zip container: verify it's actually an Excel workbook, not docx/pptx/etc.
+        import io
+        import zipfile
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                if any(n.startswith("xl/") for n in z.namelist()):
+                    return "xlsx"
+        except zipfile.BadZipFile:
+            pass
+        raise HTTPException(status_code=415,
+                            detail="Файл является ZIP-контейнером, но не книгой Excel.")
     if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
         return "xls"
-    # plausibly text → CSV: must decode AND contain no control bytes
-    try:
-        sample = data[:4096]
-        sample.decode("utf-8-sig")
-        if not any(b < 9 or (13 < b < 32) for b in sample):
-            return "csv"
-    except UnicodeDecodeError:
-        pass
+    # plausibly text → CSV: must decode AND contain no control bytes.
+    # The 4096-byte sample can cut a multibyte UTF-8 code point in half, so
+    # retry with up to 3 trailing bytes trimmed before giving up.
+    sample = data[:4096]
+    for trim in range(4):  # a UTF-8 code point is at most 4 bytes
+        try:
+            sample[: len(sample) - trim].decode("utf-8-sig")
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail="Формат файла не распознан. Поддерживаются PDF, XLSX, XLS и CSV.")
+    if not any(b < 9 or (13 < b < 32) for b in sample):
+        return "csv"
     _ = ext
     raise HTTPException(
         status_code=415,
@@ -85,16 +101,24 @@ def industry_benchmarks(industry_id: str):
 
 @app.post("/api/upload", response_model=UploadedDocument)
 async def upload(file: UploadFile = File(...)):
-    storage.cleanup_stale_uploads()
-    data = await file.read()
-    if len(data) == 0:
+    await run_in_threadpool(storage.cleanup_stale_uploads)
+    chunks: list[bytes] = []
+    size = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Файл больше {MAX_FILE_SIZE // (1024 * 1024)} МБ. Уменьшите размер файла.")
+        chunks.append(chunk)
+    data = b"".join(chunks)
+    if not data:
         raise HTTPException(status_code=400, detail="Файл пуст.")
-    if len(data) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"Файл больше {MAX_FILE_SIZE // (1024 * 1024)} МБ. Уменьшите размер файла.")
     kind = _detect_kind(file.filename or "", data)
-    upload_id = storage.save_upload(data, kind)
+    upload_id = await run_in_threadpool(storage.save_upload, data, kind)
     log.info("upload accepted id=%s kind=%s size=%d", upload_id, kind, len(data))
     return UploadedDocument(
         upload_id=upload_id,
@@ -104,8 +128,8 @@ async def upload(file: UploadFile = File(...)):
 
 
 @app.post("/api/extract", response_model=ExtractionResult)
-def extract(payload: dict):
-    upload_id = str(payload.get("upload_id", ""))
+def extract(payload: ExtractRequest):
+    upload_id = payload.upload_id
     stored = storage.read_upload(upload_id)
     if stored is None:
         raise HTTPException(status_code=404,

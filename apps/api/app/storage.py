@@ -50,7 +50,7 @@ def read_upload(upload_id: str) -> Optional[tuple[bytes, str]]:
 
 
 def delete_upload(upload_id: str) -> None:
-    if not all(ch in "0123456789abcdef" for ch in upload_id):
+    if not all(ch in "0123456789abcdef" for ch in upload_id) or len(upload_id) != 32:
         return
     for path in UPLOAD_DIR.glob(f"{upload_id}.*"):
         try:
