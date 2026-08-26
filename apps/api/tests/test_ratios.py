@@ -1,5 +1,5 @@
 from app.services.metrics import detect_scale, match_label, parse_number
-from app.services.ratios import Inputs, compute_all, safe_div, _roe, _quick_ratio, altman_z
+from app.services.ratios import Inputs, compute_all, safe_div, _roe, _quick_ratio, altman_z, dupont
 from app.schemas import Scale
 
 
@@ -122,3 +122,82 @@ def test_altman_uses_private_z_prime_without_market_data():
     # Z′ grey zone is 1.23–2.9
     assert r.status.value == ("good" if expected > 2.9 else
                               "attention" if expected >= 1.23 else "critical")
+
+
+def test_altman_no_x2_when_retained_earnings_absent():
+    i = Inputs(latest={
+        "total_assets": 2456800, "current_assets": 808750,
+        "current_liabilities": 486200, "operating_income": 356400,
+        "shareholders_equity": 1430600, "total_liabilities": 1026200,
+        "revenue": 3245900}, previous={})
+    res = altman_z(i, "manufacturing")
+    assert "без X2" in res.name
+    assert res.warnings == ["Упрощённый расчёт: без компонента X2."]
+
+
+def test_altman_includes_x2_private_when_retained_earnings_present():
+    i = Inputs(latest={
+        "total_assets": 2456800, "current_assets": 808750,
+        "current_liabilities": 486200, "operating_income": 356400,
+        "shareholders_equity": 1430600, "total_liabilities": 1026200,
+        "revenue": 3245900, "retained_earnings": 800000}, previous={})
+    res = altman_z(i, "manufacturing")
+    ta = 2456800
+    expected = (0.717 * ((808750 - 486200) / ta) + 0.847 * (800000 / ta)
+                + 3.107 * (356400 / ta) + 0.420 * (1430600 / 1026200)
+                + 0.998 * (3245900 / ta))
+    assert abs(res.value - expected) < 1e-9
+    assert "Z′" in res.name or "Z'" in res.name
+    assert "без X2" not in res.name
+    assert "X2" in res.explanation
+    assert res.warnings == []
+
+
+def test_altman_includes_x2_public_when_retained_earnings_present():
+    i = Inputs(latest={
+        "total_assets": 2456800, "current_assets": 808750,
+        "current_liabilities": 486200, "operating_income": 356400,
+        "total_liabilities": 1026200, "revenue": 3245900,
+        "retained_earnings": 800000, "market_cap": 5000000}, previous={})
+    res = altman_z(i, "manufacturing")
+    ta = 2456800
+    expected = (1.2 * ((808750 - 486200) / ta) + 1.4 * (800000 / ta)
+                + 3.3 * (356400 / ta) + 0.6 * (5000000 / 1026200)
+                + 1.0 * (3245900 / ta))
+    assert abs(res.value - expected) < 1e-9
+    assert "без X2" not in res.name
+    assert "X2" in res.explanation
+    assert res.warnings == []
+
+
+def test_dupont_matches_roe_product():
+    i = Inputs(latest={"net_income": 148500, "revenue": 3245900,
+                        "total_assets": 2456800, "shareholders_equity": 1430600},
+               previous={"total_assets": 2298500, "shareholders_equity": 1246800})
+    d = dupont(i)
+    assert d is not None
+    avg_ta = (2456800 + 2298500) / 2
+    avg_e = (1430600 + 1246800) / 2
+    expected_net_margin = 148500 / 3245900 * 100
+    expected_asset_turnover = 3245900 / avg_ta
+    expected_equity_multiplier = avg_ta / avg_e
+    assert abs(d["net_margin"] - expected_net_margin) < 1e-6
+    assert abs(d["asset_turnover"] - expected_asset_turnover) < 1e-6
+    assert abs(d["equity_multiplier"] - expected_equity_multiplier) < 1e-6
+    product = d["net_margin"] * d["asset_turnover"] * d["equity_multiplier"]
+    roe_value, _, _ = _roe(i)
+    assert abs(product - roe_value) < 1e-6
+    assert abs(d["roe"] - roe_value) < 1e-6
+
+
+def test_dupont_none_when_component_missing():
+    i = Inputs(latest={"net_income": 100.0, "total_assets": 1000.0,
+                        "shareholders_equity": 500.0}, previous={})
+    assert dupont(i) is None
+
+
+def test_dupont_none_when_avg_equity_non_positive():
+    i = Inputs(latest={"net_income": 100.0, "revenue": 1000.0,
+                        "total_assets": 1000.0, "shareholders_equity": 100.0},
+               previous={"shareholders_equity": -500.0})
+    assert dupont(i) is None

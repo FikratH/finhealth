@@ -273,6 +273,31 @@ def _ev_ebitda(i: Inputs):
     return _mk(safe_div(ev, e), {"enterprise_value": ev, "ebitda": e})
 
 
+def dupont(i: Inputs) -> Optional[dict]:
+    """DuPont three-factor ROE decomposition: net margin × asset turnover × equity multiplier."""
+    ni = i.g("net_income")
+    rev = i.g("revenue")
+    avg_ta = i.avg("total_assets")
+    avg_e = i.avg("shareholders_equity")
+    if ni is None or rev is None or avg_ta is None or avg_e is None:
+        return None
+    if avg_e <= 0:
+        return None
+    net_margin = safe_div(ni, rev)
+    asset_turnover = safe_div(rev, avg_ta)
+    equity_multiplier = safe_div(avg_ta, avg_e)
+    if net_margin is None or asset_turnover is None or equity_multiplier is None:
+        return None
+    net_margin_pct = net_margin * 100
+    roe = net_margin_pct * asset_turnover * equity_multiplier
+    return {
+        "net_margin": net_margin_pct,
+        "asset_turnover": asset_turnover,
+        "equity_multiplier": equity_multiplier,
+        "roe": roe,
+    }
+
+
 RATIO_DEFS: list[RatioDef] = [
     RatioDef("current_ratio", "Current Ratio", "liquidity",
              "current_assets / current_liabilities", "x", _current_ratio),
@@ -407,6 +432,7 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
     public_model = mcap is not None
     tl = i.g("total_liabilities")
     rev = i.g("revenue")
+    re = i.g("retained_earnings")
     needed = [ta, wc, ebit, x4_value, tl, rev]
     if any(v is None for v in needed) or ta == 0 or tl == 0:
         return RatioResult(
@@ -416,35 +442,58 @@ def altman_z(i: Inputs, industry: str) -> Optional[RatioResult]:
             explanation="Недостаточно данных для расчёта Altman Z-Score "
                         "(нужны оборотный капитал, EBIT, обязательства, выручка, активы).",
         )
-    # X2 requires retained earnings which the dictionary does not extract;
-    # per "do not invent data" we omit X2 and clearly disclose it.
+    # X2 (RE/TA) joins the model only when retained earnings were extracted;
+    # per "do not invent data" it is omitted and clearly disclosed otherwise.
     ta_ = ta
     x1 = wc / ta_
     x3 = ebit / ta_
     x4 = x4_value / tl
     x5 = rev / ta_
+    has_x2 = re is not None
+    x2 = (re / ta_) if has_x2 else None
+    inputs = {"working_capital": wc, "total_assets": ta, "ebit": ebit,
+              "equity_or_market_cap": x4_value, "total_liabilities": tl,
+              "revenue": rev}
+    if has_x2:
+        inputs["retained_earnings"] = re
     if public_model:
-        z = 1.2 * x1 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
         good_cut, grey_cut = 2.99, 1.81
-        model_name = "Altman Z (публичная модель, без X2)"
-        formula = "1.2·(WC/TA) + 3.3·(EBIT/TA) + 0.6·(MVE/TL) + 1.0·(Rev/TA)"
+        if has_x2:
+            z = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
+            model_name = "Altman Z (публичная модель)"
+            formula = "1.2·(WC/TA) + 1.4·(RE/TA) + 3.3·(EBIT/TA) + 0.6·(MVE/TL) + 1.0·(Rev/TA)"
+        else:
+            z = 1.2 * x1 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
+            model_name = "Altman Z (публичная модель, без X2)"
+            formula = "1.2·(WC/TA) + 3.3·(EBIT/TA) + 0.6·(MVE/TL) + 1.0·(Rev/TA)"
     else:
-        z = 0.717 * x1 + 3.107 * x3 + 0.420 * x4 + 0.998 * x5
         good_cut, grey_cut = 2.9, 1.23
-        model_name = "Altman Z′ (частная компания, без X2)"
-        formula = "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)"
+        if has_x2:
+            z = 0.717 * x1 + 0.847 * x2 + 3.107 * x3 + 0.420 * x4 + 0.998 * x5
+            model_name = "Altman Z′ (частная компания)"
+            formula = "0.717·(WC/TA) + 0.847·(RE/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)"
+        else:
+            z = 0.717 * x1 + 3.107 * x3 + 0.420 * x4 + 0.998 * x5
+            model_name = "Altman Z′ (частная компания, без X2)"
+            formula = "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)"
     status = (RatioStatus.good if z > good_cut
               else RatioStatus.attention if z >= grey_cut else RatioStatus.critical)
+    if has_x2:
+        explanation = (f"Ориентиры модели: > {good_cut} — безопасная зона, "
+                        f"{grey_cut}–{good_cut} — серая зона, < {grey_cut} — зона риска. "
+                        "Компонент X2 (нераспределённая прибыль / активы) включён в расчёт.")
+        warnings: list[str] = []
+    else:
+        explanation = (f"Ориентиры модели: > {good_cut} — безопасная зона, "
+                        f"{grey_cut}–{good_cut} — серая зона, < {grey_cut} — зона риска. "
+                        "Компонент X2 исключён (нераспределённая прибыль не извлекается); "
+                        "значение занижено.")
+        warnings = ["Упрощённый расчёт: без компонента X2."]
     return RatioResult(
         key="altman_z", name=model_name, category="leverage",
         formula=formula,
-        inputs={"working_capital": wc, "total_assets": ta, "ebit": ebit,
-                "equity_or_market_cap": x4_value, "total_liabilities": tl,
-                "revenue": rev},
+        inputs=inputs,
         value=z, status=status, applicable=True,
-        explanation=f"Ориентиры модели: > {good_cut} — безопасная зона, "
-                    f"{grey_cut}–{good_cut} — серая зона, < {grey_cut} — зона риска. "
-                    "Компонент X2 исключён (нераспределённая прибыль не извлекается); "
-                    "значение занижено.",
-        warnings=["Упрощённый расчёт: без компонента X2."],
+        explanation=explanation,
+        warnings=warnings,
     )
