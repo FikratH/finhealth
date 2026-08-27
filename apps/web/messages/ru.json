@@ -182,5 +182,103 @@
     "normLabel": "норма",
     "aboveRange": "выше нормы",
     "belowRange": "ниже нормы"
+  },
+  "Results": {
+    "meta": {
+      "title": "Тонус — диагноз компании",
+      "description": "Балл здоровья компании, разбор коэффициентов, риск-радар и приоритетные рекомендации."
+    },
+    "notFound": {
+      "heading": "Диагноз не найден",
+      "body": "Такого отчёта не существует, срок его хранения истёк, либо ссылка введена с ошибкой.",
+      "cta": "Проверить компанию"
+    },
+    "header": {
+      "confidenceLabel": "Общая уверенность анализа",
+      "insufficientGuidance": "Чтобы получить балл, добавьте недостающие показатели:"
+    },
+    "categories": {
+      "heading": "Категории",
+      "insufficientData": "Недостаточно данных",
+      "ratiosUsed": "Учтено показателей: {count}"
+    },
+    "ratios": {
+      "heading": "Коэффициенты",
+      "benchmarkLabel": "норма",
+      "aboveLabel": "выше нормы",
+      "belowLabel": "ниже нормы",
+      "naLabel": "Н/Д",
+      "referenceOnly": "Справочно",
+      "detailsToggle": "Подробнее",
+      "formulaLabel": "Формула",
+      "substitutionLabel": "Подстановка",
+      "explanationLabel": "Пояснение",
+      "warningsLabel": "Предупреждения",
+      "sourceFootnoteAria": "Источник ориентира — сноска {n}"
+    },
+    "riskRadar": {
+      "heading": "Риск-радар",
+      "altmanHeading": "Альтман Z",
+      "piotroski": {
+        "heading": "F-Score Пиотроски",
+        "scoreLabel": "Балл",
+        "signalMet": "Выполнено",
+        "signalNotMet": "Не выполнено",
+        "signalUnavailable": "Не рассчитано"
+      },
+      "beneish": {
+        "heading": "M-Score Бениша",
+        "mScoreLabel": "M-Score",
+        "flagHigh": "Высокая вероятность манипуляций",
+        "flagGrey": "Пограничная зона",
+        "flagLow": "Низкая вероятность манипуляций",
+        "flagUnavailable": "Не рассчитано"
+      },
+      "dupont": {
+        "heading": "Декомпозиция ROE (DuPont)",
+        "netMargin": "Чистая маржа",
+        "assetTurnover": "Оборачиваемость активов",
+        "equityMultiplier": "Финансовый рычаг",
+        "roe": "ROE",
+        "unavailable": "Недостаточно данных для декомпозиции ROE."
+      }
+    },
+    "strengths": {
+      "heading": "Сильные стороны"
+    },
+    "risks": {
+      "heading": "Риски"
+    },
+    "recommendations": {
+      "heading": "Рекомендации",
+      "priorityHigh": "Высокий приоритет",
+      "priorityMedium": "Средний приоритет",
+      "priorityLow": "Низкий приоритет",
+      "difficultyLabel": "Сложность внедрения:",
+      "difficultyHigh": "высокая",
+      "difficultyMedium": "средняя",
+      "difficultyLow": "низкая",
+      "expectedEffectLabel": "Ожидаемый эффект",
+      "tradeoffsLabel": "Компромиссы",
+      "benchmarkHintLabel": "Ориентир"
+    },
+    "warnings": {
+      "summary": "Предупреждения ({count})"
+    },
+    "missingMetrics": {
+      "heading": "Недостающие данные",
+      "hint": "Для повышения точности анализа добавьте:"
+    },
+    "footnotes": {
+      "heading": "Источники ориентиров"
+    },
+    "disclaimer": {
+      "heading": "Дисклеймер"
+    },
+    "share": {
+      "button": "Поделиться",
+      "copied": "Ссылка скопирована",
+      "promptFallback": "Скопируйте ссылку вручную:"
+    }
   }
 }

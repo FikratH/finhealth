@@ -182,5 +182,103 @@
     "normLabel": "norm",
     "aboveRange": "above range",
     "belowRange": "below range"
+  },
+  "Results": {
+    "meta": {
+      "title": "Tonus — company diagnosis",
+      "description": "The company's health score, a ratio breakdown, the risk radar, and prioritized recommendations."
+    },
+    "notFound": {
+      "heading": "Diagnosis not found",
+      "body": "This report doesn't exist, its retention period has expired, or the link was entered incorrectly.",
+      "cta": "Check my company"
+    },
+    "header": {
+      "confidenceLabel": "Overall analysis confidence",
+      "insufficientGuidance": "To get a score, add the missing figures:"
+    },
+    "categories": {
+      "heading": "Categories",
+      "insufficientData": "Insufficient data",
+      "ratiosUsed": "Ratios used: {count}"
+    },
+    "ratios": {
+      "heading": "Ratios",
+      "benchmarkLabel": "norm",
+      "aboveLabel": "above range",
+      "belowLabel": "below range",
+      "naLabel": "N/A",
+      "referenceOnly": "Reference only",
+      "detailsToggle": "Details",
+      "formulaLabel": "Formula",
+      "substitutionLabel": "Substitution",
+      "explanationLabel": "Explanation",
+      "warningsLabel": "Warnings",
+      "sourceFootnoteAria": "Benchmark source — footnote {n}"
+    },
+    "riskRadar": {
+      "heading": "Risk radar",
+      "altmanHeading": "Altman Z",
+      "piotroski": {
+        "heading": "Piotroski F-Score",
+        "scoreLabel": "Score",
+        "signalMet": "Met",
+        "signalNotMet": "Not met",
+        "signalUnavailable": "Not computed"
+      },
+      "beneish": {
+        "heading": "Beneish M-Score",
+        "mScoreLabel": "M-Score",
+        "flagHigh": "High likelihood of manipulation",
+        "flagGrey": "Borderline zone",
+        "flagLow": "Low likelihood of manipulation",
+        "flagUnavailable": "Not computed"
+      },
+      "dupont": {
+        "heading": "ROE decomposition (DuPont)",
+        "netMargin": "Net margin",
+        "assetTurnover": "Asset turnover",
+        "equityMultiplier": "Equity multiplier",
+        "roe": "ROE",
+        "unavailable": "Not enough data to decompose ROE."
+      }
+    },
+    "strengths": {
+      "heading": "Strengths"
+    },
+    "risks": {
+      "heading": "Risks"
+    },
+    "recommendations": {
+      "heading": "Recommendations",
+      "priorityHigh": "High priority",
+      "priorityMedium": "Medium priority",
+      "priorityLow": "Low priority",
+      "difficultyLabel": "Difficulty to implement:",
+      "difficultyHigh": "high",
+      "difficultyMedium": "medium",
+      "difficultyLow": "low",
+      "expectedEffectLabel": "Expected effect",
+      "tradeoffsLabel": "Tradeoffs",
+      "benchmarkHintLabel": "Benchmark"
+    },
+    "warnings": {
+      "summary": "Warnings ({count})"
+    },
+    "missingMetrics": {
+      "heading": "Missing data",
+      "hint": "To improve accuracy, add:"
+    },
+    "footnotes": {
+      "heading": "Benchmark sources"
+    },
+    "disclaimer": {
+      "heading": "Disclaimer"
+    },
+    "share": {
+      "button": "Share",
+      "copied": "Link copied",
+      "promptFallback": "Copy this link manually:"
+    }
   }
 }

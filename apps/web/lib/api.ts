@@ -45,12 +45,16 @@ const STATUS_FALLBACK_KEYS: Partial<Record<number, string>> = {
   422: "errors.unprocessable",
 };
 
-function fallbackKey(status: number): string {
+/** Exported so lib/api-server.ts's server-only fetch (which can't route
+ * through this file's relative "/api/..." paths — see that file's header
+ * comment) can normalize errors identically instead of duplicating this
+ * logic. */
+export function fallbackKey(status: number): string {
   return STATUS_FALLBACK_KEYS[status] ?? "errors.unknown";
 }
 
 /** Reads `{detail: string}` off an error response body, if present. */
-async function readDetail(response: Response): Promise<string | undefined> {
+export async function readDetail(response: Response): Promise<string | undefined> {
   try {
     const body: unknown = await response.json();
     if (body && typeof body === "object" && "detail" in body) {

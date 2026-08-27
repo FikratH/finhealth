@@ -201,6 +201,23 @@
   }
 }
 
+/*
+ * Print: the results document ("лабораторное заключение") is meant to be
+ * printed and screenshared, so its <details> disclosures (ratio detail,
+ * warnings accordion) render expanded rather than leaving the substitution
+ * strings and explanations invisible on paper. Overrides the UA stylesheet
+ * rule that hides a closed <details>'s content — an author style, not a
+ * script, so it works with zero JS.
+ */
+@media print {
+  details:not([open]) > *:not(summary) {
+    display: block !important;
+  }
+  details > summary {
+    display: none;
+  }
+}
+
 /* Grid-paper ground: faint millimeter grid for chart/score/data surfaces. */
 .grid-paper {
   background-image:
