@@ -351,6 +351,88 @@ test("results page under prefers-reduced-motion: every section is already visibl
   await context.close();
 });
 
+test("results page mini-nav click, under full motion: Lenis actually engages, not the native anchor jump", async ({
+  browser,
+}) => {
+  test.skip(!resultsUrl, "requires resultsUrl from the preceding flow test");
+
+  // The one invariant this task's motion-runtime split (P6 T4 round 1)
+  // made load-bearing without any coverage of its own (review-t4-
+  // verdict.md, Finding 4): mini-nav.tsx's getLenis() import is *static*
+  // (@/components/motion-provider), while MotionProvider itself now only
+  // ever reaches the real provider through a next/dynamic() chunk
+  // (@/components/motion-provider-lazy.tsx). Correctness rides on both
+  // resolving to the same live module instance — if a future chunking
+  // change ever splits them, getLenis() returns null forever and this
+  // click silently degrades to the native anchor jump the *reduced*-motion
+  // sibling test above already covers, even while Lenis is supposedly
+  // driving the page. Nothing else in the suite would catch that; the
+  // reduced-motion test asserts the degraded path is fine, not that the
+  // full-motion path is actually engaged.
+  //
+  // Real motion (no reducedMotion override), a fresh context/page so this
+  // test's own scroll position starts clean rather than wherever the main
+  // flow test's page happened to land.
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+  await page.goto(resultsUrl);
+
+  // A native #id jump moves scrollY to its final position within a single
+  // frame; Lenis's own eased scrollTo() interpolates over many. Sampling
+  // scrollY across several animation frames right after the click and
+  // asserting the values move gradually — not settle immediately — is a
+  // real behavioral distinction between the two paths, not a poke at an
+  // implementation detail.
+  const scoreTop = await page
+    .locator("#score")
+    .evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+
+  const nav = page.getByRole("navigation", { name: "Навигация по разделам отчёта" });
+  const recommendationsLink = nav.getByRole("link", { name: "Рекомендации" });
+
+  // Scroll partway down first (via the mini-nav itself) so the click below
+  // has real distance to cover — an already-at-target click can't
+  // distinguish a jump from a scroll. mini-nav.tsx's handleClick calls
+  // event.preventDefault() before lenis.scrollTo() precisely when Lenis is
+  // engaged, so — unlike the reduced-motion sibling test — the URL's hash
+  // never changes here; aria-current (the same signal the main flow test
+  // polls for its own wheel-driven scroll) is what actually proves the
+  // scroll landed.
+  await recommendationsLink.click();
+  await expect(recommendationsLink).toHaveAttribute("aria-current", "true", { timeout: 5000 });
+  expect(page.url()).not.toContain("#recommendations");
+
+  const samples = await page.evaluate(async () => {
+    const nav = document.querySelector('nav[aria-label="Навигация по разделам отчёта"]');
+    const link = nav?.querySelector('a[href="#score"]');
+    link?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    const trace: number[] = [];
+    const start = performance.now();
+    while (performance.now() - start < 250) {
+      trace.push(Math.round(window.scrollY));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+    return trace;
+  });
+
+  // Genuinely animating: many distinct scrollY values sampled across the
+  // window (a one-frame native jump would produce essentially one value,
+  // then hold there for every remaining sample).
+  expect(new Set(samples).size).toBeGreaterThan(5);
+  // Still mid-transit partway through the sample window, not already
+  // parked at the destination.
+  const midpoint = samples[Math.floor(samples.length / 2)];
+  expect(Math.abs(midpoint - scoreTop)).toBeGreaterThan(50);
+  // ...and it does arrive, eventually, at the right place — proving this
+  // was a real (if slower) navigation, not a stall.
+  await expect
+    .poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 3000 })
+    .toBeLessThan(scoreTop + 50);
+  await expect(page.locator("#score").getByRole("img", { name: "85,1 — Общий балл" })).toBeVisible();
+
+  await context.close();
+});
+
 test("narrative 503 (no LLM key configured): the section collapses entirely, and the document's downstream sections — including the disclaimer — still reveal on scroll (fix-wave F1)", async ({
   browser,
 }) => {

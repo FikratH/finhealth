@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import { usePathname } from "@/i18n/navigation";
 import { getPrefersReducedMotion, usePrefersReducedMotion } from "@/lib/motion";
+import { RESULTS_ROUTE_SEGMENT } from "@/lib/motion-routes";
 
 // Register once per module load, not once per mount — mounted at the
 // locale layout it only ever runs once anyway, but this guard keeps a
@@ -17,10 +18,6 @@ function registerScrollTriggerOnce() {
   gsap.registerPlugin(ScrollTrigger);
   scrollTriggerRegistered = true;
 }
-
-// Matches both the ru (no prefix) and en ("/en" prefix) forms of
-// /results/[id] under next-intl's "as-needed" locale prefix.
-const RESULTS_ROUTE_SEGMENT = "/results/";
 
 // GSAP's own factory defaults (gsap-core: threshold 500ms, adjustedLag
 // 33ms) — restored explicitly on cleanup below, since this provider is the

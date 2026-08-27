@@ -50,7 +50,12 @@ export function MiniNav({ items, activeId }: MiniNavProps) {
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>, id: string) {
     const lenis = getLenis();
-    if (!lenis) return; // no Lenis (reduced motion, or SSR/no-JS) — the native #id jump already does the job
+    // No Lenis: reduced motion, SSR/no-JS, or — since MotionProvider now
+    // reaches for its gsap/lenis chunk lazily (components/motion-provider-
+    // lazy.tsx) — the brief window between first paint and that chunk
+    // actually landing. Every case degrades the same way: the native #id
+    // jump already does the job, so there's nothing further to do here.
+    if (!lenis) return;
     const target = document.getElementById(id);
     if (!target) return;
     event.preventDefault();
