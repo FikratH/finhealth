@@ -16,12 +16,17 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: apps/api/requirements.lock
-      # Installs from the committed, fully-pinned lock (see apps/api/README.md
-      # "Dependency locking" for how it's generated/regenerated), not the
-      # loose requirements.txt — reproducible builds, not "whatever resolves
-      # today".
-      - run: pip install -r requirements.lock
+          cache-dependency-path: apps/api/requirements-dev.lock
+      # Installs from the committed, fully-pinned dev lock (see
+      # apps/api/README.md "Dependency locking" for how it's
+      # generated/regenerated), not the loose requirements*.txt —
+      # reproducible builds, not "whatever resolves today". The dev lock is
+      # a superset of the runtime lock (requirements-dev.txt does `-r
+      # requirements.txt` + pytest/httpx/moto), so one install runs and
+      # tests the app; the runtime-only requirements.lock is what actually
+      # ships in the Docker image (apps/api/Dockerfile) and is never
+      # installed here.
+      - run: pip install -r requirements-dev.lock
       - run: python -m pytest tests -q
 
   web:
