@@ -10,7 +10,13 @@
 //     emailing it, because SMTP isn't wired up yet (docs/founder-todo.md
 //     tracks EMAIL_* as a launch blocker). If EMAIL_HOST is ever set before
 //     a real transport is implemented here, sending fails loudly rather
-//     than silently pretending an email went out.
+//     than silently pretending an email went out. **Fails closed in
+//     production** (fix round 1, security ruling): without EMAIL_HOST,
+//     `NODE_ENV==="production"` rejects the send instead of logging the URL
+//     — a production deploy must never print a live single-use credential
+//     into server logs/aggregators. Dev (`next dev`) keeps the console
+//     transport either way. Until EMAIL_* is configured, production
+//     magic-link sign-in is disabled by design, not merely unlogged.
 //   - google: registered only when GOOGLE_CLIENT_ID/SECRET are both present
 //     (also a founder-todo item) — its absence from `socialProviders`
 //     entirely, not a disabled button, is what "not configured" means to
@@ -75,10 +81,22 @@ export const auth = betterAuth({
               "the dev console transport instead.",
           );
         }
-        // Dev transport: this line IS the "email" until SMTP lands. Prefix
-        // is grepped by nothing in this codebase (deliberately not turned
-        // into an e2e dependency — see tests/e2e/auth.spec.ts's header
-        // comment) but kept stable for a developer/operator reading logs.
+        if (process.env.NODE_ENV === "production") {
+          // Fail closed (fix round 1, security ruling): logging a live,
+          // single-use sign-in credential to production server
+          // logs/aggregators is a real exposure, not a convenience. The
+          // signin form's existing generic-error path is what a user sees
+          // — no half-signed-in state, no link anyone can act on. This
+          // only ever fires without EMAIL_HOST configured (the branch
+          // above handles EMAIL_HOST-set-but-unimplemented separately);
+          // configuring real SMTP is what turns production sign-in back
+          // on, by design.
+          throw new Error("magic_link_transport_unconfigured");
+        }
+        // Dev transport (`next dev`): this line IS the "email" until SMTP
+        // lands. Prefix is grepped by nothing in this codebase (see
+        // tests/e2e/auth.spec.ts's header comment) but kept stable for a
+        // developer/operator reading logs.
         console.log(`MAGIC_LINK: ${url} (to: ${email})`);
       },
     }),
