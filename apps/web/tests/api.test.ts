@@ -3,12 +3,14 @@ import {
   ApiError,
   analyze,
   deleteAnalysis,
+  downloadMyDocument,
   extract,
   generateNarrative,
   getAnalysis,
   getHealth,
   getIndustries,
   getIndustryBenchmarks,
+  parseContentDispositionFilename,
   uploadFile,
 } from "@/lib/api";
 import type {
@@ -521,6 +523,136 @@ describe("lib/api", () => {
       await vi.advanceTimersByTimeAsync(15_000);
       await vi.advanceTimersByTimeAsync(15_000);
       await assertion;
+    });
+  });
+
+  describe("parseContentDispositionFilename", () => {
+    it("prefers the RFC 5987 filename*= (UTF-8, percent-encoded) parameter over the plain fallback", () => {
+      const header =
+        "attachment; filename=\"Balans.csv\"; filename*=UTF-8''%D0%91%D0%B0%D0%BB%D0%B0%D0%BD%D1%81.csv";
+      expect(parseContentDispositionFilename(header)).toBe("Баланс.csv");
+    });
+
+    it("falls back to the plain filename= parameter when filename*= is absent", () => {
+      expect(parseContentDispositionFilename('attachment; filename="report.csv"')).toBe("report.csv");
+    });
+
+    it("falls back to filename= when filename*= has unparseable percent-encoding", () => {
+      const header = "attachment; filename=\"report.csv\"; filename*=UTF-8''%";
+      expect(parseContentDispositionFilename(header)).toBe("report.csv");
+    });
+
+    it("returns undefined for a null header", () => {
+      expect(parseContentDispositionFilename(null)).toBeUndefined();
+    });
+
+    it("returns undefined when neither parameter is present", () => {
+      expect(parseContentDispositionFilename("attachment")).toBeUndefined();
+    });
+  });
+
+  describe("downloadMyDocument", () => {
+    function blobResponse(headers: Record<string, string>, blob: Blob): Response {
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers(headers),
+        blob: async () => blob,
+      } as unknown as Response;
+    }
+
+    let createObjectURL: ReturnType<typeof vi.fn>;
+    let revokeObjectURL: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      createObjectURL = vi.fn(() => "blob:mock-url");
+      revokeObjectURL = vi.fn();
+      // jsdom doesn't implement these at all — stubbing them (rather than
+      // spying) is the only option, and vi.stubGlobal is undone by this
+      // file's existing afterEach (vi.unstubAllGlobals()), same as the
+      // fetch stub every other test in this file already relies on.
+      vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+      vi.useFakeTimers();
+    });
+
+    it("fetches the download endpoint, saves the blob via an object-URL anchor click, and names it from Content-Disposition", async () => {
+      const blob = new Blob(["revenue;1000\n"], { type: "text/csv" });
+      vi.mocked(fetch).mockResolvedValueOnce(
+        blobResponse({ "Content-Disposition": 'attachment; filename="report.csv"' }, blob),
+      );
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      const appendSpy = vi.spyOn(document.body, "appendChild");
+
+      await downloadMyDocument("doc_1", "fallback.csv");
+
+      const [path, init] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/my/documents/doc_1/download");
+      expect(init?.method ?? "GET").toBe("GET");
+      expect(createObjectURL).toHaveBeenCalledWith(blob);
+      const anchor = appendSpy.mock.calls.find((call) => call[0] instanceof HTMLAnchorElement)?.[0] as
+        | HTMLAnchorElement
+        | undefined;
+      expect(anchor?.href).toBe("blob:mock-url");
+      expect(anchor?.download).toBe("report.csv"); // from Content-Disposition, not the fallback
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+
+      // Revocation is deferred (see lib/api.ts's comment on why), not
+      // immediate — it must not have fired before the click had a chance
+      // to be observed by the browser.
+      expect(revokeObjectURL).not.toHaveBeenCalled();
+      await vi.runAllTimersAsync();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+
+      clickSpy.mockRestore();
+      appendSpy.mockRestore();
+    });
+
+    it("falls back to the caller-supplied filename when Content-Disposition is missing", async () => {
+      const blob = new Blob(["data"]);
+      vi.mocked(fetch).mockResolvedValueOnce(blobResponse({}, blob));
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      const appendSpy = vi.spyOn(document.body, "appendChild");
+
+      await downloadMyDocument("doc_1", "fallback.csv");
+
+      const anchor = appendSpy.mock.calls.find((call) => call[0] instanceof HTMLAnchorElement)?.[0] as
+        | HTMLAnchorElement
+        | undefined;
+      expect(anchor?.download).toBe("fallback.csv");
+
+      clickSpy.mockRestore();
+      appendSpy.mockRestore();
+    });
+
+    it("maps a non-2xx response (e.g. 503 vault_unavailable) into ApiError instead of attempting a download", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(503, { detail: { code: "vault_unavailable", message: "Хранилище недоступно." } }),
+      );
+
+      await expect(downloadMyDocument("doc_1", "fallback.csv")).rejects.toMatchObject({
+        status: 503,
+        message: "Хранилище недоступно.",
+        code: "vault_unavailable",
+      });
+      expect(createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it("maps a 404 (cross-user or unknown id) into ApiError", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(404, { detail: "Документ не найден." }));
+
+      await expect(downloadMyDocument("doc_1", "fallback.csv")).rejects.toMatchObject({
+        status: 404,
+        message: "Документ не найден.",
+      });
+    });
+
+    it("maps a network failure into ApiError{status:0}", async () => {
+      vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+      await expect(downloadMyDocument("doc_1", "fallback.csv")).rejects.toMatchObject({
+        status: 0,
+        message: "errors.network",
+      });
     });
   });
 });

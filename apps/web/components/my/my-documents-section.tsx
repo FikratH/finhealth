@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
 import { MyDocumentsTable } from "./my-documents-table";
-import { ApiError, deleteMyDocument, getMyDocuments } from "@/lib/api";
+import { ApiError, deleteMyDocument, downloadMyDocument, getMyDocuments } from "@/lib/api";
 import type { MyDocumentSummary } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -27,6 +27,7 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
   const [state, setState] = useState<LoadState>("loading");
   const [documents, setDocuments] = useState<MyDocumentSummary[]>([]);
   const [deleteError, setDeleteError] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +64,19 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
     }
   }
 
+  async function handleDownload(id: string, filename: string) {
+    try {
+      await downloadMyDocument(id, filename);
+      setDownloadError(false);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onSessionExpired();
+        return;
+      }
+      setDownloadError(true);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Default level (h2), same as "Мои анализы" above — a peer section,
@@ -89,7 +103,13 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
       {state === "ready" && documents.length > 0 && (
         <>
           {deleteError && <p className="text-sm text-critical">{t("deleteError")}</p>}
-          <MyDocumentsTable documents={documents} locale={locale} onDelete={handleDelete} />
+          {downloadError && <p className="text-sm text-critical">{t("downloadError")}</p>}
+          <MyDocumentsTable
+            documents={documents}
+            locale={locale}
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+          />
         </>
       )}
     </div>

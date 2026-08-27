@@ -19,15 +19,18 @@ import type { MyDocumentSummary } from "@/lib/api-types";
 export interface MyDocumentsTableProps {
   documents: MyDocumentSummary[];
   locale: Locale;
+  onDownload: (id: string, filename: string) => void;
   onDelete: (id: string) => void;
 }
 
 // The retained-document vault as a table — same hairline grammar as
-// my-analyses-table.tsx (per-row hairline rules, no shadowed cards), minus
-// an "open" action: a retained document has no view of its own, only
-// deletion (there's nothing beyond the raw file to show — the extracted
-// numbers already live in whichever analysis was built from it, if any).
-export function MyDocumentsTable({ documents, locale, onDelete }: MyDocumentsTableProps) {
+// my-analyses-table.tsx (per-row hairline rules, no shadowed cards).
+// «Скачать»/«Удалить» reuse that table's exact two-action idiom
+// («Открыть»/«Удалить»: outline + ghost, same button sizes, same
+// contextual-aria pattern) — download (P6.T5) closes the vault's
+// retention-without-retrieval gap: a retained document can now actually be
+// retrieved, not just listed and deleted.
+export function MyDocumentsTable({ documents, locale, onDownload, onDelete }: MyDocumentsTableProps) {
   const t = useTranslations("My.documents.table");
   const tDialog = useTranslations("My.documents.deleteDialog");
 
@@ -95,6 +98,15 @@ export function MyDocumentsTable({ documents, locale, onDelete }: MyDocumentsTab
                 <td className="px-3 py-2 font-mono tabular-nums text-ink-muted">{sizeLabel}</td>
                 <td className="px-3 py-2">
                   <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={t("downloadAria", ariaContext)}
+                      onClick={() => onDownload(doc.doc_id, doc.filename)}
+                    >
+                      {t("download")}
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button

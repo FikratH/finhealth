@@ -334,6 +334,88 @@ export function deleteMyDocument(id: string): Promise<DeleteDocumentResponse> {
   );
 }
 
+/** Parses a `Content-Disposition` header's filename, preferring the RFC
+ * 5987 `filename*=UTF-8''<percent-encoded>` parameter over the plain
+ * ASCII-only `filename=` fallback when both are present — the backend's
+ * download endpoint (app/routers/my.py) always sends both together, so a
+ * name with non-ASCII characters (Cyrillic RSBU statements routinely have
+ * one) round-trips exactly rather than through the ASCII-lossy fallback.
+ * Returns `undefined` when the header is absent or neither parameter
+ * parses cleanly, so the caller can fall back to a name of its own
+ * (downloadMyDocument's `fallbackFilename`) rather than crash. Exported
+ * standalone (not inlined into downloadMyDocument) so it can be unit-tested
+ * directly against header strings, without mocking fetch/Blob/URL. */
+export function parseContentDispositionFilename(header: string | null): string | undefined {
+  if (!header) {
+    return undefined;
+  }
+  const starMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (starMatch) {
+    try {
+      const decoded = decodeURIComponent(starMatch[1].trim());
+      if (decoded) {
+        return decoded;
+      }
+    } catch {
+      // Malformed percent-encoding — fall through to the plain filename=
+      // parameter below rather than propagate a URIError.
+    }
+  }
+  const plainMatch = /filename="?([^";]+)"?/i.exec(header);
+  if (plainMatch) {
+    const name = plainMatch[1].trim();
+    if (name) {
+      return name;
+    }
+  }
+  return undefined;
+}
+
+/** GET /api/my/documents/{id}/download — streams the caller's own retained
+ * document back. Unlike every other function in this file, this bypasses
+ * request<T>(): the response body is the raw file, not JSON, so it's
+ * fetched directly (reusing withAuthHeader(), the same auth-header
+ * attachment every other call gets) and handed to the browser as a
+ * download via a transient object URL + a programmatic anchor click — the
+ * standard "save a fetched blob" idiom, since a plain `<a href>` can't
+ * carry an Authorization header. 401/404/503/429 all come back as the
+ * usual `{detail}` JSON error body and are normalized into ApiError via
+ * readDetail(), exactly like every other client here, so a caller only
+ * ever catches one error type. `fallbackFilename` (typically the
+ * MyDocumentSummary row's own `filename`) is used only if the response
+ * somehow lacks a parseable Content-Disposition — the server always sends
+ * one, so this is a defensive backstop, not the common path. */
+export async function downloadMyDocument(id: string, fallbackFilename: string): Promise<void> {
+  let response: Response;
+  try {
+    const headers = await withAuthHeader(undefined);
+    response = await fetch(`/api/my/documents/${encodeURIComponent(id)}/download`, { headers });
+  } catch {
+    // Network failure (offline, DNS, connection reset) — no status code
+    // to report, same convention request()'s catch branch uses.
+    throw new ApiError(0, "errors.network");
+  }
+  if (!response.ok) {
+    const detail = await readDetail(response);
+    throw new ApiError(response.status, detail.message ?? fallbackKey(response.status), detail.code);
+  }
+  const blob = await response.blob();
+  const filename = parseContentDispositionFilename(response.headers.get("Content-Disposition"))
+    ?? fallbackFilename;
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Deferred, not immediate: revoking the object URL synchronously after
+  // click() has been observed to cancel the download in some browsers
+  // (Safari in particular) before they've finished reading the blob —
+  // a macrotask delay lets the download actually start first.
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 /** POST /api/analysis/{id}/narrative — 404 unknown id, 503
  * ({code:"narrative_unavailable"}) when no LLM key is configured
  * server-side, 502 ({code:"narrative_failed"}) on any provider/parse

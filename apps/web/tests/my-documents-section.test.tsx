@@ -6,10 +6,15 @@ import type { MyDocumentSummary } from "@/lib/api-types";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, getMyDocuments: vi.fn(), deleteMyDocument: vi.fn() };
+  return {
+    ...actual,
+    getMyDocuments: vi.fn(),
+    deleteMyDocument: vi.fn(),
+    downloadMyDocument: vi.fn(),
+  };
 });
 
-const { ApiError, deleteMyDocument, getMyDocuments } = await import("@/lib/api");
+const { ApiError, deleteMyDocument, downloadMyDocument, getMyDocuments } = await import("@/lib/api");
 const { MyDocumentsSection } = await import("@/components/my/my-documents-section");
 
 const fixtures: MyDocumentSummary[] = [
@@ -29,6 +34,7 @@ function renderSection(onSessionExpired = vi.fn()) {
 afterEach(() => {
   vi.mocked(getMyDocuments).mockReset();
   vi.mocked(deleteMyDocument).mockReset();
+  vi.mocked(downloadMyDocument).mockReset();
 });
 
 describe("MyDocumentsSection", () => {
@@ -119,5 +125,61 @@ describe("MyDocumentsSection", () => {
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.documents.deleteDialog.confirm }));
 
     await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+  });
+
+  it("download flow: clicking download calls downloadMyDocument with the row's id and filename, no dialog involved", async () => {
+    vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+    vi.mocked(downloadMyDocument).mockResolvedValueOnce(undefined);
+    renderSection();
+
+    await screen.findByText("Баланс.csv");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      }),
+    );
+
+    await waitFor(() => expect(downloadMyDocument).toHaveBeenCalledWith("doc_1", "Баланс.csv"));
+    // The row itself is untouched — unlike delete, a successful download
+    // doesn't remove anything from the list.
+    expect(screen.getByText("Баланс.csv")).toBeInTheDocument();
+  });
+
+  it("a failed download shows a visible error line and leaves the row in place", async () => {
+    vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+    vi.mocked(downloadMyDocument).mockRejectedValueOnce(new ApiError(503, "vault_unavailable"));
+    renderSection();
+
+    await screen.findByText("Баланс.csv");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      }),
+    );
+
+    expect(await screen.findByText(ruMessages.My.documents.downloadError)).toBeInTheDocument();
+    expect(screen.getByText("Баланс.csv")).toBeInTheDocument();
+  });
+
+  it("a 401 on download calls onSessionExpired instead of showing the error line", async () => {
+    vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+    vi.mocked(downloadMyDocument).mockRejectedValueOnce(new ApiError(401, "auth_required"));
+    const { onSessionExpired } = renderSection();
+
+    await screen.findByText("Баланс.csv");
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      }),
+    );
+
+    await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+    expect(screen.queryByText(ruMessages.My.documents.downloadError)).not.toBeInTheDocument();
   });
 });

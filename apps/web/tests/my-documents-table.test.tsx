@@ -29,13 +29,17 @@ function ariaName(template: string, filename: string, date: string) {
 const ROW1_ARIA = { filename: "Баланс_2024.csv", date: "27.08.2026" };
 const ROW2_ARIA = { filename: "otchet.pdf", date: "01.08.2026" };
 
-function renderTable(documents: MyDocumentSummary[] = fixtures, onDelete = vi.fn()) {
+function renderTable(
+  documents: MyDocumentSummary[] = fixtures,
+  onDelete = vi.fn(),
+  onDownload = vi.fn(),
+) {
   render(
     <NextIntlClientProvider locale="ru" messages={ruMessages}>
-      <MyDocumentsTable documents={documents} locale="ru" onDelete={onDelete} />
+      <MyDocumentsTable documents={documents} locale="ru" onDownload={onDownload} onDelete={onDelete} />
     </NextIntlClientProvider>,
   );
-  return { onDelete };
+  return { onDelete, onDownload };
 }
 
 describe("MyDocumentsTable", () => {
@@ -64,7 +68,7 @@ describe("MyDocumentsTable", () => {
   it("the scroll wrapper is a positioning context (relative), the fix for the sr-only-span escape bug", () => {
     const { container } = render(
       <NextIntlClientProvider locale="ru" messages={ruMessages}>
-        <MyDocumentsTable documents={fixtures} locale="ru" onDelete={vi.fn()} />
+        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} />
       </NextIntlClientProvider>,
     );
     const wrapper = container.querySelector(".overflow-x-auto");
@@ -77,7 +81,7 @@ describe("MyDocumentsTable", () => {
   it("the scroll wrapper carries the scroll-affordance class (table-scroll-x)", () => {
     const { container } = render(
       <NextIntlClientProvider locale="ru" messages={ruMessages}>
-        <MyDocumentsTable documents={fixtures} locale="ru" onDelete={vi.fn()} />
+        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} />
       </NextIntlClientProvider>,
     );
     const wrapper = container.querySelector(".overflow-x-auto");
@@ -154,5 +158,42 @@ describe("MyDocumentsTable", () => {
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.documents.deleteDialog.cancel }));
 
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  // P6.T5: the download action closes "retention without retrieval" — same
+  // contextual-aria idiom as delete above (a bare "Скачать" would be
+  // ambiguous once there's more than one row), but no confirmation dialog:
+  // downloading isn't destructive, so it fires immediately on click, same
+  // as my-analyses-table.tsx's «Открыть».
+  it("gives each row's download button a contextual accessible name (filename + date), not the bare 'Скачать'", () => {
+    renderTable();
+
+    expect(
+      screen.queryByRole("button", { name: ruMessages.My.documents.table.download }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW1_ARIA.filename, ROW1_ARIA.date),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW2_ARIA.filename, ROW2_ARIA.date),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("clicking download calls onDownload with the row's doc_id and filename immediately — no confirmation dialog", () => {
+    const { onDownload, onDelete } = renderTable();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW1_ARIA.filename, ROW1_ARIA.date),
+      }),
+    );
+
+    expect(onDownload).toHaveBeenCalledWith("doc_1", "Баланс_2024.csv");
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByText(ruMessages.My.documents.deleteDialog.title)).not.toBeInTheDocument();
   });
 });

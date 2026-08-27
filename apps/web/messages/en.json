@@ -124,7 +124,7 @@
       "missingIndustryError": "Select an industry before uploading.",
       "missingFileError": "Choose a file before uploading.",
       "retainLabel": "Save this document to my vault",
-      "retainDisclosure": "We'll keep the original file in your personal vault — visible only to you, and you can delete it at any time from the My analyses page. Without this, the file is deleted immediately after the figures are extracted.",
+      "retainDisclosure": "We'll keep the original file in your personal vault — visible only to you, and available for download or deletion at any time from the My analyses page. Without this, the file is deleted immediately after the figures are extracted.",
       "hints": {
         "payloadTooLarge": "Try exporting the statement as CSV or XLSX — they're far more compact than a scanned PDF.",
         "unsupportedType": "Make sure the file's extension actually matches its format.",
@@ -518,6 +518,7 @@
       "loading": "Loading…",
       "loadError": "Couldn't load your documents. Try again.",
       "deleteError": "Couldn't delete the document. Try again.",
+      "downloadError": "Couldn't download the document. Try again.",
       "empty": {
         "body": "Documents you choose to save during analysis will show up here."
       },
@@ -528,6 +529,8 @@
         "sizeMb": "{size} MB",
         "sizeUnderMb": "<0.1 MB",
         "actions": "Actions",
+        "download": "Download",
+        "downloadAria": "Download document: {filename}, {date}",
         "delete": "Delete",
         "deleteAria": "Delete document: {filename}, {date}"
       },
