@@ -548,7 +548,7 @@
   "Pricing": {
     "meta": {
       "title": "Pricing",
-      "description": "A free plan with the full company diagnosis, and a Pro plan with unlimited analyses, history, and export — launch pricing, subject to change."
+      "description": "A free plan with the full company diagnosis, and a Pro plan with unlimited analyses and export — launch pricing, subject to change."
     },
     "heading": "Pricing",
     "intro": "Free already includes the full company diagnosis. Pro will add unlimited use and tools for ongoing work — billing isn't connected yet, so the waitlist is open.",
@@ -567,7 +567,7 @@
       "priceNote": "Launch pricing, subject to change",
       "intro": "Pro hasn't launched yet. Leave your email and we'll write when it opens.",
       "feature1": "Unlimited analyses",
-      "feature2": "History and multi-year trends",
+      "feature2": "Multi-year trends across your full analysis history",
       "feature3": "Saved what-if scenarios",
       "feature4": "PDF export",
       "formLabel": "Email",
@@ -577,8 +577,10 @@
       "submitPending": "Sending…",
       "genericError": "Couldn't send the request. Please try again in a minute.",
       "successChip": "You're on the list",
+      "successTitle": "Done — you're on the waitlist",
       "successDescription": "We'll write to {email} once Pro is ready.",
       "alreadyChip": "Already on the list",
+      "alreadyTitle": "You're already on the waitlist",
       "alreadyDescription": "This email is already on the list — no need to add it again."
     }
   },

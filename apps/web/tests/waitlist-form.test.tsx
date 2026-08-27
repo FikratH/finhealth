@@ -52,6 +52,20 @@ describe("WaitlistForm", () => {
     expect(screen.queryByLabelText(pro.formLabel)).not.toBeInTheDocument();
   });
 
+  it("round-1 fix (F2): the success confirmation is a role=status live region with a headline, so a screen reader is actually told something happened", async () => {
+    joinWaitlist.mockResolvedValue({ status: "joined" });
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText(pro.formLabel), {
+      target: { value: "founder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
+
+    const region = await screen.findByRole("status");
+    expect(region).toHaveTextContent(pro.successTitle);
+    expect(region).toHaveTextContent(pro.successChip);
+  });
+
   it("shows the honest \"already on the list\" confirmation on a duplicate — not an error", async () => {
     joinWaitlist.mockResolvedValue({ status: "already_joined" });
     renderForm();
@@ -63,6 +77,20 @@ describe("WaitlistForm", () => {
 
     expect(await screen.findByText(pro.alreadyChip)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("round-1 fix (F2): the duplicate confirmation is also a role=status live region with its own honest headline", async () => {
+    joinWaitlist.mockResolvedValue({ status: "already_joined" });
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText(pro.formLabel), {
+      target: { value: "dupe@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
+
+    const region = await screen.findByRole("status");
+    expect(region).toHaveTextContent(pro.alreadyTitle);
+    expect(region).toHaveTextContent(pro.alreadyChip);
   });
 
   it("shows a visible retryable error when the API call fails, and keeps the form", async () => {

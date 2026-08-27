@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { joinWaitlist } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { AnnunciatorCell } from "@/components/annunciator-cell";
+import { PHYSICAL_BUTTON_CLASS } from "@/components/pricing/physical-button-class";
 import { cn } from "@/lib/utils";
 
 // Deliberately permissive — this only gates the request, never claims to
@@ -51,11 +52,27 @@ export function WaitlistForm() {
   if (status === "joined" || status === "already_joined") {
     const joined = status === "joined";
     return (
-      <AnnunciatorCell
-        status="good"
-        label={joined ? t("successChip") : t("alreadyChip")}
-        description={joined ? t("successDescription", { email }) : t("alreadyDescription")}
-      />
+      // role="status" (not a bezel of its own — AnnunciatorCell below
+      // already IS the one bezel; wrapping it in a second `border
+      // border-line bg-panel` frame would be the "nested cards"
+      // anti-pattern the craft floor bans): a live region so the whole
+      // subtree is announced the moment it replaces the form — round-1
+      // review finding (F2), the form's earlier version swapped the DOM
+      // silently, with nothing to tell a screen-reader user that
+      // submitting actually did anything. The headline above the cell
+      // mirrors SigninForm's own sent-state shape (chip/headline/
+      // description) and gives the live region an immediate opening line.
+      <div role="status">
+        <p className="font-display text-xl text-ink">
+          {joined ? t("successTitle") : t("alreadyTitle")}
+        </p>
+        <AnnunciatorCell
+          className="mt-4"
+          status="good"
+          label={joined ? t("successChip") : t("alreadyChip")}
+          description={joined ? t("successDescription", { email }) : t("alreadyDescription")}
+        />
+      </div>
     );
   }
 
@@ -104,7 +121,7 @@ export function WaitlistForm() {
       <Button
         type="submit"
         disabled={status === "pending"}
-        className="mt-4 h-auto w-full border-2 border-brand bg-panel px-8 py-3.5 font-mono text-sm uppercase tracking-wide text-brand shadow-[0_0_16px_2px_color-mix(in_oklch,var(--accent)_40%,transparent)] hover:bg-brand/10 hover:shadow-[0_0_20px_3px_color-mix(in_oklch,var(--accent)_50%,transparent)] active:shadow-[0_0_8px_1px_color-mix(in_oklch,var(--accent)_40%,transparent)] focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:w-auto"
+        className={cn("mt-4", PHYSICAL_BUTTON_CLASS)}
       >
         {status === "pending" ? t("submitPending") : t("submitButton")}
       </Button>

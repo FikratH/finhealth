@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { OriginTicket } from "@/components/origin-ticket";
 import { CheckIcon } from "@/components/icons";
 import { WaitlistForm } from "@/components/pricing/waitlist-form";
+import { PHYSICAL_BUTTON_CLASS } from "@/components/pricing/physical-button-class";
 
 // Static content + the Free tier's navigation CTA render as a plain server
 // component (no client JS needed for either) — only the Pro tier's email
@@ -12,14 +13,6 @@ import { WaitlistForm } from "@/components/pricing/waitlist-form";
 // MethodologyDocument's own header comment describes for its page.
 const FREE_FEATURES = ["feature1", "feature2", "feature3"] as const;
 const PRO_FEATURES = ["feature1", "feature2", "feature3", "feature4"] as const;
-
-// One shared physical-button class string (DESIGN.md's "the landing CTA —
-// a literal physical button": border-2 border-brand bg-panel, a lit-LED
-// glow that dims on :active) — duplicated from landing/hero.tsx rather
-// than extracted into a shared component, matching that file's own choice
-// to keep the classes inline instead of behind an abstraction.
-const PHYSICAL_BUTTON_CLASS =
-  "h-auto w-full border-2 border-brand bg-panel px-8 py-3.5 font-mono text-sm uppercase tracking-wide text-brand shadow-[0_0_16px_2px_color-mix(in_oklch,var(--accent)_40%,transparent)] hover:bg-brand/10 hover:shadow-[0_0_20px_3px_color-mix(in_oklch,var(--accent)_50%,transparent)] active:shadow-[0_0_8px_1px_color-mix(in_oklch,var(--accent)_40%,transparent)] focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:w-auto";
 
 function FeatureList({ items }: { items: readonly string[] }) {
   return (

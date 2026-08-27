@@ -40,13 +40,17 @@ test("Pro waitlist happy path: fill email, submit, see the annunciator confirmat
   await page.goto("/pricing");
 
   await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Встать в очередь" }).click();
+  await page.getByRole("button", { name: "Встать в список ожидания" }).click();
 
-  // AnnunciatorCell's label ("Вы в списке") plus its description carrying
-  // the submitted email back — the composed confirmation replacing the
-  // form outright, same discipline as SigninForm's own sent-state.
-  await expect(page.getByText("Вы в списке", { exact: true })).toBeVisible();
-  await expect(page.getByText(email, { exact: false })).toBeVisible();
+  // round-1 fix (F2): the confirmation is a role=status live region —
+  // headline + AnnunciatorCell's label ("Вы в списке") plus its
+  // description carrying the submitted email back, replacing the form
+  // outright, same discipline as SigninForm's own sent-state.
+  const successRegion = page.getByRole("status");
+  await expect(successRegion).toBeVisible();
+  await expect(successRegion).toContainText("Готово — вы в списке ожидания");
+  await expect(successRegion).toContainText("Вы в списке");
+  await expect(successRegion).toContainText(email);
   // The form itself is replaced, not left behind alongside the confirmation.
   await expect(page.getByLabel("Email")).toHaveCount(0);
 
@@ -55,10 +59,10 @@ test("Pro waitlist happy path: fill email, submit, see the annunciator confirmat
   // second fresh signup.
   await page.goto("/pricing");
   await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Встать в очередь" }).click();
+  await page.getByRole("button", { name: "Встать в список ожидания" }).click();
 
-  await expect(page.getByText("Уже в списке", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Этот email уже добавлен в список", { exact: false }),
-  ).toBeVisible();
+  const duplicateRegion = page.getByRole("status");
+  await expect(duplicateRegion).toContainText("Вы уже в списке ожидания");
+  await expect(duplicateRegion).toContainText("Уже в списке");
+  await expect(duplicateRegion).toContainText("Этот email уже добавлен в список");
 });

@@ -35,19 +35,23 @@ export interface AnnunciatorCellProps {
 // role="img" (not "status"): every other read-only instrument reading in
 // this family — SegmentDisplay, ScoreDial, CalibrationScale — treats its
 // glyph-plus-text as one opaque "picture" named by aria-label, since the
-// visible content itself is aria-hidden. AnnunciatorCell used to reach for
-// role="status" instead, but nothing here ever mutates post-mount — a live
-// region that never changes is announced zero times, so the "status" role
-// bought nothing. role="img" matches the family's own naming convention
-// and drops the unused live-region semantics.
+// visible content itself is aria-hidden. role="img" matches the family's
+// own naming convention. This component itself still never mutates
+// post-mount (each render is a fresh instance, not a live update to an
+// existing one), so its own role stays "img", not "status" — but see
+// components/pricing/waitlist-form.tsx (P6.T6, its second real call site)
+// for what a caller does when IT needs the live-region behavior: it wraps
+// its own outer element in role="status" instead of asking this component
+// to carry that responsibility, since only the caller knows whether its
+// own mount is a live DOM swap that needs announcing.
 //
-// Its one real call site (score-header.tsx) goes a step further and wraps
+// score-header.tsx (the original call site) goes a step further and wraps
 // this whole component in aria-hidden="true": the sr-only <h1> beside it
 // already carries the verdict as the document's one real heading landmark,
 // and this component's own role="img" aria-label would otherwise name that
 // same verdict a second time, adjacently (finish review, material_fixes
 // 5) — this component still exposes role="img"/aria-label on its own (the
-// /dev/tokens preview renders it un-hidden, and any future real call site
+// /dev/tokens preview renders it un-hidden, and every other real call site
 // gets the same self-contained accessible name for free); only the score
 // header's specific instance opts out via its wrapper.
 export function AnnunciatorCell({ status, label, description, className }: AnnunciatorCellProps) {

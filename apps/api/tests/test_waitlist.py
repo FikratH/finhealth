@@ -6,6 +6,8 @@ shared rate limiter.
 """
 from __future__ import annotations
 
+import contextlib
+import io
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -137,6 +139,35 @@ def test_migration_chain_0003_follows_0002():
     rev = script.get_revision("0003_waitlist")
 
     assert rev.down_revision == "0002_entitlements"
+
+
+def test_alembic_upgrade_head_sql_compiles_for_postgresql_with_waitlist():
+    """Offline `alembic upgrade head --sql` against the postgresql dialect
+    must compile all three migrations, including 0003's waitlist table AND
+    its unique email index (Postgres-readiness gate — mirrors
+    test_entitlements.py's own 0002 version, no real Postgres connection
+    needed). The unique index is asserted explicitly, not just the table:
+    SQLite and Postgres spell a named unique index differently enough that
+    a typo in op.create_index's dialect-agnostic call could compile fine
+    against SQLite (exercised by every other test in this file) while
+    silently failing against Postgres — this is the one check that would
+    catch that."""
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(storage._ALEMBIC_INI))
+    cfg.set_main_option("script_location", str(storage._ALEMBIC_DIR))
+    cfg.set_main_option("sqlalchemy.url", "postgresql://user:pass@localhost/db")
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        command.upgrade(cfg, "head", sql=True)
+    output = buf.getvalue()
+
+    assert "CREATE TABLE analyses" in output
+    assert "CREATE TABLE entitlements" in output
+    assert "CREATE TABLE waitlist" in output
+    assert "CREATE UNIQUE INDEX ix_waitlist_email" in output
 
 
 def test_fresh_db_migration_creates_waitlist_table(tmp_path, monkeypatch):

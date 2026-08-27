@@ -104,6 +104,12 @@ describe("Per-route generateMetadata — plain page title, brand suffix left to 
       load: () => import("@/app/[locale]/signin/page"),
       expectedDocumentTitle: (rawTitle) => rawTitle,
     },
+    {
+      name: "Pricing",
+      namespace: "Pricing.meta",
+      load: () => import("@/app/[locale]/pricing/page"),
+      expectedDocumentTitle: (rawTitle) => rawTitle,
+    },
   ];
 
   beforeEach(() => {

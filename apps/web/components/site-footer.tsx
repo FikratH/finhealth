@@ -1,5 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { IDLE_LINK_CLASS } from "@/components/account-menu";
+import { cn } from "@/lib/utils";
 
 export function SiteFooter() {
   const t = useTranslations("Footer");
@@ -13,11 +15,16 @@ export function SiteFooter() {
          * current-location marking here (unlike SiteHeader's, which
          * mirrors AccountMenu's aria-current grammar): the footer has
          * never carried a "you are here" nav before, and one lone link
-         * doesn't need it to stay legible. */}
+         * doesn't need it to stay legible. Reuses AccountMenu's exported
+         * IDLE_LINK_CLASS (round-1 review, F6) rather than re-inlining its
+         * value, so the two never drift independently. */}
         <nav className="mb-3">
           <Link
             href="/pricing"
-            className="rounded-sm font-mono text-xs uppercase tracking-wide text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(
+              "rounded-sm font-mono text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              IDLE_LINK_CLASS,
+            )}
           >
             {t("pricing")}
           </Link>
