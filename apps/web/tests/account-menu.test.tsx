@@ -55,6 +55,27 @@ describe("AccountMenu", () => {
     expect(screen.queryByRole("link", { name: ruMessages.Header.signIn })).not.toBeInTheDocument();
   });
 
+  it("signed-in: shows a 'Мои анализы' link to /my", () => {
+    useSession.mockReturnValue({
+      data: { user: { id: "u_1", email: "founder@example.com" } },
+      isPending: false,
+    });
+    renderMenu();
+
+    const link = screen.getByRole("link", { name: ruMessages.Header.myAnalyses });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/my");
+  });
+
+  it("signed-out: no 'Мои анализы' link", () => {
+    useSession.mockReturnValue({ data: null, isPending: false });
+    renderMenu();
+
+    expect(
+      screen.queryByRole("link", { name: ruMessages.Header.myAnalyses }),
+    ).not.toBeInTheDocument();
+  });
+
   it("signing out calls the Better Auth client's signOut", () => {
     useSession.mockReturnValue({
       data: { user: { id: "u_1", email: "founder@example.com" } },

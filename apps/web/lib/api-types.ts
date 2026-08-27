@@ -315,6 +315,27 @@ export interface DeleteAnalysisResponse {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/my/analyses, DELETE /api/my/analyses/{id}
+// ---------------------------------------------------------------------------
+
+/** One row of the signed-in user's analysis history — a summary
+ * projection (apps/api/app/main.py's `my_analyses` endpoint), never the
+ * full `AnalysisResult` payload. */
+export interface MyAnalysisSummary {
+  analysis_id: string;
+  created_at: string;
+  industry_name: string;
+  /** null means insufficient data to score, same meaning as
+   * `AnalysisResult.overall_score` — never render as 0. */
+  overall_score: number | null;
+  health_label: string;
+}
+
+export interface MyAnalysesResponse {
+  analyses: MyAnalysisSummary[];
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/analysis/{id}/narrative
 // ---------------------------------------------------------------------------
 

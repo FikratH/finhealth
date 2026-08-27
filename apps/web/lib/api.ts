@@ -18,6 +18,7 @@ import type {
   ExtractionResult,
   IndustriesResponse,
   IndustryBenchmarksResponse,
+  MyAnalysesResponse,
   NarrativeResult,
   UploadedDocument,
 } from "./api-types";
@@ -236,6 +237,30 @@ export function getIndustryBenchmarks(industryId: string): Promise<IndustryBench
 export function deleteAnalysis(id: string): Promise<DeleteAnalysisResponse> {
   return request<DeleteAnalysisResponse>(
     `/api/analysis/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** GET /api/my/analyses — the signed-in user's own analyses, newest
+ * first, capped at 50. A summary projection (id, created_at,
+ * industry_name, overall_score, health_label) — never the full
+ * `AnalysisResult` payload. 401 (`auth_required`) when signed out. */
+export function getMyAnalyses(): Promise<MyAnalysesResponse> {
+  return request<MyAnalysesResponse>(
+    "/api/my/analyses",
+    { method: "GET" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** DELETE /api/my/analyses/{id} — 401 signed out. 404 for BOTH an unknown
+ * id and an id owned by a different user: the response never
+ * distinguishes the two, so a caller can't probe for other users'
+ * analysis ids. */
+export function deleteMyAnalysis(id: string): Promise<DeleteAnalysisResponse> {
+  return request<DeleteAnalysisResponse>(
+    `/api/my/analyses/${encodeURIComponent(id)}`,
     { method: "DELETE" },
     DEFAULT_TIMEOUT_MS,
   );

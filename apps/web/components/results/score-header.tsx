@@ -4,6 +4,7 @@ import { SpecimenChip } from "@/components/specimen-chip";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ConfidenceDisclosure } from "./confidence-disclosure";
 import { cn } from "@/lib/utils";
+import { verdictTone } from "@/lib/verdict";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -14,18 +15,6 @@ export interface ScoreHeaderProps {
    * document's own top, not a scroll-revealed section, so it isn't
    * wrapped in RevealSection like the rest of results-document.tsx. */
   id?: string;
-}
-
-// Ink color for the verdict stamp — mirrors apps/api's health_label
-// tiering (schemas.py: <45 weak/critical, <65 satisfactory/attention,
-// else good/strong) collapsed onto the status triad. Insufficient data
-// isn't a verdict at all, so it stamps neutral ink rather than borrowing
-// a status color that would imply a real result.
-function verdictTone(score: number | null): "good" | "attention" | "critical" | "na" {
-  if (score === null) return "na";
-  if (score < 45) return "critical";
-  if (score < 65) return "attention";
-  return "good";
 }
 
 const STAMP_TONE_CLASS: Record<ReturnType<typeof verdictTone>, string> = {

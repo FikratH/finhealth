@@ -73,3 +73,22 @@ test("submitting a real email against an unconfigured production deploy fails cl
   // rather than being stuck on a dead-end confirmation screen.
   await expect(page.getByLabel("Email")).toBeVisible();
 });
+
+// /my (P5.T4, «Мои анализы») is the product's one auth-gated page. This
+// webServer has no scriptable way to actually sign in (see this file's own
+// header comment on why a real magic-link flow was dropped from e2e), so
+// the signed-in table is covered by vitest instead
+// (tests/my-analyses-view.test.tsx) — this is the one real-browser
+// assertion the gate itself gets: an anonymous visit renders the composed
+// sign-in prompt, not a blank page or a client error.
+test("/my (signed out): renders the composed sign-in prompt, not the history table", async ({
+  page,
+}) => {
+  await page.goto("/my");
+  await expect(page.getByRole("heading", { name: "Требуется вход" })).toBeVisible();
+  // Scoped to <main> — the header's own AccountMenu also renders a
+  // "Войти" link on this (non-"/") route, so an unscoped query would be
+  // ambiguous between the two.
+  await expect(page.getByRole("main").getByRole("link", { name: "Войти" })).toBeVisible();
+  await expect(page.getByRole("table")).toHaveCount(0);
+});

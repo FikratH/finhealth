@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatNumber } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 
 describe("formatNumber", () => {
   it("groups with a thin no-break space and a comma decimal for ru", () => {
@@ -41,5 +41,23 @@ describe("formatNumber", () => {
 
   it("defaults to ru locale and 2 decimals", () => {
     expect(formatNumber(3)).toBe("3,00");
+  });
+});
+
+describe("formatDate", () => {
+  it("renders DD.MM.YYYY for ru", () => {
+    expect(formatDate("2026-08-27T10:00:00Z", "ru")).toBe("27.08.2026");
+  });
+
+  it("renders MM/DD/YYYY for en", () => {
+    expect(formatDate("2026-08-27T10:00:00Z", "en")).toBe("08/27/2026");
+  });
+
+  it("defaults to ru", () => {
+    expect(formatDate("2026-08-27T10:00:00Z")).toBe("27.08.2026");
+  });
+
+  it("renders the placeholder for an unparseable timestamp", () => {
+    expect(formatDate("not-a-date")).toBe("—");
   });
 });

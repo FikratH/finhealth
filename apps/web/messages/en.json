@@ -7,7 +7,8 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "signIn": "Sign in",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "myAnalyses": "My analyses"
   },
   "SignIn": {
     "meta": {
@@ -453,6 +454,41 @@
       "determinism": "Every calculation is deterministic: a transparent formula engine computes the numbers, not a language model.",
       "noLlmInNumbers": "The language model, when connected, only narrates values that are already computed, in words — it never computes them itself and can't change a single figure in the report.",
       "naDiscipline": "Missing data never turns into zero or an average: a ratio that can't be computed shows as \"N/A\" with an explanation of exactly what's missing."
+    }
+  },
+  "My": {
+    "meta": {
+      "title": "Tonus — my analyses",
+      "description": "Your saved company diagnostics."
+    },
+    "heading": "My analyses",
+    "signedOut": {
+      "heading": "Sign in required",
+      "body": "Sign in to see your saved analyses.",
+      "cta": "Sign in"
+    },
+    "loading": "Loading…",
+    "loadError": "Couldn't load your analyses. Try again.",
+    "deleteError": "Couldn't delete the analysis. Try again.",
+    "empty": {
+      "heading": "No analyses yet",
+      "body": "Upload a statement to get your first diagnosis.",
+      "cta": "Check a company"
+    },
+    "table": {
+      "date": "Date",
+      "industry": "Industry",
+      "score": "Score",
+      "scoreNa": "N/A",
+      "actions": "Actions",
+      "open": "Open",
+      "delete": "Delete"
+    },
+    "deleteDialog": {
+      "title": "Delete this analysis?",
+      "body": "This can't be undone — the analysis will be permanently removed.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
     }
   }
 }

@@ -66,3 +66,23 @@ export function formatNumber(
 
   return `${sign}${grouped}${fraction}${unitSuffix(unit)}`;
 }
+
+/**
+ * Formats an ISO 8601 timestamp as a plain date for the lab-report
+ * grammar's PT Mono date cells (e.g. the history table's `created_at`
+ * column). Locale controls only day/month/year ordering via
+ * Intl.DateTimeFormat — RU renders DD.MM.YYYY, EN renders MM/DD/YYYY. An
+ * unparseable timestamp renders the same NULL_PLACEHOLDER as
+ * formatNumber, never a raw "Invalid Date" string.
+ */
+export function formatDate(iso: string, locale: Locale = "ru"): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return NULL_PLACEHOLDER;
+  }
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}

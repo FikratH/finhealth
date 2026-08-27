@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 // The header's account area: a composed two-state grammar, not a dropdown —
 // signed-out gets a quiet text link ("Войти"), signed-in shows the account
 // email itself (this document's own PT Mono figure-and-label idiom applies
-// to identity text too, not just numbers) plus a plain sign-out action.
+// to identity text too, not just numbers) plus a "Мои анализы" link
+// (app/[locale]/my) and a plain sign-out action.
 // `isPending` renders the signed-out state rather than a loading flicker —
 // Better Auth's session check is fast and cookie-based, and a page that
 // briefly shows "Войти" before settling into the signed-in state reads
@@ -23,6 +24,12 @@ export function AccountMenu() {
         <span className="hidden font-mono text-xs text-ink-muted sm:inline">
           {session.user.email}
         </span>
+        <Link
+          href="/my"
+          className="rounded-sm font-mono text-xs uppercase tracking-wide text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t("myAnalyses")}
+        </Link>
         <Button
           type="button"
           variant="ghost"
