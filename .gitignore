@@ -13,3 +13,8 @@ node_modules/
 .DS_Store
 # workspace
 .superpowers/
+.impeccable/
+# playwright (apps/web e2e — see apps/web/playwright.config.ts)
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/

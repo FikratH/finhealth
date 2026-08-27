@@ -36,3 +36,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test
+      # `npm run e2e` (Playwright, apps/web/playwright.config.ts) is
+      # intentionally not run here yet — it boots both the API (isolated
+      # tmp SQLite) and the built web app as a pair of servers, and CI
+      # envs for that dual-server boot aren't stable yet. Wired in Phase 6.
