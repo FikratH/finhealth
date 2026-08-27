@@ -26,6 +26,18 @@ function jsonResponse(status: number, body: unknown): Response {
   } as unknown as Response;
 }
 
+/** A 2xx response whose body can't be parsed as JSON (truncated/malformed) —
+ * mirrors what `response.json()` actually does: reject with a SyntaxError. */
+function invalidJsonResponse(status: number): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => {
+      throw new SyntaxError("Unexpected end of JSON input");
+    },
+  } as unknown as Response;
+}
+
 const analysisFixture: AnalysisResult = {
   analysis_id: "an_demo123",
   created_at: "2026-08-27T00:00:00Z",
@@ -138,6 +150,12 @@ const analysisFixture: AnalysisResult = {
   disclaimer: "Сервис не заменяет профессиональную финансовую консультацию.",
 };
 
+// A pre-2026-08-27 stored payload: `risk_radar` is absent entirely, not
+// present-as-null — this is the crux of typing it `RiskRadar | undefined`
+// rather than `RiskRadar | null` in api-types.ts (see D1 in the report).
+const analysisFixtureWithoutRiskRadar: AnalysisResult = { ...analysisFixture };
+delete analysisFixtureWithoutRiskRadar.risk_radar;
+
 const extractionFixture: ExtractionResult = {
   upload_id: "up_demo123",
   periods: ["2025 Q4", "2024 Q4"],
@@ -221,6 +239,17 @@ describe("lib/api", () => {
         message: "errors.unknown",
       });
     });
+
+    it("maps a malformed 2xx body into ApiError instead of throwing a raw SyntaxError", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(invalidJsonResponse(200));
+
+      const promise = getAnalysis("x");
+      await expect(promise).rejects.toBeInstanceOf(ApiError);
+      await expect(promise).rejects.toMatchObject({
+        status: 200,
+        message: "errors.parseFailure",
+      });
+    });
   });
 
   describe("success shapes", () => {
@@ -250,6 +279,26 @@ describe("lib/api", () => {
       expect(result.risk_radar?.beneish.m_score).toBeNull();
       expect(result.risk_radar?.beneish.flag).toBeNull();
       expect(result.category_scores[1].score).toBeNull();
+    });
+
+    it("returns the stored AnalysisResult shape from getAnalysis()", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, analysisFixture));
+
+      const result = await getAnalysis("an_demo123");
+
+      expect(result).toEqual(analysisFixture);
+      const [path, init] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/analysis/an_demo123");
+      expect(init?.method).toBe("GET");
+    });
+
+    it("leaves risk_radar as undefined (not null) for a pre-extension stored payload", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, analysisFixtureWithoutRiskRadar));
+
+      const result = await getAnalysis("an_old123");
+
+      expect(result.risk_radar).toBeUndefined();
+      expect("risk_radar" in result).toBe(false);
     });
 
     it("sends a multipart body from uploadFile()", async () => {

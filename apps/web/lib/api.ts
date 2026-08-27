@@ -96,7 +96,15 @@ async function request<T>(
     throw new ApiError(response.status, detail ?? fallbackKey(response.status));
   }
 
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    // A 2xx response with a malformed/truncated body — still the server's
+    // fault, but there's no `detail` to read (readDetail() only ever runs
+    // on the error branch above). Same ApiError contract either way, so
+    // callers never have to catch a bare SyntaxError alongside ApiError.
+    throw new ApiError(response.status, "errors.parseFailure");
+  }
 }
 
 function requestJson<T>(
