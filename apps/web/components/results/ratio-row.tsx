@@ -10,7 +10,7 @@ import {
   truncateSnippet,
   type RatioInputTrace,
 } from "@/lib/results";
-import { metricDisplayName } from "@/lib/metric-names";
+import { ratioInputDisplayName } from "@/lib/metric-names";
 import type { ExtractedValue, RatioResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -40,9 +40,10 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
   // INPUT_KEY_ALIASES), the match is real but the input key itself isn't a
   // METRIC_NAMES entry — the row must display under the metric's real
   // identity (e.g. "operating_income" → «Операционная прибыль (EBIT)»),
-  // not the raw alias. Falls back to the input key itself when there's no
-  // match at all (the derived case).
-  const displayName = metricDisplayName(trace.source?.metric ?? trace.key, locale);
+  // not the raw alias. Falls back through DERIVED_NAMES (working_capital,
+  // net_debt, ...) when there's no source match at all (the derived case)
+  // — see ratioInputDisplayName — rather than the raw snake_case key.
+  const displayName = ratioInputDisplayName(trace.source?.metric ?? trace.key, locale);
   const status = classifyProvenance(trace);
 
   if (status === "derived") {

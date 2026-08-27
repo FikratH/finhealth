@@ -60,3 +60,53 @@ export function metricDisplayName(metric: string, locale: Locale): string {
   if (!entry) return metric;
   return locale === "ru" ? entry.ru : entry.en;
 }
+
+// Display names for `RatioResult.inputs` keys that are never a
+// `source_values` metric at all (lib/results.ts's "derived" provenance
+// status — see its own INPUT_KEY_ALIASES comment for the full audit of
+// every such key across apps/api/app/services/ratios.py): an average
+// (average_total_assets, average_shareholders_equity, average_inventory,
+// average_accounts_receivable, average_accounts_payable), a subtotal
+// (working_capital, net_debt, free_cash_flow, enterprise_value), or a
+// conditionally-sourced figure (equity_or_market_cap). "ebit" is included
+// defensively — ratio-row.tsx's own alias resolution already redirects it
+// to operating_income's real METRIC_NAMES entry before it ever reaches a
+// "derived" row, but a display name here means a future call site that
+// skips that resolution still shows a real label, not the raw key.
+export const DERIVED_NAMES: Record<string, MetricNameEntry> = {
+  average_total_assets: { ru: "Средние совокупные активы", en: "Average Total Assets" },
+  average_shareholders_equity: {
+    ru: "Средний собственный капитал",
+    en: "Average Shareholders' Equity",
+  },
+  average_inventory: { ru: "Средние запасы", en: "Average Inventory" },
+  average_accounts_receivable: {
+    ru: "Средняя дебиторская задолженность",
+    en: "Average Accounts Receivable",
+  },
+  average_accounts_payable: {
+    ru: "Средняя кредиторская задолженность",
+    en: "Average Accounts Payable",
+  },
+  working_capital: { ru: "Оборотный капитал", en: "Working Capital" },
+  net_debt: { ru: "Чистый долг", en: "Net Debt" },
+  free_cash_flow: { ru: "Свободный денежный поток", en: "Free Cash Flow" },
+  enterprise_value: { ru: "Стоимость компании (EV)", en: "Enterprise Value (EV)" },
+  equity_or_market_cap: {
+    ru: "Капитализация или собственный капитал",
+    en: "Market Cap or Shareholders' Equity",
+  },
+  ebit: { ru: "Операционная прибыль (EBIT)", en: "Operating Income (EBIT)" },
+};
+
+/** Display name for a traced ratio input specifically — checks
+ * DERIVED_NAMES first (a "derived" provenance row's key is never a real
+ * METRIC_NAMES entry, so metricDisplayName alone would fall back to the
+ * raw snake_case key) before falling back to metricDisplayName's own
+ * sourced-metric lookup. Safe to use for sourced/not_found rows too: no
+ * DERIVED_NAMES key collides with a METRIC_NAMES one. */
+export function ratioInputDisplayName(key: string, locale: Locale): string {
+  const derived = DERIVED_NAMES[key];
+  if (derived) return locale === "ru" ? derived.ru : derived.en;
+  return metricDisplayName(key, locale);
+}

@@ -194,4 +194,50 @@ describe("RatioRow — provenance trace fixes (review fix round 1)", () => {
       screen.queryByText(ruMessages.Results.ratios.provenanceDerived),
     ).not.toBeInTheDocument();
   });
+
+  it("labels a derived input (working_capital) under its real RU name, not the raw snake_case key (fix-wave F2)", () => {
+    // altman_z's working_capital input has no source_values counterpart —
+    // classifyProvenance reads it as "derived". Before DERIVED_NAMES,
+    // metricDisplayName("working_capital", "ru") had no METRIC_NAMES entry
+    // and fell back to the raw key itself, leaking engine internals onto
+    // the flagship trust surface.
+    const altmanZ: RatioResult = {
+      key: "altman_z",
+      name: "Altman Z′ (частная компания, без X2)",
+      category: "leverage",
+      formula: "0.717·(WC/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)",
+      inputs: {
+        working_capital: 322550000.0,
+        total_assets: 2456800000.0,
+      },
+      substitution: "",
+      value: 2.45,
+      unit: "x",
+      status: "attention",
+      score: null,
+      benchmark: null,
+      explanation: "",
+      applicable: true,
+      warnings: [],
+    };
+    const totalAssets: ExtractedValue = {
+      metric: "total_assets",
+      original_label: "Итого активы",
+      value: 2456800000.0,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 6",
+      confidence: 96,
+      snippet: "Итого активы | 2 456 800 | 2 298 500",
+      manually_edited: false,
+    };
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow ratio={altmanZ} locale="ru" sourceValues={[totalAssets]} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("Оборотный капитал")).toBeInTheDocument();
+    expect(screen.queryByText("working_capital")).not.toBeInTheDocument();
+  });
 });
