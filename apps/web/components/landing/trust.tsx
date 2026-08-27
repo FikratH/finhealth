@@ -27,7 +27,7 @@ export function Trust() {
         {t("footnote")}
       </p>
       <p className="mt-4 max-w-3xl font-mono text-sm">
-        <Link href="/methodology" className="text-accent underline">
+        <Link href="/methodology" className="text-brand underline">
           {t("methodologyLinkLabel")}
         </Link>
       </p>
