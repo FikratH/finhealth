@@ -9,10 +9,12 @@ secret explicitly via monkeypatch.setenv.
 from __future__ import annotations
 
 import copy
+import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import jwt
+import jwt.warnings
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -29,11 +31,11 @@ TEST_SECRET = "test-only-secret-do-not-use-in-prod"
 
 
 def _token(secret=TEST_SECRET, sub="user-1", iss="tonus-web", aud="tonus-api",
-          exp_delta=timedelta(hours=1), **extra_claims):
+          exp_delta=timedelta(hours=1), alg="HS256", **extra_claims):
     now = datetime.now(timezone.utc)
     payload = {"sub": sub, "iss": iss, "aud": aud, "iat": now, "exp": now + exp_delta}
     payload.update(extra_claims)
-    return jwt.encode(payload, secret, algorithm="HS256")
+    return jwt.encode(payload, secret, algorithm=alg)
 
 
 def _request(header_value: str | None) -> Request:
@@ -100,6 +102,46 @@ def test_missing_sub_claim_is_anonymous(monkeypatch):
     token = jwt.encode(
         {"iss": "tonus-web", "aud": "tonus-api", "iat": now, "exp": now + timedelta(hours=1)},
         TEST_SECRET, algorithm="HS256")
+    assert auth.get_current_user_id(_request(f"Bearer {token}")) is None
+
+
+def test_missing_exp_claim_is_anonymous(monkeypatch):
+    """The claims contract says exp is validated — that's only true if exp
+    is also required. A token minted without exp would otherwise be
+    accepted forever."""
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {"sub": "user-1", "iss": "tonus-web", "aud": "tonus-api", "iat": now},
+        TEST_SECRET, algorithm="HS256")
+    assert auth.get_current_user_id(_request(f"Bearer {token}")) is None
+
+
+# --------------------------- alg-confusion regression (unit) ---------------
+
+def test_alg_none_token_is_anonymous(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {"sub": "user-1", "iss": "tonus-web", "aud": "tonus-api",
+         "iat": now, "exp": now + timedelta(hours=1)},
+        key=None, algorithm="none")
+    assert auth.get_current_user_id(_request(f"Bearer {token}")) is None
+
+
+def test_alg_confusion_hs512_signed_with_correct_secret_is_anonymous(monkeypatch):
+    """A token signed with the right secret but the wrong algorithm must
+    still be rejected — the decode call pins algorithms=["HS256"] and this
+    test guards that against future refactors (e.g. someone widening the
+    allowlist to make HS384/HS512 tokens 'just work')."""
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    # PyJWT warns that TEST_SECRET is short for HS512 specifically — beside
+    # the point here (the test is about the wrong *algorithm*, not key
+    # length), so it's scoped out rather than padding the secret and
+    # weakening what "the correct secret" means for this assertion.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", jwt.warnings.InsecureKeyLengthWarning)
+        token = _token(alg="HS512")
     assert auth.get_current_user_id(_request(f"Bearer {token}")) is None
 
 

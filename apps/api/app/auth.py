@@ -2,8 +2,8 @@
 
 The API and the web app (apps/web, Better Auth) share one HS256 secret
 (`AUTH_JWT_SECRET`) and one claims contract: `iss="tonus-web"`,
-`aud="tonus-api"`, `sub` = user id, `exp` validated. This module only
-*reads* that contract; it never issues tokens.
+`aud="tonus-api"`, `sub` = user id, `exp` required and validated. This
+module only *reads* that contract; it never issues tokens.
 
 `get_current_user_id` is the optional-auth primitive: anonymous requests
 must keep working unchanged, so it NEVER raises — a missing header, a
@@ -50,6 +50,11 @@ def get_current_user_id(request: Request) -> str | None:
         claims = jwt.decode(
             token, secret, algorithms=[JWT_ALGORITHM],
             issuer=JWT_ISSUER, audience=JWT_AUDIENCE,
+            # PyJWT only validates exp/sub when the claim is present; without
+            # `require`, a token minted without an exp claim would be
+            # accepted forever, contradicting the "exp is always validated"
+            # claims contract.
+            options={"require": ["exp", "sub"]},
         )
     except jwt.PyJWTError as e:
         log.debug("jwt rejected: %s", e)
