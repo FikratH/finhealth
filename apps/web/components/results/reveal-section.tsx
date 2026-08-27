@@ -15,6 +15,15 @@ export interface RevealSectionProps {
    * content, leaving this wrapper's own hairline rule to print above
    * nothing, an orphaned rule with no section beneath it. */
   printHidden?: boolean;
+  /** A stable identifier for results-document.tsx's own scroll-cinema
+   * bookkeeping — distinct from `id`, which is optional (only sections
+   * with a mini-nav anchor have one) and is a real DOM id used for
+   * anchor navigation. Rendered as `data-section-key` so useGSAP's reveal
+   * sweep can track "already revealed" sections by a key every section
+   * has, id-less ones included. Unused (and omitted from the DOM
+   * entirely) by any caller that doesn't need that bookkeeping — e.g.
+   * methodology-document.tsx's static, non-animated sections. */
+  sectionKey?: string;
 }
 
 // One scroll-revealed block of the diagnosis document — a plain anchor +
@@ -28,11 +37,18 @@ export interface RevealSectionProps {
 // state is set imperatively via gsap.set() at effect time, never a
 // render-time class, so no-JS visitors, crawlers, and reduced-motion
 // readers always see the finished document without any scroll dependency.
-export function RevealSection({ id, children, className, printHidden }: RevealSectionProps) {
+export function RevealSection({
+  id,
+  children,
+  className,
+  printHidden,
+  sectionKey,
+}: RevealSectionProps) {
   return (
     <div
       id={id}
       data-reveal-section
+      data-section-key={sectionKey}
       className={cn("scroll-mt-24", printHidden && "print:hidden")}
     >
       <div aria-hidden="true" data-reveal-rule className="mb-6 h-px w-full origin-left bg-line" />

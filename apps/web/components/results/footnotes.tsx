@@ -26,7 +26,7 @@ export function Footnotes({ sources }: FootnotesProps) {
         ))}
       </ol>
       <p className="font-mono text-sm">
-        <Link href="/methodology" className="text-accent no-underline hover:underline">
+        <Link href="/methodology" className="text-brand no-underline hover:underline">
           {t("methodologyLinkLabel")}
         </Link>
       </p>

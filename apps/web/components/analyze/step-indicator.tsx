@@ -42,7 +42,7 @@ export function StepIndicator({ current, className }: StepIndicatorProps) {
               className={cn(
                 "flex items-center gap-1.5",
                 state === "current" && "text-ink",
-                state === "done" && "text-accent",
+                state === "done" && "text-brand",
                 state === "upcoming" && "text-ink-muted",
               )}
             >
@@ -51,7 +51,7 @@ export function StepIndicator({ current, className }: StepIndicatorProps) {
                 className={cn(
                   "flex size-4 items-center justify-center rounded-full border text-[10px]",
                   state === "current" && "border-accent bg-accent text-paper",
-                  state === "done" && "border-accent text-accent",
+                  state === "done" && "border-accent text-brand",
                   state === "upcoming" && "border-line text-ink-muted",
                 )}
               >

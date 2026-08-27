@@ -46,8 +46,43 @@ function registerScrollTriggerOnce() {
 
 // Reveal a section once it's most of the way into view — early enough to
 // feel anticipatory, not so early it fires while the section is still
-// mostly off-screen.
-const SECTION_REVEAL_START = "top 75%";
+// mostly off-screen. Kept as one fraction, not two independent magic
+// numbers: SECTION_REVEAL_START (the string ScrollTrigger's own `start`
+// option parses) and revealAlreadyInView's own geometry check both derive
+// from it, so they can't silently drift apart.
+const SECTION_REVEAL_START_FRACTION = 0.75;
+const SECTION_REVEAL_START = `top ${SECTION_REVEAL_START_FRACTION * 100}%`;
+
+/** Whether a section should be treated as already revealed on THIS
+ * useGSAP run, rather than hidden-and-animated — true if either its own
+ * key was already marked revealed on a prior run (survives a
+ * revertOnUpdate re-sync via the caller's `revealedKeys` ref, the same
+ * pattern as `hasPlayedOpeningRef`), or it's *currently* sitting at or
+ * above its own reveal activation point (mirrors SECTION_REVEAL_START:
+ * the section's own top has already crossed 75% down the viewport).
+ *
+ * The second condition is what a layout shift (the narrative section
+ * collapsing on a 503, or growing after a successful generate) can newly
+ * create: a section that used to sit below the fold can end up already
+ * on screen the moment the effect re-runs, with no scroll in between.
+ * Re-creating a ScrollTrigger from that section's hidden gsap.set() state
+ * would replay its reveal tween — via ScrollTrigger's own documented
+ * "fire immediately if already past start" behavior — for content the
+ * reader never saw hide in the first place: a visible hide-then-refade
+ * flicker with no user-facing cause (fix-wave round 3, F1 completion).
+ *
+ * A pure, DOM-reading predicate — no GSAP/ScrollTrigger calls of its own
+ * — so it's unit-testable without a real ScrollTrigger instance.
+ */
+export function revealAlreadyInView(
+  sectionEl: HTMLElement,
+  revealedKeys: ReadonlySet<string>,
+  viewportHeight: number,
+): boolean {
+  const key = sectionEl.dataset.sectionKey;
+  if (key && revealedKeys.has(key)) return true;
+  return sectionEl.getBoundingClientRect().top <= viewportHeight * SECTION_REVEAL_START_FRACTION;
+}
 
 // The diagnosis document: one continuous page the score header, category
 // bars, ratio sections, risk radar, and prescriptions all belong to — not
@@ -87,6 +122,14 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   // re-syncs `narrativeAvailable`/`narrativeHasContent` trigger below (see
   // that hook's own comment) so a narrative state change never replays it.
   const hasPlayedOpeningRef = useRef(false);
+
+  // Section keys (RevealSection's `data-section-key`, not the optional
+  // nav `id`) that have already revealed — survives a revertOnUpdate
+  // re-sync the same way hasPlayedOpeningRef does. Read by
+  // revealAlreadyInView so a re-sync instant-settles a section that's
+  // already revealed instead of hiding and re-animating it (see that
+  // function's own comment for the flicker this prevents).
+  const revealedSectionKeysRef = useRef<Set<string>>(new Set());
 
   // Seeded to the document's own top (the заключение is always what's on
   // screen at load) — "always-lit" means something is current from the
@@ -285,6 +328,15 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       const arc = root.querySelector<SVGCircleElement>("[data-score-arc]");
       const stamp = root.querySelector<HTMLElement>("[data-verdict-stamp]");
 
+      // Captured before hasPlayedOpeningRef flips below — true only from
+      // the second run onward (a narrative-state re-sync), never on the
+      // original mount. Gates revealAlreadyInView's instant-settle path
+      // in the section sweep further down: the deliberate load-time
+      // "even above-the-fold content fades in" cinema effect stays
+      // exactly as designed on mount, and only a re-sync gets the
+      // flicker-avoiding shortcut.
+      const isResync = hasPlayedOpeningRef.current;
+
       if (!hasPlayedOpeningRef.current) {
         hasPlayedOpeningRef.current = true;
         const openingTl = gsap.timeline();
@@ -344,6 +396,31 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         const flags = sectionEl.querySelectorAll<HTMLElement>("[data-normband-flag]");
         if (!content) return;
 
+        const sectionKey = sectionEl.dataset.sectionKey;
+        const alreadyInView =
+          isResync &&
+          revealAlreadyInView(sectionEl, revealedSectionKeysRef.current, window.innerHeight);
+
+        if (alreadyInView) {
+          // The flicker-avoiding sweep: instant-settle to the finished
+          // state (no tween) and attach a plain, animation-free
+          // ScrollTrigger — nav-highlight tracking only, nothing left to
+          // reveal. See revealAlreadyInView's own comment for why this
+          // exists.
+          if (sectionKey) revealedSectionKeysRef.current.add(sectionKey);
+          gsap.set(content, { opacity: 1, y: 0 });
+          if (rule) gsap.set(rule, { scaleX: 1 });
+          if (flags.length) gsap.set(flags, { opacity: 1 });
+
+          ScrollTrigger.create({
+            trigger: sectionEl,
+            start: SECTION_REVEAL_START,
+            onEnter: () => sectionEl.id && setActiveId(sectionEl.id),
+            onEnterBack: () => sectionEl.id && setActiveId(sectionEl.id),
+          });
+          return;
+        }
+
         gsap.set(content, { opacity: 0, y: 12 });
         if (rule) gsap.set(rule, { scaleX: 0 });
         if (flags.length) gsap.set(flags, { opacity: 0 });
@@ -357,7 +434,14 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
             // footnotes, the disclaimer) still reveal — they just never
             // touch nav state, so scrolling past them can't blank out the
             // last real anchor the reader passed.
-            onEnter: () => sectionEl.id && setActiveId(sectionEl.id),
+            onEnter: () => {
+              if (sectionEl.id) setActiveId(sectionEl.id);
+              // Recorded regardless of run number — by the time any
+              // later re-sync happens, this marks the section revealed
+              // for revealAlreadyInView's ref check above, even if a
+              // subsequent layout shift moves it back off-screen.
+              if (sectionKey) revealedSectionKeysRef.current.add(sectionKey);
+            },
             onEnterBack: () => sectionEl.id && setActiveId(sectionEl.id),
           },
         });
@@ -386,9 +470,12 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       // presence or size changes — a 503 removes it entirely, a
       // successful generate grows it — either of which shifts every
       // section below it and would otherwise leave those sections'
-      // ScrollTriggers computed against the old layout (F1, fix-wave
-      // round 4): a doc-end section's onEnter could then never fire
-      // because the trigger still expects the pre-change scroll position.
+      // ScrollTriggers computed against the old layout (Phase 4 final
+      // review, F1): a doc-end section's onEnter could then never fire
+      // because the trigger still expects the pre-change scroll
+      // position. revealAlreadyInView above is this same fix's round-3
+      // completion — the re-sync itself must not flicker already-visible
+      // sections while it rebuilds everything else.
       dependencies: [narrativeAvailable, narrativeHasContent],
       revertOnUpdate: true,
     },
@@ -408,6 +495,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         {visibleSections.map((section) => (
           <RevealSection
             key={section.key}
+            sectionKey={section.key}
             id={section.id}
             className={section.className}
             printHidden={section.printHidden}

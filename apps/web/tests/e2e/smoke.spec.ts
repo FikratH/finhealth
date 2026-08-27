@@ -273,7 +273,55 @@ test("narrative 503 (no LLM key configured): the section collapses entirely, and
   );
 
   await page.goto(resultsUrl);
+
+  // Scroll just enough to reveal "Категории" — the first section below
+  // the score header — and wait for its tween to fully settle. This is
+  // the "already-visible section" the round-3 no-flicker check below
+  // needs as its precondition: a section revealed before the narrative
+  // collapse happens, not one still waiting on its own first scroll.
+  const categoriesContent = page.locator("#categories [data-reveal-content]");
+  await page.mouse.move(720, 450);
+  for (let i = 0; i < 10; i++) {
+    await page.mouse.wheel(0, 400);
+  }
+  await expect(categoriesContent).toHaveCSS("opacity", "1");
+
+  // fix-wave round 3 (F1 completion): with the narrative section about
+  // to collapse, results-document.tsx's useGSAP re-syncs (revert +
+  // rebuild) every section's ScrollTrigger, including this
+  // already-revealed categories section. Pre-fix, that re-sync
+  // unconditionally re-hid every section (gsap.set opacity: 0) before
+  // recreating its trigger, which then fired immediately (already past
+  // its "top 75%" activation point) and re-animated back up — a visible
+  // hide-then-refade flicker with no user-facing cause. Samples computed
+  // opacity every animation frame for ~600ms (matching MOTION.reveal's
+  // own tween duration), started concurrently with the click — a
+  // post-hoc single check couldn't catch a dip that resolves within one
+  // tween's length.
+  const opacitySamplingPromise = page.evaluate(() => {
+    const el = document.querySelector("#categories [data-reveal-content]");
+    let min = 1;
+    const start = performance.now();
+    return new Promise<number>((resolve) => {
+      function sample() {
+        if (el) {
+          const opacity = parseFloat(getComputedStyle(el).opacity);
+          if (opacity < min) min = opacity;
+        }
+        if (performance.now() - start < 600) {
+          requestAnimationFrame(sample);
+        } else {
+          resolve(min);
+        }
+      }
+      requestAnimationFrame(sample);
+    });
+  });
+
   await page.getByRole("button", { name: "Сформировать пояснение" }).click();
+
+  const minOpacityDuringCollapse = await opacitySamplingPromise;
+  expect(minOpacityDuringCollapse).toBeGreaterThanOrEqual(0.99);
 
   // Designed-absence collapse: the whole section — heading and mini-nav
   // anchor alike — disappears, not just the button. Full label, not

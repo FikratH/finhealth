@@ -129,7 +129,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
               <a
                 href={`#fn-${footnoteNumber}`}
                 aria-label={t("sourceFootnoteAria", { n: footnoteNumber })}
-                className="text-accent no-underline hover:underline"
+                className="text-brand no-underline hover:underline"
               >
                 [{footnoteNumber}]
               </a>

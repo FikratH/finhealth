@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { NextIntlClientProvider } from "next-intl";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ResultsDocument } from "@/components/results/results-document";
+import { ResultsDocument, revealAlreadyInView } from "@/components/results/results-document";
 import ruMessages from "@/messages/ru.json";
 import type { AnalysisResult, ExtractedValue } from "@/lib/api-types";
 
@@ -768,5 +768,103 @@ describe("ResultsDocument — narrative-driven scroll-cinema re-sync (fix-wave F
     expect(ScrollTrigger.getAll().length).toBe(
       document.querySelectorAll("[data-reveal-section]").length,
     );
+  });
+});
+
+describe("revealAlreadyInView (fix-wave round 3, F1 completion)", () => {
+  function mockSection(top: number): HTMLElement {
+    const el = document.createElement("div");
+    el.getBoundingClientRect = () =>
+      ({ top, bottom: top, left: 0, right: 0, width: 0, height: 0 }) as DOMRect;
+    return el;
+  }
+
+  it("returns true when the section's key is already in the revealed set, regardless of its current position", () => {
+    const el = mockSection(9999); // far below the fold
+    el.dataset.sectionKey = "recommendations";
+    expect(revealAlreadyInView(el, new Set(["recommendations"]), 900)).toBe(true);
+  });
+
+  it("returns false for an unrevealed section still below its activation point (top 75% of viewport)", () => {
+    const el = mockSection(900); // viewportHeight 900 * 0.75 = 675 — below it
+    el.dataset.sectionKey = "recommendations";
+    expect(revealAlreadyInView(el, new Set(), 900)).toBe(false);
+  });
+
+  it("returns true for an unrevealed section already at or above its activation point", () => {
+    const el = mockSection(400); // 400 <= 900 * 0.75 (675)
+    el.dataset.sectionKey = "recommendations";
+    expect(revealAlreadyInView(el, new Set(), 900)).toBe(true);
+  });
+
+  it("falls back to the geometry check alone when the element carries no section key", () => {
+    const el = mockSection(400);
+    expect(revealAlreadyInView(el, new Set(), 900)).toBe(true);
+    const elBelow = mockSection(900);
+    expect(revealAlreadyInView(elBelow, new Set(), 900)).toBe(false);
+  });
+});
+
+describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sections on a re-sync (fix-wave round 3, F1 completion)", () => {
+  afterEach(() => {
+    vi.mocked(generateNarrative).mockReset();
+  });
+
+  it("instant-settles sections instead of hiding-then-re-animating them when the narrative section collapses on a 503", async () => {
+    // Motion enabled — the sweep this test targets only runs then.
+    mockMatchMedia(false);
+    vi.mocked(generateNarrative).mockRejectedValueOnce(
+      new ApiError(503, "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен."),
+    );
+    const setSpy = vi.spyOn(gsap, "set");
+    renderDocument(analysisFixture);
+
+    // Sanity: the mount run really did hide every section pending its
+    // reveal (jsdom's zero-rect getBoundingClientRect means every
+    // section's geometry trivially satisfies "already in view", but
+    // `isResync` is false on mount, so the flicker-avoiding shortcut
+    // must not apply here — this is the pre-existing, unchanged mount
+    // behavior the round-3 fix must not touch).
+    const mountCalls = setSpy.mock.calls;
+    const mountHidCalls = mountCalls.filter(
+      ([, vars]) => (vars as Record<string, unknown> | undefined)?.opacity === 0,
+    );
+    expect(mountHidCalls.length).toBeGreaterThan(0);
+
+    const callsBeforeClick = setSpy.mock.calls.length;
+    fireEvent.click(
+      screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: ruMessages.Results.narrative.heading }),
+      ).not.toBeInTheDocument();
+    });
+
+    const resyncCalls = setSpy.mock.calls.slice(callsBeforeClick);
+    expect(resyncCalls.length).toBeGreaterThan(0);
+
+    // The regression this guards: pre-round-3, every section's
+    // re-created gsap.set() on a re-sync used the hidden "pending
+    // reveal" values (opacity: 0) — even for a section already on
+    // screen, which ScrollTrigger's own "fire immediately if already
+    // past start" behavior would then re-animate back up, a visible
+    // hide-then-refade flicker with no user-facing cause.
+    const resyncHidCalls = resyncCalls.filter(
+      ([, vars]) => (vars as Record<string, unknown> | undefined)?.opacity === 0,
+    );
+    expect(resyncHidCalls).toHaveLength(0);
+
+    // And confirms the sweep actually took its instant-settle branch,
+    // not just skipped work — content sets both opacity: 1 and y: 0
+    // together, distinguishing them from the opening stamp's own
+    // {scale, opacity} set.
+    const settledContentCalls = resyncCalls.filter(([, vars]) => {
+      const v = vars as Record<string, unknown> | undefined;
+      return v?.opacity === 1 && v?.y === 0;
+    });
+    expect(settledContentCalls.length).toBeGreaterThan(0);
+
+    setSpy.mockRestore();
   });
 });
