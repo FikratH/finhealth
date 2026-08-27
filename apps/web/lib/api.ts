@@ -17,6 +17,7 @@ import type {
   DeleteAnalysisResponse,
   ExtractionResult,
   IndustriesResponse,
+  IndustryBenchmarksResponse,
   UploadedDocument,
 } from "./api-types";
 
@@ -170,6 +171,19 @@ export function getAnalysis(id: string): Promise<AnalysisResult> {
 export function getIndustries(): Promise<IndustriesResponse> {
   return request<IndustriesResponse>(
     "/api/industries",
+    { method: "GET" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** GET /api/industries/{id}/benchmarks — 404 unknown industry id. Not
+ * called by lib/simulator (see that module's header comment): a persisted
+ * AnalysisResult already carries every ratio's own benchmark plus each
+ * category's weight, so the what-if simulator never needs this round-trip.
+ * Kept as a general-purpose client addition for future use. */
+export function getIndustryBenchmarks(industryId: string): Promise<IndustryBenchmarksResponse> {
+  return request<IndustryBenchmarksResponse>(
+    `/api/industries/${encodeURIComponent(industryId)}/benchmarks`,
     { method: "GET" },
     DEFAULT_TIMEOUT_MS,
   );

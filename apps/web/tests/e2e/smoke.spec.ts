@@ -71,7 +71,11 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await page.getByRole("button", { name: "Запустить анализ" }).click();
   await expect(page).toHaveURL(/\/results\/[0-9a-f]+$/, { timeout: 30_000 });
 
-  await expect(page.locator("svg text")).toHaveText("85,1");
+  // Scoped to the заключение's own dial — the what-if simulator further
+  // down the page (Plan 4 Task 4) renders a second ScoreDial (actual score
+  // + a simulated ghost arc), so an unscoped `svg text` locator would now
+  // match both.
+  await expect(page.locator("#score svg text")).toHaveText("85,1");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
 
   // net_margin row: name + Damodaran-sourced footnote marker
@@ -133,7 +137,7 @@ test("landing → analyze → verify → results → public share", async ({ pag
   const shareContext = await browser.newContext();
   const sharePage = await shareContext.newPage();
   await sharePage.goto(resultsUrl);
-  await expect(sharePage.locator("svg text")).toHaveText("85,1");
+  await expect(sharePage.locator("#score svg text")).toHaveText("85,1");
   await expect(sharePage.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
   await shareContext.close();
 
@@ -190,7 +194,25 @@ test("results page under prefers-reduced-motion: every section is already visibl
   await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Коэффициенты" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Риск-радар" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Что если?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Рекомендации" })).toBeVisible();
+
+  // The what-if simulator itself, real-browser end to end: a real keyboard
+  // interaction (Home jumps a native range input to its `min`, -0.5 for
+  // this lever) recomputes the changed-ratios list without any network
+  // call (offline-safe by construction — lib/simulator never fetches).
+  // getByRole (not getByLabel) — the ratio detail disclosures further down
+  // the page also have a ConfidenceMeter labeled "Уверенность извлечения:
+  // Процентный долг", which getByLabel's substring matching would also hit.
+  const whatIfSection = page.locator("#what-if");
+  const debtSlider = page.getByRole("slider", { name: "Процентный долг" });
+  await debtSlider.focus();
+  await debtSlider.press("Home");
+  // Scoped to #what-if — "Interest Coverage" also appears in the ratio
+  // list and the risks summary elsewhere on the page.
+  await expect(whatIfSection.getByText("Interest Coverage")).toBeVisible();
+  await whatIfSection.getByRole("button", { name: "Сбросить" }).click();
+  await expect(whatIfSection.getByText("Пока нет изменений")).toBeVisible();
 
   // The mini-nav is still functional: with no Lenis instance (reduced
   // motion never constructs one), clicking falls through to the native

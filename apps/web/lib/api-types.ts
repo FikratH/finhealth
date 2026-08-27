@@ -30,6 +30,44 @@ export interface IndustriesResponse {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/industries/{id}/benchmarks
+// ---------------------------------------------------------------------------
+
+/** One industry's full scoring configuration — apps/api/app/data/
+ * benchmarks.json's per-industry entry, as `main.py`'s
+ * `industry_benchmarks` endpoint returns it verbatim (`{industry, ...cfg,
+ * disclaimer}`). Not used by `lib/simulator` (see that module's own header
+ * comment for why a persisted AnalysisResult already carries everything
+ * the simulator needs) — kept as a general-purpose API client addition,
+ * e.g. for a future industry-comparison or "what would a different
+ * industry's benchmarks say" feature. */
+export interface IndustryBenchmarksResponse {
+  industry: string;
+  name: string;
+  note: string;
+  category_weights: Record<string, number>;
+  excluded_ratios: string[];
+  /** Keyed by ratio key (e.g. "current_ratio") — the same shape as
+   * `IndustryBenchmark` above, minus the `ratio`/`source` fields the
+   * per-analysis embedding adds. */
+  ratios: Record<
+    string,
+    {
+      weight: number;
+      direction: string;
+      good: [number, number];
+      acceptable: [number, number];
+      note: string;
+      method: string;
+      source?: string;
+      source_url?: string;
+      as_of?: string;
+    }
+  >;
+  disclaimer: string;
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/upload
 // ---------------------------------------------------------------------------
 

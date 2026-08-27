@@ -11,6 +11,7 @@ import { ScoreHeader } from "./score-header";
 import { CategoryScores } from "./category-scores";
 import { RatioSection } from "./ratio-section";
 import { RiskRadar } from "./risk-radar";
+import { WhatIfSimulator } from "./what-if-simulator";
 import { StrengthsRisks } from "./strengths-risks";
 import { Recommendations } from "./recommendations";
 import { WarningsAccordion } from "./warnings-accordion";
@@ -20,6 +21,7 @@ import { ShareButton } from "./share-button";
 import { RevealSection } from "./reveal-section";
 import { MiniNav, type MiniNavItem } from "./mini-nav";
 import { buildFootnoteIndex } from "@/lib/results";
+import { simulationMatchesBaseline } from "@/lib/simulator";
 import { MOTION, getPrefersReducedMotion } from "@/lib/motion";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -61,6 +63,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const tNav = useTranslations("Results.nav");
   const tCategories = useTranslations("Results.categories");
   const tRiskRadar = useTranslations("Results.riskRadar");
+  const tWhatIf = useTranslations("Results.whatIf");
   const tRecommendations = useTranslations("Results.recommendations");
   const footnoteIndex = buildFootnoteIndex(analysis.ratios);
 
@@ -124,6 +127,22 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       content: analysis.risk_radar ? (
         <RiskRadar riskRadar={analysis.risk_radar} locale={locale} />
       ) : null,
+    },
+    {
+      key: "what-if",
+      id: "what-if",
+      navLabel: tWhatIf("heading"),
+      // The simulator needs the analysis's own raw source_values to have
+      // anything to scale — absent on payloads stored before that field
+      // existed (same optionality as the provenance trace). It also only
+      // shows when the TS engine's zero-lever recompute actually
+      // reproduces the stored overall_score (see lib/simulator's
+      // `simulationMatchesBaseline`) — always true for a real analysis,
+      // and the guard that keeps a stale/inconsistent payload from
+      // presenting a "changed ratios" list that was never comparing like
+      // with like.
+      show: (analysis.source_values?.length ?? 0) > 0 && simulationMatchesBaseline(analysis),
+      content: <WhatIfSimulator analysis={analysis} locale={locale} />,
     },
     {
       key: "strengths-risks",

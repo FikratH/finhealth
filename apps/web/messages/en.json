@@ -287,6 +287,19 @@
         "unavailable": "Not enough data to decompose ROE."
       }
     },
+    "whatIf": {
+      "heading": "What if?",
+      "intro": "Drag the sliders to see how changing a figure would move the diagnosis. The calculation runs in your browser and never changes the saved analysis.",
+      "reset": "Reset",
+      "notPersisted": "Simulation — not saved",
+      "simulatedLabel": "Simulated score",
+      "deltaLabel": "Score change",
+      "changedHeading": "Changed ratios",
+      "noChanges": "No changes yet — move a slider above.",
+      "oldValueLabel": "Before:",
+      "newValueLabel": "After:",
+      "disclosure": "Simplified model: profit is not recalculated. Revenue and cost of goods sold recompute gross profit; debt proportionally rescales interest expense. Net and operating profit stay fixed regardless of the slider values."
+    },
     "strengths": {
       "heading": "Strengths"
     },

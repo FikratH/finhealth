@@ -6,6 +6,7 @@ import {
   extract,
   getAnalysis,
   getIndustries,
+  getIndustryBenchmarks,
   uploadFile,
 } from "@/lib/api";
 import type { AnalysisRequest, AnalysisResult, ExtractionResult } from "@/lib/api-types";
@@ -330,6 +331,35 @@ describe("lib/api", () => {
 
       const result = await getIndustries();
       expect(result.industries).toHaveLength(1);
+    });
+
+    it("returns one industry's full benchmark config", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, {
+          industry: "manufacturing",
+          name: "Производство",
+          note: "",
+          category_weights: { liquidity: 0.2, leverage: 0.25 },
+          excluded_ratios: [],
+          ratios: {
+            current_ratio: {
+              weight: 1,
+              direction: "range",
+              good: [1.5, 3.0],
+              acceptable: [1.1, 4.0],
+              note: "",
+              method: "demo",
+            },
+          },
+          disclaimer: "Часть отраслевых ориентиров основана на данных Damodaran.",
+        }),
+      );
+
+      const result = await getIndustryBenchmarks("manufacturing");
+      expect(result.category_weights.liquidity).toBe(0.2);
+      expect(result.ratios.current_ratio.direction).toBe("range");
+      const [url] = vi.mocked(fetch).mock.calls[0];
+      expect(url).toBe("/api/industries/manufacturing/benchmarks");
     });
 
     it("returns the deletion confirmation", async () => {

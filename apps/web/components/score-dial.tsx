@@ -9,6 +9,14 @@ export interface ScoreDialProps {
   caption?: string;
   size?: number;
   className?: string;
+  /** The what-if simulator's live recomputed score, drawn as a second,
+   * inset dashed arc beside the real one — never a substitute for it, and
+   * never itself animated by results-document.tsx's load-time GSAP
+   * timeline (that only ever targets `data-score-arc`). It updates on every
+   * debounced slider recompute via a plain CSS transition, the same
+   * pattern category-scores.tsx/confidence-meter.tsx already use for a
+   * live-updating bar. Omit entirely outside the simulator. */
+  ghostScore?: number | null;
 }
 
 // A 270° instrument gauge (the gap sits at the bottom, like a speedometer)
@@ -21,6 +29,10 @@ const CENTER = 60;
 const ARC_LENGTH = 75; // 270° of the 360° circle, in pathLength units
 const GAP_LENGTH = 100 - ARC_LENGTH;
 const ROTATE = `rotate(135 ${CENTER} ${CENTER})`;
+// The ghost ring sits inset from the real one, on the same 270° sweep —
+// "beside" it in depth rather than side by side, so the two stay legible
+// at the dial's existing size instead of needing a second, separate dial.
+const GHOST_RADIUS = 38;
 
 export function ScoreDial({
   score,
@@ -28,6 +40,7 @@ export function ScoreDial({
   caption,
   size = 160,
   className,
+  ghostScore,
 }: ScoreDialProps) {
   const hasScore = score !== null;
   const clamped = hasScore ? Math.min(100, Math.max(0, score)) : 0;
@@ -49,6 +62,11 @@ export function ScoreDial({
       ? `${formattedScore} — ${caption}`
       : formattedScore
     : (caption ?? formatNumber(null));
+
+  const hasGhost = ghostScore !== undefined && ghostScore !== null;
+  const ghostClamped = hasGhost ? Math.min(100, Math.max(0, ghostScore)) : 0;
+  const ghostFilled = (ghostClamped / 100) * ARC_LENGTH;
+  const ghostDasharray = `${ghostFilled} ${100 - ghostFilled}`;
 
   return (
     <div
@@ -88,6 +106,38 @@ export function ScoreDial({
             strokeDasharray={valueDasharray}
             transform={ROTATE}
           />
+        )}
+        {hasGhost && (
+          <>
+            <circle
+              aria-hidden="true"
+              cx={CENTER}
+              cy={CENTER}
+              r={GHOST_RADIUS}
+              pathLength={100}
+              fill="none"
+              stroke="var(--line)"
+              strokeWidth={5}
+              strokeDasharray={`${ARC_LENGTH} ${GAP_LENGTH}`}
+              transform={ROTATE}
+            />
+            <circle
+              data-score-ghost-arc
+              aria-hidden="true"
+              cx={CENTER}
+              cy={CENTER}
+              r={GHOST_RADIUS}
+              pathLength={100}
+              fill="none"
+              stroke="var(--ink)"
+              strokeOpacity={0.55}
+              strokeWidth={5}
+              strokeLinecap="round"
+              strokeDasharray={ghostDasharray}
+              transform={ROTATE}
+              className="transition-[stroke-dasharray] duration-700 ease-out motion-reduce:transition-none"
+            />
+          </>
         )}
         <text
           x={CENTER}
