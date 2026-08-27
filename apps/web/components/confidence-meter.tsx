@@ -26,7 +26,7 @@ export function ConfidenceMeter({
 }: ConfidenceMeterProps) {
   const clamped = value === null ? null : Math.min(100, Math.max(0, value));
   const low = clamped !== null && clamped < LOW_CONFIDENCE_THRESHOLD;
-  const fillClass = clamped === null ? "" : low ? "bg-attention" : "bg-accent";
+  const fillClass = clamped === null ? "" : low ? "bg-attention" : "bg-brand";
   const valueText =
     clamped === null
       ? (naLabel ?? formatNumber(null))

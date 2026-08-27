@@ -39,6 +39,21 @@ describe("Landing page sections", () => {
         expect(headings[0]).toHaveTextContent(messages.Landing.hero.h1);
       });
 
+      it("renders the wordmark inside the hero's teal band, per the FIRST VIEWPORT contract", () => {
+        render(
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <LandingHero />
+          </NextIntlClientProvider>,
+        );
+        // Scoped by test-id: SiteHeader (global chrome, not rendered in
+        // this isolated component test) shows the same wordmark text on
+        // every route, so a plain text query would be ambiguous once this
+        // renders inside the full page tree.
+        expect(screen.getByTestId("hero-wordmark")).toHaveTextContent(
+          messages.Header.wordmark,
+        );
+      });
+
       it("exposes the primary action as a link to /analyze", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>

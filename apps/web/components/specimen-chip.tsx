@@ -5,7 +5,7 @@ export type SpecimenChipTone = "neutral" | "accent" | "attention";
 
 const TONE_CLASS: Record<SpecimenChipTone, string> = {
   neutral: "border-line text-ink-muted",
-  accent: "border-accent text-accent",
+  accent: "border-brand text-brand",
   attention: "border-attention text-attention",
 };
 
