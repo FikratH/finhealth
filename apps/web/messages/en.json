@@ -43,7 +43,8 @@
       "pointDeterministic": "Calculations are deterministic — an AI never computes your numbers; the language model, when connected, only narrates values that are already calculated.",
       "pointTraceable": "Every value traces back to specific lines of your document — the formula is shown as a substitution using your own figures.",
       "pointBenchmarks": "The source of every industry benchmark is stated in the report¹.",
-      "footnote": "¹ Some benchmarks are sourced from Damodaran (NYU Stern), Jan 2026; the rest are marked as demonstration ranges."
+      "footnote": "¹ Some benchmarks are sourced from Damodaran (NYU Stern), Jan 2026; the rest are marked as demonstration ranges.",
+      "methodologyLinkLabel": "Open the full methodology →"
     },
     "privacy": {
       "body": "Documents are deleted right after the numbers are extracted. Only the figures you confirmed during verification stay in the system — never the file itself."
@@ -199,7 +200,8 @@
   "Results": {
     "meta": {
       "title": "Tonus — company diagnosis",
-      "description": "The company's health score, a ratio breakdown, the risk radar, and prioritized recommendations."
+      "description": "The company's health score, a ratio breakdown, the risk radar, and prioritized recommendations.",
+      "titleWithLabel": "Tonus — diagnosis: {label}"
     },
     "notFound": {
       "heading": "Diagnosis not found",
@@ -335,7 +337,8 @@
       "hint": "To improve accuracy, add:"
     },
     "footnotes": {
-      "heading": "Benchmark sources"
+      "heading": "Benchmark sources",
+      "methodologyLinkLabel": "Full methodology →"
     },
     "disclaimer": {
       "heading": "Disclaimer"
@@ -344,6 +347,89 @@
       "button": "Share",
       "copied": "Link copied",
       "promptFallback": "Copy this link manually:"
+    }
+  },
+  "Methodology": {
+    "meta": {
+      "title": "Tonus — methodology",
+      "description": "How Tonus computes scores, ratios, and risk models: formulas, thresholds, and industry benchmark sources — no AI in the math."
+    },
+    "heading": "Methodology",
+    "lede": "This document is generated automatically from the engine's own source code — every formula, threshold, and source below matches exactly what Tonus computes, not a hand-copied summary.",
+    "generatedNote": "Generated from the engine's code, commit {sha}.",
+    "ratios": {
+      "heading": "Ratio formulas",
+      "unitX": "ratio",
+      "unitPercent": "percent",
+      "unitMoney": "money amount, reference only"
+    },
+    "riskModels": {
+      "heading": "Risk models",
+      "altman": {
+        "heading": "Altman Z-Score",
+        "publicHeading": "Public-company model",
+        "publicNote": "Used when the company's market capitalization is known (X4 = market cap / total liabilities).",
+        "privateHeading": "Private-company model (Z′)",
+        "privateNote": "Used when market capitalization is unknown (X4 = book equity / total liabilities).",
+        "goodLabel": "Safe zone",
+        "greyLabel": "Grey zone",
+        "criticalLabel": "Distress zone",
+        "aboveThreshold": "> {value}",
+        "betweenThresholds": "{grey}–{good}",
+        "belowThreshold": "< {value}",
+        "x2Heading": "Honesty about X2",
+        "bankingHeading": "Banks and financial institutions"
+      },
+      "piotroski": {
+        "heading": "Piotroski F-Score",
+        "signalsHeading": "Nine fundamental-strength signals",
+        "bandsHeading": "Score interpretation",
+        "rangeLabel": "{min}–{max} of the maximum"
+      },
+      "beneish": {
+        "heading": "Beneish M-Score",
+        "indicesHeading": "Eight indices",
+        "coefficientLabel": "Coefficient",
+        "formulaHeading": "Formula",
+        "policyHeading": "Policy for incomplete data",
+        "policyNote": "The M-Score is only computed when at least {min} of {total} indices are available. Missing indices are substituted with a neutral value — one that doesn't push the score in either direction.",
+        "exampleSubstitutedHeading": "Example: an index substituted with its neutral value",
+        "exampleInsufficientHeading": "Example: not enough data",
+        "thresholdsHeading": "Thresholds",
+        "flagHigh": "High probability of manipulation",
+        "flagGrey": "Grey zone",
+        "flagLow": "Low probability of manipulation"
+      }
+    },
+    "scoring": {
+      "heading": "Scoring",
+      "healthBandsHeading": "Health-score bands",
+      "insufficientDataLabel": "Insufficient data",
+      "categoryWeightingHeading": "Categories and weights",
+      "categoryWeightingNote": "Each category's score is a weighted average of that category's ratios that have both an industry benchmark and data. The overall score is a weighted average across categories that have at least one computed ratio; the weight of a category with no data is redistributed among the rest rather than zeroing out the total.",
+      "confidenceHeading": "Analysis confidence",
+      "confidenceWeightsIntro": "Analysis confidence is built from three weighted components and three bonuses:",
+      "dataCompletenessLabel": "Data completeness",
+      "extractionConfidenceLabel": "Extraction accuracy",
+      "ratioCoverageLabel": "Ratio coverage",
+      "bonusHasPreviousPeriod": "Has a previous period",
+      "bonusHasIndustryBenchmarks": "Has industry benchmarks",
+      "bonusAudited": "Statements are audited"
+    },
+    "benchmarks": {
+      "heading": "Industry benchmarks",
+      "perIndustryHeading": "Sources by industry",
+      "sourcedLabel": "sourced",
+      "demoLabel": "demo",
+      "ofTotalLabel": "of {total}",
+      "sourcesHeading": "Sources",
+      "bandMethodHeading": "How the bands are built"
+    },
+    "principles": {
+      "heading": "Principles",
+      "determinism": "Every calculation is deterministic: a transparent formula engine computes the numbers, not a language model.",
+      "noLlmInNumbers": "The language model, when connected, only narrates values that are already computed, in words — it never computes them itself and can't change a single figure in the report.",
+      "naDiscipline": "Missing data never turns into zero or an average: a ratio that can't be computed shows as \"N/A\" with an explanation of exactly what's missing."
     }
   }
 }

@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
+import { Link } from "@/i18n/navigation";
 
 export interface FootnotesProps {
   /** source string -> 1-based footnote number, from lib/results.ts's
@@ -24,6 +25,11 @@ export function Footnotes({ sources }: FootnotesProps) {
           </li>
         ))}
       </ol>
+      <p className="font-mono text-sm">
+        <Link href="/methodology" className="text-accent no-underline hover:underline">
+          {t("methodologyLinkLabel")}
+        </Link>
+      </p>
     </section>
   );
 }

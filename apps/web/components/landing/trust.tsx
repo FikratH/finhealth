@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
+import { Link } from "@/i18n/navigation";
 
 const POINT_KEYS = [
   "pointOpenMethodology",
@@ -24,6 +25,11 @@ export function Trust() {
       </div>
       <p className="mt-4 max-w-3xl font-mono text-xs text-ink-muted">
         {t("footnote")}
+      </p>
+      <p className="mt-4 max-w-3xl font-mono text-sm">
+        <Link href="/methodology" className="text-accent underline">
+          {t("methodologyLinkLabel")}
+        </Link>
       </p>
     </section>
   );

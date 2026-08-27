@@ -119,6 +119,21 @@ describe("Landing page sections", () => {
         ).toBeInTheDocument();
       });
 
+      it("links to the full /methodology page", () => {
+        render(
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <Trust />
+          </NextIntlClientProvider>,
+        );
+        const link = screen.getByRole("link", {
+          name: messages.Landing.trust.methodologyLinkLabel,
+        });
+        expect(link).toHaveAttribute(
+          "href",
+          locale === "en" ? "/en/methodology" : "/methodology",
+        );
+      });
+
       it("renders the privacy strip's honest deletion disclosure", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>

@@ -144,6 +144,17 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await expect(sharePage.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
   await shareContext.close();
 
+  // --- /methodology: the trust wedge's public face, generated from engine
+  // truth (apps/api/scripts/export_methodology.py) — a known ratio formula
+  // and the Damodaran benchmark citation must both actually render.
+  await page.goto("/methodology");
+  await expect(
+    page.getByText("current_assets / current_liabilities", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Damodaran (NYU Stern), Jan 2026", { exact: false }).first(),
+  ).toBeVisible();
+
   // --- impeccable finish-review screenshots: desktop + mobile, landing +
   // results, full-page -------------------------------------------------
   const desktopContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
