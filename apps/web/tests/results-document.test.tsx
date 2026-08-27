@@ -413,7 +413,13 @@ function renderDocument(analysis: AnalysisResult) {
 describe("ResultsDocument", () => {
   it("renders the overall score and verdict, RU-formatted", () => {
     renderDocument(analysisFixture);
-    expect(screen.getByText("85,1")).toBeInTheDocument();
+    // The score renders as a SegmentDisplay (a CSS clip-path mask, not a
+    // text node) — its accessible name is the RU-formatted value combined
+    // with the verdict caption, the same contract segment-display.test.tsx
+    // covers directly.
+    expect(
+      screen.getByRole("img", { name: "85,1 — Сильное состояние" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Сильное состояние" }),
     ).toBeInTheDocument();
@@ -527,7 +533,14 @@ describe("ResultsDocument", () => {
     expect(heading).toBeInTheDocument();
 
     const header = heading.closest("section") as HTMLElement;
-    expect(within(header).getByText("—")).toBeInTheDocument();
+    // No fabricated number: the score renders as ghost segment cells (never
+    // hidden, never faked as 0), and its accessible name falls back to the
+    // health_label alone rather than any placeholder figure — the same
+    // contract score-header.tsx wires through SegmentDisplay's naLabel/
+    // caption props.
+    expect(
+      within(header).getByRole("img", { name: nullScoreFixture.health_label }),
+    ).toBeInTheDocument();
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }
@@ -816,22 +829,22 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
     vi.mocked(generateNarrative).mockRejectedValueOnce(
       new ApiError(503, "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен."),
     );
-    const setSpy = vi.spyOn(gsap, "set");
     renderDocument(analysisFixture);
 
     // Sanity: the mount run really did hide every section pending its
-    // reveal (jsdom's zero-rect getBoundingClientRect means every
-    // section's geometry trivially satisfies "already in view", but
-    // `isResync` is false on mount, so the flicker-avoiding shortcut
-    // must not apply here — this is the pre-existing, unchanged mount
-    // behavior the round-3 fix must not touch).
-    const mountCalls = setSpy.mock.calls;
-    const mountHidCalls = mountCalls.filter(
-      ([, vars]) => (vars as Record<string, unknown> | undefined)?.opacity === 0,
+    // reveal — `data-scanline-hidden` is the boot grammar's own hidden
+    // marker (scanlineSweep's contract, lib/motion.ts), set directly via
+    // setAttribute rather than a gsap.set() tween. jsdom's zero-rect
+    // getBoundingClientRect means every section's geometry trivially
+    // satisfies "already in view", but `isResync` is false on mount, so
+    // the flicker-avoiding shortcut must not apply here — this is the
+    // pre-existing, unchanged mount behavior the round-3 fix must not
+    // touch.
+    const mountHidden = document.querySelectorAll(
+      '[data-scanline-content][data-scanline-hidden="true"]',
     );
-    expect(mountHidCalls.length).toBeGreaterThan(0);
+    expect(mountHidden.length).toBeGreaterThan(0);
 
-    const callsBeforeClick = setSpy.mock.calls.length;
     fireEvent.click(
       screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
     );
@@ -841,30 +854,18 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
       ).not.toBeInTheDocument();
     });
 
-    const resyncCalls = setSpy.mock.calls.slice(callsBeforeClick);
-    expect(resyncCalls.length).toBeGreaterThan(0);
-
     // The regression this guards: pre-round-3, every section's
-    // re-created gsap.set() on a re-sync used the hidden "pending
-    // reveal" values (opacity: 0) — even for a section already on
-    // screen, which ScrollTrigger's own "fire immediately if already
-    // past start" behavior would then re-animate back up, a visible
-    // hide-then-refade flicker with no user-facing cause.
-    const resyncHidCalls = resyncCalls.filter(
-      ([, vars]) => (vars as Record<string, unknown> | undefined)?.opacity === 0,
+    // re-created reveal state on a re-sync reverted to the hidden
+    // "pending reveal" value — even for a section already on screen,
+    // which ScrollTrigger's own "fire immediately if already past start"
+    // behavior would then re-animate back up, a visible hide-then-
+    // reappear flicker with no user-facing cause. Post-fix, the resync's
+    // instant-settle branch never re-hides an already-revealed section —
+    // every scanline-content element ends the resync already visible
+    // (data-scanline-hidden removed, never re-added).
+    const stillHidden = document.querySelectorAll(
+      '[data-scanline-content][data-scanline-hidden="true"]',
     );
-    expect(resyncHidCalls).toHaveLength(0);
-
-    // And confirms the sweep actually took its instant-settle branch,
-    // not just skipped work — content sets both opacity: 1 and y: 0
-    // together, distinguishing them from the opening stamp's own
-    // {scale, opacity} set.
-    const settledContentCalls = resyncCalls.filter(([, vars]) => {
-      const v = vars as Record<string, unknown> | undefined;
-      return v?.opacity === 1 && v?.y === 0;
-    });
-    expect(settledContentCalls.length).toBeGreaterThan(0);
-
-    setSpy.mockRestore();
+    expect(stillHidden).toHaveLength(0);
   });
 });

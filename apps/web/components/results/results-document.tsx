@@ -23,7 +23,7 @@ import { RevealSection } from "./reveal-section";
 import { MiniNav, type MiniNavItem } from "./mini-nav";
 import { buildFootnoteIndex } from "@/lib/results";
 import { simulationMatchesBaseline } from "@/lib/simulator";
-import { MOTION, getPrefersReducedMotion } from "@/lib/motion";
+import { MOTION, getPrefersReducedMotion, igniteSequence, scanlineSweep } from "@/lib/motion";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -65,11 +65,12 @@ const SECTION_REVEAL_START = `top ${SECTION_REVEAL_START_FRACTION * 100}%`;
  * collapsing on a 503, or growing after a successful generate) can newly
  * create: a section that used to sit below the fold can end up already
  * on screen the moment the effect re-runs, with no scroll in between.
- * Re-creating a ScrollTrigger from that section's hidden gsap.set() state
- * would replay its reveal tween — via ScrollTrigger's own documented
- * "fire immediately if already past start" behavior — for content the
- * reader never saw hide in the first place: a visible hide-then-refade
- * flicker with no user-facing cause (fix-wave round 3, F1 completion).
+ * Re-creating a ScrollTrigger from that section's hidden (data-scanline-
+ * hidden) state would replay its scanline sweep — via ScrollTrigger's own
+ * documented "fire immediately if already past start" behavior — for
+ * content the reader never saw hide in the first place: a visible
+ * hide-then-reappear flicker with no user-facing cause (fix-wave round 3,
+ * F1 completion).
  *
  * A pure, DOM-reading predicate — no GSAP/ScrollTrigger calls of its own
  * — so it's unit-testable without a real ScrollTrigger instance.
@@ -90,9 +91,9 @@ export function revealAlreadyInView(
 // page's one client boundary for motion: every ScrollTrigger the scroll
 // cinema creates is created here, scoped to `scope`, and killed by
 // useGSAP's own cleanup on unmount (gsap-react's context.revert()) — no
-// child component (RevealSection, NormBand, ScoreDial) owns any animation
-// of its own; they only carry the data-* hooks this component's useGSAP
-// queries and drives.
+// child component (RevealSection, SegmentDisplay, AnnunciatorCell) owns
+// any animation of its own; they only carry the data-* hooks this
+// component's useGSAP queries and drives.
 export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const tRatios = useTranslations("Results.ratios");
   const tDisclaimer = useTranslations("Results.disclaimer");
@@ -117,7 +118,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const hasStrengthsOrRisks = analysis.strengths.length > 0 || analysis.risks.length > 0;
   const hasRecommendations = analysis.recommendations.length > 0;
 
-  // The заключение opening (score arc draw + verdict stamp) is a load
+  // The заключение opening (score ignition + verdict stamp) is a load
   // moment, not a per-effect-run one — this survives across the useGSAP
   // re-syncs `narrativeAvailable`/`narrativeHasContent` trigger below (see
   // that hook's own comment) so a narrative state change never replays it.
@@ -307,94 +308,116 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       registerScrollTriggerOnce();
       // The reduced-motion gate: read fresh here (not via the reactive
       // usePrefersReducedMotion hook) so it's honored on this very first
-      // run. Returning early means zero gsap.set/gsap.timeline/ScrollTrigger
-      // calls ever happen — every element stays exactly as rendered (fully
-      // visible, ScoreDial's arc already at its final data-filled value),
-      // and the mini-nav still works via its plain <a href="#id"> anchors.
+      // run. Returning early means zero gsap.set/igniteSequence/
+      // scanlineSweep/ScrollTrigger calls ever happen — every element
+      // stays exactly as rendered (fully visible, the score's segments
+      // already lit), and the mini-nav still works via its plain
+      // <a href="#id"> anchors.
       if (getPrefersReducedMotion()) return;
 
       const root = scope.current;
       if (!root) return;
 
-      // (1) The заключение opening — on load, not scroll: the score arc
-      // draws, then the verdict stamp "applies" (scale 1.06→1 + opacity,
-      // no bounce), once per mount. `dependencies` below re-syncs this
-      // whole effect (revert + re-run) whenever the narrative section's
-      // availability or content changes, so this branch guards against
-      // *replaying* that load-only animation on those later runs —
-      // `hasPlayedOpeningRef` only flips once, and every re-run past the
-      // first jumps the arc/stamp straight to their finished state instead
-      // of animating from 0/scale 1.06 again.
-      const arc = root.querySelector<SVGCircleElement>("[data-score-arc]");
+      // (1) The заключение opening — on load, not scroll: the score
+      // SegmentDisplay ignites (its own boot-grammar cascade, MOTION.step
+      // apart per segment), then the verdict AnnunciatorCell "applies"
+      // (scale 1.06→1 + opacity, no bounce) a fixed beat later — the same
+      // one-two rhythm the old arc-then-stamp opening had, once per mount.
+      // `dependencies` below re-syncs this whole effect (revert + re-run)
+      // whenever the narrative section's availability or content changes,
+      // so this branch guards against *replaying* that load-only
+      // animation on those later runs — `hasPlayedOpeningRef` only flips
+      // once, and every re-run past the first jumps the stamp straight to
+      // its finished state instead of animating from scale 1.06 again (the
+      // score's segments, once lit by igniteSequence, simply stay lit —
+      // there's nothing left to force on a re-sync).
+      const scoreDisplay = root.querySelector<HTMLElement>("[data-score-display]");
       const stamp = root.querySelector<HTMLElement>("[data-verdict-stamp]");
 
       // Captured before hasPlayedOpeningRef flips below — true only from
       // the second run onward (a narrative-state re-sync), never on the
       // original mount. Gates revealAlreadyInView's instant-settle path
       // in the section sweep further down: the deliberate load-time
-      // "even above-the-fold content fades in" cinema effect stays
+      // "even above-the-fold content ignites in" cinema effect stays
       // exactly as designed on mount, and only a re-sync gets the
       // flicker-avoiding shortcut.
       const isResync = hasPlayedOpeningRef.current;
 
       if (!hasPlayedOpeningRef.current) {
         hasPlayedOpeningRef.current = true;
-        const openingTl = gsap.timeline();
 
-        if (arc) {
-          // ScoreDial always renders its *final* dasharray (data-filled is
-          // that same target, in the same pathLength=100 units) — a plain
-          // numeric proxy tweened via onUpdate draws it from 0, rather than
-          // relying on GSAP to interpolate the two-number dasharray string
-          // directly.
-          const target = Number(arc.dataset.filled ?? "0");
-          const proxy = { filled: 0 };
-          openingTl.fromTo(
-            proxy,
-            { filled: 0 },
-            {
-              filled: target,
-              duration: MOTION.reveal,
-              ease: MOTION.ease,
-              onUpdate: () => {
-                arc.setAttribute("stroke-dasharray", `${proxy.filled} ${100 - proxy.filled}`);
-              },
-            },
-            0,
-          );
+        // A client-side route transition (analyze → results) can leave
+        // window.scrollY carrying over the *previous* page's scroll
+        // offset for a brief window before Next.js's own scroll-to-top
+        // takes effect — this mount effect can run inside that window,
+        // ahead of Next's own reset. Since the заключение is always what
+        // a fresh diagnosis document opens on, force the reset ourselves
+        // rather than depending on that ordering: without it, every
+        // section whose position happened to sit within the stale
+        // scrolled-past viewport would fire its ScrollTrigger immediately
+        // (correctly, per "even above-the-fold content ignites in" — but
+        // against the wrong, leftover scroll position), stealing "score"'s
+        // always-lit nav default before the reader has scrolled this
+        // document at all. Skipped when the URL carries its own hash (a
+        // direct deep link to a section) — that anchor's scroll intent
+        // wins instead.
+        if (!window.location.hash && window.scrollY > 0) {
+          window.scrollTo(0, 0);
         }
 
+        if (scoreDisplay) igniteSequence(scoreDisplay, "[data-segment-on]");
+
         if (stamp) {
-          openingTl.fromTo(
+          gsap.timeline().fromTo(
             stamp,
             { scale: 1.06, opacity: 0 },
             { scale: 1, opacity: 1, duration: MOTION.base, ease: MOTION.ease },
-            arc ? ">" : 0,
+            MOTION.reveal,
           );
         }
       } else {
-        if (arc) {
-          const target = Number(arc.dataset.filled ?? "0");
-          arc.setAttribute("stroke-dasharray", `${target} ${100 - target}`);
-        }
         if (stamp) gsap.set(stamp, { scale: 1, opacity: 1 });
       }
 
-      // (2) + (3) + (4): exactly one ScrollTrigger per section — the
-      // hairline draws (scaleX 0→1), the content fades up 12px, any
-      // NormBand flags inside it ink in alongside (150ms), and the
-      // mini-nav's active id updates on every crossing in either
-      // direction — all off the same trigger, never a second one.
-      // toggleActions "play none none none" makes the reveal itself
-      // trigger-once (it never reverses on scroll-back) without killing
-      // the trigger, so onEnterBack can keep tracking nav state for the
-      // rest of the session.
+      // (2) + (3): exactly one ScrollTrigger per section — the boot
+      // grammar's section-entry verb (design-direction: "scanline sweep +
+      // ignition per section"): lib/motion's scanlineSweep sweeps one thin
+      // teal beam across the section (a genuine tween — the beam's own
+      // travel is continuous) while its content pops in instantly behind
+      // it ("every change is an instant segment swap" — no fade/y tween on
+      // the content itself), and the mini-nav's active id updates on every
+      // crossing in either direction — all off the same trigger, never a
+      // second one. A section is only ever swept once (tracked via a plain
+      // `swept` DOM flag on the section itself, since scanlineSweep always
+      // replays its own beam-travel tween from scratch on every call,
+      // unlike the old fade/y timeline which naturally no-opped on a
+      // repeat "play" once already complete) — re-entering after scrolling
+      // back up just re-tracks nav state, never re-sweeps.
+      //
+      // ScrollTrigger fires onEnter for any trigger whose start point the
+      // page is already past — synchronously at create() time, and again
+      // whenever a `resize` event drives its own auto-refresh (which
+      // page.setViewportSize's real resize event exercises in the e2e
+      // suite, not just the initial mount). A compact instrument header
+      // can leave a section like "categories" already within the
+      // viewport, so this can fire before the reader has scrolled at all
+      // — correct for the sweep itself (above-the-fold content should
+      // still ignite immediately), wrong for nav state (it would silently
+      // steal "score"'s own always-lit default). `hasScrolled()` — a
+      // real, live scroll-position read, not a one-shot flag captured at
+      // setup time — distinguishes the two: any callback firing while the
+      // page is still at its top can only be one of these synthetic
+      // already-past fires, never a genuine crossing (reaching a second
+      // section's activation point by scrolling requires having actually
+      // scrolled away from y=0 first).
+      function hasScrolled() {
+        return window.scrollY > 0;
+      }
+
       const sectionElements = gsap.utils.toArray<HTMLElement>("[data-reveal-section]", root);
       sectionElements.forEach((sectionEl) => {
-        const rule = sectionEl.querySelector<HTMLElement>("[data-reveal-rule]");
-        const content = sectionEl.querySelector<HTMLElement>("[data-reveal-content]");
-        const flags = sectionEl.querySelectorAll<HTMLElement>("[data-normband-flag]");
-        if (!content) return;
+        const content = sectionEl.querySelectorAll<HTMLElement>("[data-scanline-content]");
+        if (!content.length) return;
 
         const sectionKey = sectionEl.dataset.sectionKey;
         const alreadyInView =
@@ -403,57 +426,49 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
 
         if (alreadyInView) {
           // The flicker-avoiding sweep: instant-settle to the finished
-          // state (no tween) and attach a plain, animation-free
-          // ScrollTrigger — nav-highlight tracking only, nothing left to
-          // reveal. See revealAlreadyInView's own comment for why this
-          // exists.
+          // state (no beam travel, content already lit) and attach a
+          // plain, animation-free ScrollTrigger — nav-highlight tracking
+          // only, nothing left to reveal. See revealAlreadyInView's own
+          // comment for why this exists.
           if (sectionKey) revealedSectionKeysRef.current.add(sectionKey);
-          gsap.set(content, { opacity: 1, y: 0 });
-          if (rule) gsap.set(rule, { scaleX: 1 });
-          if (flags.length) gsap.set(flags, { opacity: 1 });
+          sectionEl.dataset.swept = "true";
+          content.forEach((el) => el.removeAttribute("data-scanline-hidden"));
 
           ScrollTrigger.create({
             trigger: sectionEl,
             start: SECTION_REVEAL_START,
-            onEnter: () => sectionEl.id && setActiveId(sectionEl.id),
-            onEnterBack: () => sectionEl.id && setActiveId(sectionEl.id),
+            onEnter: () => hasScrolled() && sectionEl.id && setActiveId(sectionEl.id),
+            onEnterBack: () => hasScrolled() && sectionEl.id && setActiveId(sectionEl.id),
           });
           return;
         }
 
-        gsap.set(content, { opacity: 0, y: 12 });
-        if (rule) gsap.set(rule, { scaleX: 0 });
-        if (flags.length) gsap.set(flags, { opacity: 0 });
+        content.forEach((el) => el.setAttribute("data-scanline-hidden", "true"));
 
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: sectionEl,
-            start: SECTION_REVEAL_START,
-            toggleActions: "play none none none",
+        ScrollTrigger.create({
+          trigger: sectionEl,
+          start: SECTION_REVEAL_START,
+          onEnter: () => {
+            if (!sectionEl.dataset.swept) {
+              sectionEl.dataset.swept = "true";
+              scanlineSweep(sectionEl);
+            }
             // Sections without a mini-nav id (warnings, missing-metrics,
             // footnotes, the disclaimer) still reveal — they just never
             // touch nav state, so scrolling past them can't blank out the
-            // last real anchor the reader passed.
-            onEnter: () => {
-              if (sectionEl.id) setActiveId(sectionEl.id);
-              // Recorded regardless of run number — by the time any
-              // later re-sync happens, this marks the section revealed
-              // for revealAlreadyInView's ref check above, even if a
-              // subsequent layout shift moves it back off-screen.
-              if (sectionKey) revealedSectionKeysRef.current.add(sectionKey);
-            },
-            onEnterBack: () => sectionEl.id && setActiveId(sectionEl.id),
+            // last real anchor the reader passed. Guarded by
+            // hasScrolled() (see above) so a section already in view at
+            // setup/refresh time can't steal "score"'s always-lit
+            // default.
+            if (hasScrolled() && sectionEl.id) setActiveId(sectionEl.id);
+            // Recorded regardless of run number — by the time any later
+            // re-sync happens, this marks the section revealed for
+            // revealAlreadyInView's ref check above, even if a subsequent
+            // layout shift moves it back off-screen.
+            if (sectionKey) revealedSectionKeysRef.current.add(sectionKey);
           },
+          onEnterBack: () => hasScrolled() && sectionEl.id && setActiveId(sectionEl.id),
         });
-        if (rule) tl.to(rule, { scaleX: 1, duration: MOTION.reveal, ease: MOTION.ease }, 0);
-        tl.to(content, { opacity: 1, y: 0, duration: MOTION.reveal, ease: MOTION.ease }, 0);
-        if (flags.length) {
-          tl.to(
-            flags,
-            { opacity: 1, duration: MOTION.fast, ease: MOTION.ease },
-            MOTION.reveal * 0.5,
-          );
-        }
       });
 
       // Web fonts (STIX Two Text, PT Mono) can finish loading after this

@@ -1,9 +1,9 @@
 import { useTranslations } from "next-intl";
-import { ScoreDial } from "@/components/score-dial";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { SegmentDisplay } from "@/components/segment-display";
+import { AnnunciatorCell } from "@/components/annunciator-cell";
+import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ConfidenceDisclosure } from "./confidence-disclosure";
-import { cn } from "@/lib/utils";
 import { verdictTone } from "@/lib/verdict";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -17,12 +17,11 @@ export interface ScoreHeaderProps {
   id?: string;
 }
 
-const STAMP_TONE_CLASS: Record<ReturnType<typeof verdictTone>, string> = {
-  good: "border-good text-good",
-  attention: "border-attention text-attention",
-  critical: "border-critical text-critical",
-  na: "border-ink text-ink",
-};
+// The score's digit width: up to "100.0" (3 integer digits + 1 decimal, 4
+// digit-cells total — the decimal point rides on its own cell per
+// SegmentDisplay's dp convention) — every reading below that pads with
+// ghost leading cells rather than resizing the instrument.
+const SCORE_DIGITS = 4;
 
 const SCALE_KEY: Record<
   string,
@@ -34,13 +33,19 @@ const SCALE_KEY: Record<
   billions: "scaleBillions",
 };
 
-// The «заключение» (stamped conclusion) block: rule-framed, the health
-// label reads as the verdict (no eyebrow above it — the craft floor bans
-// kickers outright). A disclaimer line is placed beneath it here (a
-// deliberate choice, not a design-direction quote — it's echoed again as
-// its own closing section further down the document). When overall_score
-// is null this is also where the insufficient-data state composes its
-// guidance — designed absence, not a blank dial with nothing to act on.
+// The «заключение» block, re-skinned as the monitor's own instrument
+// cluster: the score ignites as a large SegmentDisplay (data-score-display,
+// results-document.tsx's load-time timeline drives its cascade the same
+// way it used to drive ScoreDial's data-score-arc), then the verdict lights
+// as an AnnunciatorCell a beat later — "stamp moment → verdict lights,"
+// the same one-two rhythm the old arc-then-stamp opening had. The verdict
+// keeps a real <h1> (sr-only — AnnunciatorCell's own label text is
+// aria-hidden in favor of its role="status" aria-label, so the document
+// still needs one genuine heading landmark) wired to data-verdict-stamp,
+// the wrapper results-document.tsx's opening timeline fades/scales in.
+// When overall_score is null this is also where the insufficient-data
+// state composes its guidance — designed absence (ghost segment cells),
+// not a blank dial with nothing to act on.
 export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   const t = useTranslations("Results.header");
   const tScale = useTranslations("Analyze.verify.controls");
@@ -52,31 +57,27 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   return (
     <section id={id} className="grid-paper border-2 border-ink p-6 sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <ScoreDial
-          score={analysis.overall_score}
-          locale={locale}
-          size={180}
-          caption={analysis.health_label}
-        />
+        <span data-score-display className="grid-paper inline-flex p-4">
+          <SegmentDisplay
+            value={analysis.overall_score}
+            decimals={1}
+            digits={SCORE_DIGITS}
+            locale={locale}
+            className="text-6xl sm:text-7xl"
+            caption={insufficientData ? undefined : analysis.health_label}
+            naLabel={insufficientData ? analysis.health_label : undefined}
+          />
+        </span>
         <div className="flex-1 space-y-4">
-          {/* The stamped conclusion: an honest-ink seal, not simulated
-           * rubber — a bordered, uppercase, letter-spaced label in a flat
-           * status ink, tilted slightly like a hand-applied stamp. No
-           * texture, no gradient, no shadow. */}
-          <h1
-            data-verdict-stamp
-            className={cn(
-              "inline-block -rotate-[1.5deg] border-4 border-double px-5 py-2 text-center font-display text-xl uppercase tracking-[0.2em] sm:text-2xl",
-              STAMP_TONE_CLASS[verdictTone(analysis.overall_score)],
-            )}
-          >
-            {analysis.health_label}
-          </h1>
+          <div data-verdict-stamp>
+            <h1 className="sr-only">{analysis.health_label}</h1>
+            <AnnunciatorCell status={verdictTone(analysis.overall_score)} label={analysis.health_label} />
+          </div>
           <div className="flex flex-wrap gap-2">
-            <SpecimenChip>{analysis.industry_name}</SpecimenChip>
-            {period && <SpecimenChip>{period}</SpecimenChip>}
-            {analysis.currency && <SpecimenChip>{analysis.currency}</SpecimenChip>}
-            <SpecimenChip>{tScale(SCALE_KEY[analysis.scale])}</SpecimenChip>
+            <OriginTicket>{analysis.industry_name}</OriginTicket>
+            {period && <OriginTicket>{period}</OriginTicket>}
+            {analysis.currency && <OriginTicket>{analysis.currency}</OriginTicket>}
+            <OriginTicket>{tScale(SCALE_KEY[analysis.scale])}</OriginTicket>
           </div>
           <ConfidenceMeter
             value={analysis.confidence.total}

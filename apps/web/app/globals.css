@@ -366,20 +366,26 @@
 
   /*
    * The scroll cinema's per-section reveals (results-document.tsx) hide
-   * unscrolled content via inline styles set imperatively by GSAP
-   * (opacity/transform), never a render-time class — so there's no class
-   * to simply omit here. Print never scrolls the page, so without this
-   * override, printing or screensharing the document before scrolling
-   * past a section renders it blank: a real regression against this
-   * page's printed/screenshared document requirement. !important is
-   * required because it's overriding an inline style, the one case that
-   * legitimately needs it.
+   * unscrolled content by setting the `data-scanline-hidden` attribute
+   * imperatively (never a render-time class — see this file's own
+   * [data-scanline-content] rule below and lib/motion's scanlineSweep).
+   * Print never scrolls the page, so without this override, printing or
+   * screensharing the document before scrolling past a section renders it
+   * blank: a real regression against this page's printed/screenshared
+   * document requirement. !important is required: a single !important
+   * declaration always wins over a non-important one on the same
+   * property, regardless of the other rule's higher selector specificity.
    */
-  [data-reveal-content],
+  [data-scanline-content],
   [data-reveal-rule],
-  [data-normband-flag] {
+  [data-calibration-flag] {
     opacity: 1 !important;
     transform: none !important;
+  }
+  /* The sweeping beam itself is pure motion chrome — a printed document
+   * must never freeze mid-sweep as a diagonal-looking glow band. */
+  [data-scanline] {
+    display: none !important;
   }
 }
 

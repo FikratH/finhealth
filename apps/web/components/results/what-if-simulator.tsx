@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { ScoreDial } from "@/components/score-dial";
+import { SegmentDisplay } from "@/components/segment-display";
+import { InstrumentModule } from "@/components/instrument-module";
 import { StatusPill } from "@/components/status-pill";
 import { MetricNumber } from "@/components/metric-number";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { SectionHeading } from "@/components/section-heading";
 import {
   DEFAULT_LEVER_STATE,
@@ -33,6 +34,11 @@ export interface WhatIfSimulatorProps {
 // re-rendering the changed-ratios list on every intermediate frame.
 const DEBOUNCE_MS = 150;
 
+// Matches score-header.tsx's own SCORE_DIGITS: up to "100.0" (3 integer
+// digits + 1 decimal, 4 digit-cells) — every reading below that pads with
+// ghost leading cells, so the two readouts here stay the same width.
+const SCORE_DIGITS = 4;
+
 interface LeverSliderProps {
   leverKey: LeverKey;
   value: number;
@@ -40,22 +46,23 @@ interface LeverSliderProps {
   locale: Locale;
 }
 
-// A native <input type="range"> — keyboard-operable (arrow keys, Home/End)
-// for free, no custom widget to reimplement. Styling stays in the
-// document grammar: a hairline track, the brand accent as the browser's
-// native `accent-color` thumb, PT Mono for the numeric readout. The
-// readout is aria-hidden — `aria-valuetext` on the input itself is what a
-// screen reader announces, so the two never have to be kept in sync by
-// hand.
+// The control bench's lever, a slider-instrument: a bezel (border +
+// panel surface, InstrumentModule's own grammar) around a native
+// <input type="range"> — keyboard-operable (arrow keys, Home/End) for
+// free, no custom widget to reimplement. The brand accent is the
+// browser's native `accent-color` thumb, PT Mono for the numeric
+// readout. The readout is aria-hidden — `aria-valuetext` on the input
+// itself is what a screen reader announces, so the two never have to be
+// kept in sync by hand.
 function LeverSlider({ leverKey, value, onChange, locale }: LeverSliderProps) {
   const limit = LEVER_LIMITS[leverKey];
   const id = `lever-${leverKey}`;
   const percentText = `${value > 0 ? "+" : ""}${formatNumber(value * 100, { locale, decimals: 0 })}%`;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 border border-line bg-panel px-4 py-3">
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="text-sm text-ink">
+        <label htmlFor={id} className="font-mono text-xs uppercase tracking-wide text-ink-muted">
           {metricDisplayName(leverKey, locale)}
         </label>
         <span aria-hidden="true" className="font-mono text-sm tabular-nums text-ink">
@@ -149,35 +156,48 @@ export function WhatIfSimulator({ analysis, locale }: WhatIfSimulatorProps) {
         <Button type="button" variant="outline" onClick={handleReset} disabled={isDefault}>
           {t("reset")}
         </Button>
-        <SpecimenChip tone="attention">{t("notPersisted")}</SpecimenChip>
+        <OriginTicket tone="attention">{t("notPersisted")}</OriginTicket>
       </div>
 
-      <div className="grid-paper flex flex-wrap items-center gap-6 p-4">
-        <ScoreDial
-          score={analysis.overall_score}
-          locale={locale}
-          caption={analysis.health_label}
-          ghostScore={result.overallScore}
-          size={160}
+      {/* The control bench's own readout pair: the real score stays a
+       * steady instrument reading; the ghost score is a second
+       * SegmentDisplay in a dashed, dimmed bezel — visibly provisional,
+       * never a substitute for the real one. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <InstrumentModule
+          label={t("currentLabel")}
+          figure={
+            <SegmentDisplay
+              value={analysis.overall_score}
+              decimals={1}
+              digits={SCORE_DIGITS}
+              locale={locale}
+              caption={analysis.health_label}
+              className="text-3xl"
+            />
+          }
         />
-        <div className="space-y-2">
-          <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-            {t("simulatedLabel")}
-          </p>
-          <MetricNumber
-            value={result.overallScore}
-            decimals={1}
-            locale={locale}
-            naLabel={tRatios("naLabel")}
-            className="text-2xl"
-          />
+        <InstrumentModule
+          className="border-dashed opacity-80"
+          label={t("simulatedLabel")}
+          figure={
+            <SegmentDisplay
+              value={result.overallScore}
+              decimals={1}
+              digits={SCORE_DIGITS}
+              locale={locale}
+              naLabel={tRatios("naLabel")}
+              className="text-3xl"
+            />
+          }
+        >
           {delta !== null && (
-            <SpecimenChip tone={deltaTone}>
+            <OriginTicket tone={deltaTone}>
               {t("deltaLabel")}: {deltaSign}
               {formatNumber(delta, { locale, decimals: 1 })}
-            </SpecimenChip>
+            </OriginTicket>
           )}
-        </div>
+        </InstrumentModule>
       </div>
 
       <div className="space-y-3">

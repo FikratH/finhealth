@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ConfidenceMeter } from "@/components/confidence-meter";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { MetricNumber } from "@/components/metric-number";
 import type { ConfidenceBreakdown } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -15,14 +15,14 @@ export interface ConfidenceDisclosureProps {
 // visible — the two 0-100 sub-scores as their own ConfidenceMeter rows, the
 // manual-correction count as a plain figure (it's a count, not a percentage
 // — forcing it through ConfidenceMeter's 0-100 semantics would misrepresent
-// it), the boolean facts as SpecimenChips, and the engine's own notes[]
+// it), the boolean facts as OriginTickets, and the engine's own notes[]
 // verbatim (this is where the fixture's audit-detected note surfaces).
 export function ConfidenceDisclosure({ confidence, locale }: ConfidenceDisclosureProps) {
   const t = useTranslations("Results.header.confidence");
 
   return (
     <details className="max-w-sm">
-      <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-accent">
+      <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-brand">
         {t("detailsToggle")}
       </summary>
       <div className="mt-3 space-y-3 border-t border-line pt-3">
@@ -48,19 +48,19 @@ export function ConfidenceDisclosure({ confidence, locale }: ConfidenceDisclosur
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <SpecimenChip tone={confidence.has_previous_period ? "accent" : "neutral"}>
+          <OriginTicket tone={confidence.has_previous_period ? "accent" : "neutral"}>
             {confidence.has_previous_period
               ? t("hasPreviousPeriodYes")
               : t("hasPreviousPeriodNo")}
-          </SpecimenChip>
-          <SpecimenChip tone={confidence.has_industry_benchmarks ? "accent" : "neutral"}>
+          </OriginTicket>
+          <OriginTicket tone={confidence.has_industry_benchmarks ? "accent" : "neutral"}>
             {confidence.has_industry_benchmarks
               ? t("hasIndustryBenchmarksYes")
               : t("hasIndustryBenchmarksNo")}
-          </SpecimenChip>
-          <SpecimenChip tone={confidence.audited ? "accent" : "neutral"}>
+          </OriginTicket>
+          <OriginTicket tone={confidence.audited ? "accent" : "neutral"}>
             {confidence.audited ? t("auditedYes") : t("auditedNo")}
-          </SpecimenChip>
+          </OriginTicket>
         </div>
         {confidence.notes.length > 0 && (
           <ul className="space-y-1 text-sm text-ink-muted">

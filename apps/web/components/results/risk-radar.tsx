@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill, type Status } from "@/components/status-pill";
+import { InstrumentModule } from "@/components/instrument-module";
 import type { RiskRadar as RiskRadarData } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 import type { NumberUnit } from "@/lib/format";
@@ -63,18 +64,20 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
   return (
     <section className="space-y-6">
       <SectionHeading>{t("heading")}</SectionHeading>
+      {/* The four-instrument cluster: each model gets its own
+       * InstrumentModule bezel — the same grammar every metric tile on the
+       * monitor uses — rather than a bespoke bordered div per model. */}
       <div className="grid gap-6 md:grid-cols-2">
         {altman && (
-          <div className="border border-line p-4 print:break-inside-avoid">
-            {/* The API's own model name, verbatim — it carries a caveat
-             * that the generic "Альтман Z" label drops: this build always
-             * runs the private-company variant without X2 (see
-             * altman.warnings), which understates the score. That caveat
-             * belongs on the card, not buried in a details toggle. */}
-            <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-              {altman.name}
-            </p>
-            <div className="mt-2 flex items-baseline gap-3">
+          <InstrumentModule
+            className="print:break-inside-avoid"
+            // The API's own model name, verbatim — it carries a caveat
+            // that a generic "Альтман Z" label drops: this build always
+            // runs the private-company variant without X2 (see
+            // altman.warnings), which understates the score. That caveat
+            // belongs on the card, not buried in a details toggle.
+            label={altman.name}
+            figure={
               <MetricNumber
                 value={altman.value}
                 unit={altman.unit}
@@ -82,20 +85,23 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
                 naLabel={naLabel}
                 className="text-2xl"
               />
-              <StatusPill status={altman.status} label={tStatus(altman.status)} />
-            </div>
+            }
+          >
+            <StatusPill status={altman.status} label={tStatus(altman.status)} />
             <p className="mt-2 text-sm text-ink-muted">{altman.explanation}</p>
-          </div>
+          </InstrumentModule>
         )}
 
-        <div className="border border-line p-4 print:break-inside-avoid">
-          <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-            {t("piotroski.heading")}
-          </p>
-          <p className="mt-2 font-mono text-2xl tabular-nums text-ink">
-            {piotroski.score}/{piotroski.max}
-          </p>
-          <p className="mt-1 text-sm text-ink-muted">{piotroski.interpretation}</p>
+        <InstrumentModule
+          className="print:break-inside-avoid"
+          label={t("piotroski.heading")}
+          figure={
+            <span className="font-mono text-2xl tabular-nums text-ink">
+              {piotroski.score}/{piotroski.max}
+            </span>
+          }
+        >
+          <p className="text-sm text-ink-muted">{piotroski.interpretation}</p>
           <ul className="mt-3 space-y-1.5">
             {piotroski.signals.map((signal) => {
               const status: Status =
@@ -116,13 +122,12 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
               );
             })}
           </ul>
-        </div>
+        </InstrumentModule>
 
-        <div className="border border-line p-4 print:break-inside-avoid">
-          <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-            {t("beneish.heading")}
-          </p>
-          <div className="mt-2 flex flex-wrap items-baseline gap-3">
+        <InstrumentModule
+          className="print:break-inside-avoid"
+          label={t("beneish.heading")}
+          figure={
             <MetricNumber
               value={beneish.m_score}
               decimals={2}
@@ -130,62 +135,64 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
               naLabel={naLabel}
               className="text-2xl"
             />
-            <StatusPill
-              status={beneish.flag ? BENEISH_FLAG_STATUS[beneish.flag] : "na"}
-              label={beneishFlagLabel}
-            />
-          </div>
+          }
+        >
+          <StatusPill
+            status={beneish.flag ? BENEISH_FLAG_STATUS[beneish.flag] : "na"}
+            label={beneishFlagLabel}
+          />
           <p className="mt-2 text-sm text-ink-muted">{beneish.interpretation}</p>
-        </div>
+        </InstrumentModule>
 
-        <div className="border border-line p-4 print:break-inside-avoid">
-          <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-            {t("dupont.heading")}
-          </p>
-          {dupont ? (
-            <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
-              <DupontFactor
-                value={dupont.net_margin}
-                unit="%"
-                locale={locale}
-                naLabel={naLabel}
-                label={t("dupont.netMargin")}
-              />
-              <span aria-hidden="true" className="pb-4 text-ink-muted">
-                ×
-              </span>
-              <DupontFactor
-                value={dupont.asset_turnover}
-                unit="x"
-                locale={locale}
-                naLabel={naLabel}
-                label={t("dupont.assetTurnover")}
-              />
-              <span aria-hidden="true" className="pb-4 text-ink-muted">
-                ×
-              </span>
-              <DupontFactor
-                value={dupont.equity_multiplier}
-                unit="x"
-                locale={locale}
-                naLabel={naLabel}
-                label={t("dupont.equityMultiplier")}
-              />
-              <span aria-hidden="true" className="pb-4 text-ink-muted">
-                =
-              </span>
-              <DupontFactor
-                value={dupont.roe}
-                unit="%"
-                locale={locale}
-                naLabel={naLabel}
-                label={t("dupont.roe")}
-              />
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-ink-muted">{t("dupont.unavailable")}</p>
-          )}
-        </div>
+        <InstrumentModule
+          className="print:break-inside-avoid"
+          label={t("dupont.heading")}
+          figure={
+            dupont ? (
+              <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+                <DupontFactor
+                  value={dupont.net_margin}
+                  unit="%"
+                  locale={locale}
+                  naLabel={naLabel}
+                  label={t("dupont.netMargin")}
+                />
+                <span aria-hidden="true" className="pb-4 text-ink-muted">
+                  ×
+                </span>
+                <DupontFactor
+                  value={dupont.asset_turnover}
+                  unit="x"
+                  locale={locale}
+                  naLabel={naLabel}
+                  label={t("dupont.assetTurnover")}
+                />
+                <span aria-hidden="true" className="pb-4 text-ink-muted">
+                  ×
+                </span>
+                <DupontFactor
+                  value={dupont.equity_multiplier}
+                  unit="x"
+                  locale={locale}
+                  naLabel={naLabel}
+                  label={t("dupont.equityMultiplier")}
+                />
+                <span aria-hidden="true" className="pb-4 text-ink-muted">
+                  =
+                </span>
+                <DupontFactor
+                  value={dupont.roe}
+                  unit="%"
+                  locale={locale}
+                  naLabel={naLabel}
+                  label={t("dupont.roe")}
+                />
+              </div>
+            ) : (
+              <span className="text-sm text-ink-muted">{t("dupont.unavailable")}</span>
+            )
+          }
+        />
       </div>
     </section>
   );

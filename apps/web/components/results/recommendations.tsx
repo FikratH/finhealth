@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { MetricNumber } from "@/components/metric-number";
 import { sortRecommendationsByPriority } from "@/lib/results";
 import type { Recommendation } from "@/lib/api-types";
@@ -44,9 +44,9 @@ export function Recommendations({ recommendations, locale }: RecommendationsProp
           >
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <span className="font-mono text-sm text-ink-muted">№ {index + 1}</span>
-              <SpecimenChip tone={rec.priority === "high" ? "attention" : "neutral"}>
+              <OriginTicket tone={rec.priority === "high" ? "attention" : "neutral"}>
                 {t(PRIORITY_KEY[rec.priority] ?? "priorityLow")}
-              </SpecimenChip>
+              </OriginTicket>
             </div>
             <p className="mt-2 text-sm text-ink-muted">{rec.problem}</p>
             <p className="mt-2 text-ink">{rec.action}</p>

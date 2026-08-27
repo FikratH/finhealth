@@ -103,11 +103,15 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await page.getByRole("button", { name: "Запустить анализ" }).click();
   await expect(page).toHaveURL(/\/results\/[0-9a-f]+$/, { timeout: 30_000 });
 
-  // Scoped to the заключение's own dial — the what-if simulator further
-  // down the page (Plan 4 Task 4) renders a second ScoreDial (actual score
-  // + a simulated ghost arc), so an unscoped `svg text` locator would now
-  // match both.
-  await expect(page.locator("#score svg text")).toHaveText("85,1");
+  // Scoped to the заключение's own SegmentDisplay — the what-if simulator
+  // further down the page renders two more (the real + ghost control-bench
+  // readouts), so an unscoped role=img query would now match those too.
+  // The score is a CSS segment mask, not a text node — its accessible name
+  // (RU-formatted value + verdict caption) is the same contract
+  // segment-display.test.tsx covers directly.
+  await expect(
+    page.locator("#score").getByRole("img", { name: "85,1 — Сильное состояние" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
 
   // net_margin row: name + Damodaran-sourced footnote marker
@@ -125,10 +129,10 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // blank. This is a real browser evaluating the actual @media print rule
   // (jsdom can't — it doesn't apply CSS at all), against a section
   // (categories) that's below the score header and hasn't been scrolled
-  // into view yet, so its data-reveal-content is still GSAP's opacity: 0
-  // pending-reveal state for on-screen purposes. --------------------------
+  // into view yet, so its data-scanline-content is still marked
+  // data-scanline-hidden for on-screen purposes. --------------------------
   await page.emulateMedia({ media: "print" });
-  await expect(page.locator("#categories [data-reveal-content]")).toHaveCSS("opacity", "1");
+  await expect(page.locator("#categories [data-scanline-content]")).toHaveCSS("opacity", "1");
   await page.emulateMedia({ media: "screen" });
 
   // --- the scroll cinema: scroll to the bottom, the last mini-nav section
@@ -160,9 +164,10 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await expect(recommendationsLink).toHaveAttribute("aria-current", "true");
   await expect(recommendationsHeading).toBeVisible();
   // opacity is a compositing effect, not an inherited computed style, so
-  // this checks the actual element GSAP sets it on (data-reveal-content)
-  // rather than the heading inside it, which would always read back "1".
-  await expect(page.locator("#recommendations [data-reveal-content]")).toHaveCSS(
+  // this checks the actual element the scanline sweep sets it on
+  // (data-scanline-content) rather than the heading inside it, which
+  // would always read back "1".
+  await expect(page.locator("#recommendations [data-scanline-content]")).toHaveCSS(
     "opacity",
     "1",
   );
@@ -172,7 +177,9 @@ test("landing → analyze → verify → results → public share", async ({ pag
   const shareContext = await browser.newContext();
   const sharePage = await shareContext.newPage();
   await sharePage.goto(resultsUrl);
-  await expect(sharePage.locator("#score svg text")).toHaveText("85,1");
+  await expect(
+    sharePage.locator("#score").getByRole("img", { name: "85,1 — Сильное состояние" }),
+  ).toBeVisible();
   await expect(sharePage.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
   await shareContext.close();
 
@@ -349,7 +356,7 @@ test("narrative 503 (no LLM key configured): the section collapses entirely, and
   // the "already-visible section" the round-3 no-flicker check below
   // needs as its precondition: a section revealed before the narrative
   // collapse happens, not one still waiting on its own first scroll.
-  const categoriesContent = page.locator("#categories [data-reveal-content]");
+  const categoriesContent = page.locator("#categories [data-scanline-content]");
   await page.mouse.move(720, 450);
   for (let i = 0; i < 10; i++) {
     await page.mouse.wheel(0, 400);
@@ -369,7 +376,7 @@ test("narrative 503 (no LLM key configured): the section collapses entirely, and
   // post-hoc single check couldn't catch a dip that resolves within one
   // tween's length.
   const opacitySamplingPromise = page.evaluate(() => {
-    const el = document.querySelector("#categories [data-reveal-content]");
+    const el = document.querySelector("#categories [data-scanline-content]");
     let min = 1;
     const start = performance.now();
     return new Promise<number>((resolve) => {
@@ -424,7 +431,7 @@ test("narrative 503 (no LLM key configured): the section collapses entirely, and
   // opacity: 0 because its ScrollTrigger's onEnter never fired. Check the
   // element GSAP actually animates, not the heading inside it (which would
   // always read back "1" regardless).
-  const disclaimerContent = page.locator("[data-reveal-content]").filter({ has: disclaimerHeading });
+  const disclaimerContent = page.locator("[data-scanline-content]").filter({ has: disclaimerHeading });
   await expect(disclaimerContent).toHaveCSS("opacity", "1");
 
   await context.close();

@@ -19,7 +19,10 @@ export interface MiniNavProps {
   activeId: string | null;
 }
 
-// The always-lit mini-nav: every section anchor renders at full legibility
+// The always-lit mini-nav, re-skinned as the monitor's annunciator rail:
+// every section anchor is its own small annunciator cell (a bezel border,
+// LED text/glow only on the current one — see StepCell's identical
+// discipline in analyze/step-indicator.tsx), rendered at full legibility
 // simultaneously (StepIndicator's "always-lit you are here" raise,
 // reapplied to the scroll cinema) — never a set of dimmed dots that reveal
 // labels on hover. Both renderings are real <a href="#id"> anchors, so
@@ -69,8 +72,10 @@ export function MiniNav({ items, activeId }: MiniNavProps) {
               onClick={(event) => handleClick(event, item.id)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "flex items-center gap-2 font-mono text-xs uppercase tracking-wide transition-colors",
-                isActive ? "text-ink" : "text-ink-muted hover:text-ink",
+                "flex items-center gap-2 border bg-panel px-2 py-1 font-mono text-xs uppercase tracking-wide transition-colors",
+                isActive
+                  ? "border-brand text-brand [text-shadow:0_0_0.3em_var(--accent)]"
+                  : "border-line text-ink-muted hover:text-ink",
               )}
             >
               {item.label}
@@ -95,7 +100,7 @@ export function MiniNav({ items, activeId }: MiniNavProps) {
         className="fixed inset-x-0 top-0 z-40 h-0.5 bg-line print:hidden xl:hidden"
       >
         <div
-          className="h-full bg-accent transition-[width] ease-out motion-reduce:transition-none"
+          className="h-full bg-brand shadow-[0_0_4px_0px_var(--accent)] transition-[width] ease-out motion-reduce:transition-none"
           // The metronome covers this CSS transition too, not just GSAP
           // tweens — duration comes from MOTION.base rather than a second,
           // independently-chosen number living in a Tailwind duration-*

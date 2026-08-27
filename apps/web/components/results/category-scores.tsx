@@ -9,9 +9,13 @@ export interface CategoryScoresProps {
   locale: Locale;
 }
 
-// Document-grammar bars, not a chart library widget: a hairline track, an
-// accent fill, PT Mono figures — the same instrument-precision motion as
-// ScoreDial/ConfidenceMeter (draws once, respects reduced motion).
+// The category strip re-skinned as an instrument bar row: each category
+// gets a bezelled track (border + panel surface, same grammar
+// ConfidenceMeter's own bar already carries) with a brand-LED fill and a
+// low-spread glow, instead of the retired lab-report's flat hairline +
+// accent fill. Accent-trap discipline: Tailwind's `accent-*` utilities
+// resolve to --accent-surface (a pale wash) here, not real teal — the LED
+// fill uses `bg-brand`, the actual `--accent` token.
 export function CategoryScores({ categories, locale }: CategoryScoresProps) {
   const t = useTranslations("Results.categories");
 
@@ -36,10 +40,10 @@ export function CategoryScores({ categories, locale }: CategoryScoresProps) {
                   className="text-lg"
                 />
               </div>
-              <div className="h-1.5 w-full bg-line">
+              <div className="h-1.5 w-full border border-line bg-panel">
                 {hasScore && (
                   <div
-                    className="h-full bg-accent transition-[width] duration-700 ease-out motion-reduce:transition-none"
+                    className="h-full bg-brand shadow-[0_0_4px_0px_var(--accent)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
                     style={{ width: `${clamped}%` }}
                   />
                 )}

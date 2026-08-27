@@ -1,8 +1,9 @@
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
-import { NormBand } from "@/components/norm-band";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { CalibrationScale } from "@/components/calibration-scale";
+import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import {
   classifyProvenance,
@@ -50,7 +51,7 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
     return (
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-ink-muted">{displayName}</span>
-        <SpecimenChip>{t("provenanceDerived")}</SpecimenChip>
+        <OriginTicket>{t("provenanceDerived")}</OriginTicket>
       </div>
     );
   }
@@ -59,7 +60,7 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
     return (
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-ink-muted">{displayName}</span>
-        <SpecimenChip>{t("provenanceNotFound")}</SpecimenChip>
+        <OriginTicket>{t("provenanceNotFound")}</OriginTicket>
       </div>
     );
   }
@@ -73,7 +74,7 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="text-ink">{displayName}</span>
         {source.manually_edited ? (
-          <SpecimenChip tone="accent">{t("provenanceManuallyEdited")}</SpecimenChip>
+          <OriginTicket tone="accent">{t("provenanceManuallyEdited")}</OriginTicket>
         ) : (
           <ConfidenceMeter
             value={source.confidence}
@@ -119,6 +120,75 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
   // doesn't render. No crash: traceRatioInputs only ever reads sourceValues.
   const traces = sourceValues.length > 0 ? traceRatioInputs(ratio, sourceValues) : [];
 
+  // CalibrationScale only knows the reading's position against the band —
+  // the same NormBand math this replaces, preserved exactly (fix-wave's
+  // "flags follow the API's status, not raw band position" regression
+  // guard): a higher-is-better ratio can sit above its "good" band and
+  // still be status "good" — suppressFlag keeps that from contradicting
+  // the StatusPill beside it with a red ▲.
+  const benchmark = ratio.benchmark;
+  const above = benchmark != null && ratio.value !== null && ratio.value > benchmark.good[1];
+  const below = benchmark != null && ratio.value !== null && ratio.value < benchmark.good[0];
+  const suppressFlag = ratio.status === "good";
+  const showFlag = benchmark != null && !suppressFlag && (above || below);
+  const flagToneClass = ratio.status === "attention" ? "text-attention" : "text-critical";
+
+  const detailsDisclosure = (
+    <details className="mt-2">
+      <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-brand">
+        {t("detailsToggle")}
+      </summary>
+      <div className="mt-2 space-y-2 border-t border-line pt-2 text-sm text-ink">
+        <p>
+          <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+            {t("formulaLabel")}:
+          </span>{" "}
+          <code className="font-mono text-ink">{ratio.formula}</code>
+        </p>
+        {ratio.substitution && (
+          <p>
+            <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+              {t("substitutionLabel")}:
+            </span>{" "}
+            <code className="font-mono text-xs text-ink-muted">{ratio.substitution}</code>
+          </p>
+        )}
+        <p>
+          <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+            {t("explanationLabel")}:
+          </span>{" "}
+          {ratio.explanation}
+        </p>
+        {ratio.warnings.length > 0 && (
+          <div>
+            <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+              {t("warningsLabel")}:
+            </span>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-muted">
+              {ratio.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {traces.length > 0 && (
+          <div>
+            <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+              {t("provenanceHeading")}
+            </span>
+            <ul className="mt-1 space-y-2">
+              {traces.map((trace) => (
+                <li key={trace.key} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
+                  <ProvenanceRow trace={trace} locale={locale} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+
   return (
     <div className="border-b border-line py-3 last:border-b-0 print:break-inside-avoid">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
@@ -138,7 +208,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
         </span>
         <div className="flex items-center gap-3">
           {isMoney ? (
-            <SpecimenChip>{t("referenceOnly")}</SpecimenChip>
+            <OriginTicket>{t("referenceOnly")}</OriginTicket>
           ) : (
             <StatusPill status={ratio.status} label={tStatus(ratio.status)} />
           )}
@@ -154,81 +224,46 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
       </div>
 
       {ratio.benchmark && (
-        <NormBand
-          className="mt-2"
-          value={ratio.value}
-          low={ratio.benchmark.good[0]}
-          high={ratio.benchmark.good[1]}
-          unit={ratio.unit}
-          locale={locale}
-          normLabel={t("benchmarkLabel")}
-          aboveLabel={t("aboveLabel")}
-          belowLabel={t("belowLabel")}
-          naLabel={t("naLabel")}
-          tone={ratio.status === "attention" ? "attention" : "critical"}
-          // Flags follow the API's status, not raw band position: a
-          // higher-is-better ratio can sit above its "good" band and still
-          // be status "good" — suppress the flag rather than show a red ▲
-          // next to a green StatusPill.
-          suppressFlag={ratio.status === "good"}
-        />
-      )}
-
-      <details className="mt-2">
-        <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-accent">
-          {t("detailsToggle")}
-        </summary>
-        <div className="mt-2 space-y-2 border-t border-line pt-2 text-sm text-ink">
-          <p>
-            <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-              {t("formulaLabel")}:
-            </span>{" "}
-            <code className="font-mono text-ink">{ratio.formula}</code>
-          </p>
-          {ratio.substitution && (
-            <p>
-              <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-                {t("substitutionLabel")}:
-              </span>{" "}
-              <code className="font-mono text-xs text-ink-muted">
-                {ratio.substitution}
-              </code>
-            </p>
-          )}
-          <p>
-            <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-              {t("explanationLabel")}:
-            </span>{" "}
-            {ratio.explanation}
-          </p>
-          {ratio.warnings.length > 0 && (
-            <div>
-              <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-                {t("warningsLabel")}:
-              </span>
-              <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-muted">
-                {ratio.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {traces.length > 0 && (
-            <div>
-              <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-                {t("provenanceHeading")}
-              </span>
-              <ul className="mt-1 space-y-2">
-                {traces.map((trace) => (
-                  <li key={trace.key} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
-                    <ProvenanceRow trace={trace} locale={locale} />
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div className="mt-2 space-y-1.5">
+          <CalibrationScale
+            value={ratio.value}
+            low={ratio.benchmark.good[0]}
+            high={ratio.benchmark.good[1]}
+            unit={ratio.unit}
+            locale={locale}
+            label={t("benchmarkLabel")}
+            naLabel={t("naLabel")}
+            // The cursor reads the ratio's real severity (its API status),
+            // not just its raw band position — richer than the retired
+            // NormBand's flat neutral cursor, and never at odds with the
+            // StatusPill beside it.
+            tone={ratio.status === "good" || ratio.status === "attention" || ratio.status === "critical" ? ratio.status : "neutral"}
+          />
+          {showFlag && (
+            <span
+              data-calibration-flag
+              className={cn("inline-flex items-center gap-1 font-mono text-xs", flagToneClass)}
+            >
+              <span aria-hidden="true">{above ? "▲" : "▼"}</span>
+              <span className="sr-only">{above ? t("aboveLabel") : t("belowLabel")}</span>
+            </span>
           )}
         </div>
-      </details>
+      )}
+
+      {traces.length > 0 ? (
+        // The "visible seams" raise: the ticket is wired to its trace
+        // disclosure by a persistent left rule, always rendered (not
+        // hidden inside the <details> the way the trace list itself is) —
+        // the wire is always visible; the popover/disclosure keeps the
+        // details.
+        <div className="mt-2 space-y-2 border-l-2 border-brand/40 pl-3">
+          <OriginTicket tone="accent">{t("provenanceTraced")}</OriginTicket>
+          {detailsDisclosure}
+        </div>
+      ) : (
+        detailsDisclosure
+      )}
     </div>
   );
 }

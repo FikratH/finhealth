@@ -12,7 +12,7 @@ export function WarningsAccordion({ warnings }: WarningsAccordionProps) {
 
   return (
     <details className="border border-line p-4">
-      <summary className="cursor-pointer font-mono text-sm text-ink hover:text-accent">
+      <summary className="cursor-pointer font-mono text-sm text-ink hover:text-brand">
         {t("summary", { count: warnings.length })}
       </summary>
       <ul className="mt-3 space-y-2 text-sm text-ink-muted">
