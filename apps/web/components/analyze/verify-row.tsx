@@ -50,7 +50,13 @@ function PeriodCell({ metricName, periodLabel, entry, locale, onChange }: Period
       />
       <div className="flex items-center justify-between gap-2">
         {manuallyEdited ? (
-          <SpecimenChip tone="accent">{t("manuallyEdited")}</SpecimenChip>
+          <SpecimenChip tone="accent" className="items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="inline-block size-1.5 rounded-full bg-brand shadow-[0_0_4px_1px_var(--accent)]"
+            />
+            {t("manuallyEdited")}
+          </SpecimenChip>
         ) : (
           <ConfidenceMeter
             value={entry ? confidence : null}

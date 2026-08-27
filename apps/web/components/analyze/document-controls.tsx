@@ -58,7 +58,7 @@ export function DocumentControls({
   const industryName = industries.find((ind) => ind.id === industry)?.name ?? industry;
 
   return (
-    <div className="grid-paper border border-line bg-paper p-4">
+    <div className="grid-paper border border-line bg-panel p-4">
       <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">{t("heading")}</p>
       <div className="mt-3 flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
@@ -115,18 +115,33 @@ export function DocumentControls({
             value={currency}
             placeholder={t("currencyPlaceholder")}
             onChange={(event) => onCurrencyChange(event.target.value.toUpperCase())}
-            className="w-28 border border-line bg-paper px-2 py-1.5 font-mono text-sm uppercase text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="w-28 border border-line bg-panel px-2 py-1.5 font-mono text-sm uppercase text-ink caret-brand [caret-shape:block] focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)] focus-visible:outline-none"
           />
         </div>
 
-        <label htmlFor={auditedId} className="flex items-center gap-2 pb-1.5 text-sm text-ink">
-          <input
-            id={auditedId}
-            type="checkbox"
-            checked={audited}
-            onChange={(event) => onAuditedChange(event.target.checked)}
-            className="size-4 border border-line accent-brand"
-          />
+        {/* Instrument switch: the native checkbox stays (behavior, keyboard,
+         * and screen-reader semantics all identical) but visually hidden —
+         * the bezelled track + LED thumb it drives are a decorative sibling
+         * wired to it via the standard peer pattern, and the visible focus
+         * ring lands on that sibling since the real control is off-screen. */}
+        <label htmlFor={auditedId} className="flex cursor-pointer items-center gap-2 pb-1.5 text-sm text-ink">
+          <span className="relative inline-flex h-4 w-8 shrink-0 items-center border border-line bg-panel">
+            <input
+              id={auditedId}
+              type="checkbox"
+              checked={audited}
+              onChange={(event) => onAuditedChange(event.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="absolute left-0.5 size-2.5 bg-ink-muted transition-transform duration-150 peer-checked:translate-x-4 peer-checked:bg-brand peer-checked:shadow-[0_0_4px_1px_var(--accent)]"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 border border-transparent peer-focus-visible:border-ring"
+            />
+          </span>
           {t("auditedLabel")}
         </label>
 

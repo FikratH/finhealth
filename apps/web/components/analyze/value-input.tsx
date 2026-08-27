@@ -23,6 +23,16 @@ export interface ValueInputProps {
 // focused, when it reveals the raw digits for editing — the "lab report"
 // grammar's numbers stay legible at rest, without asking the user to parse
 // a formatting mask while retyping one.
+//
+// Celebrated editability (design-direction raise): every reading in this
+// table is a writable instrument field, not a static printout — a block
+// caret and a teal edit-glow on focus say so before the user types a
+// single character. An unset (N/A) field at rest reads as an unlit
+// instrument slot (dashed bezel + ghost-cell texture, same idiom as the
+// upload docking bay's empty bay) rather than a plain gray placeholder —
+// "designed absence," carried down to the single-cell level. Only the
+// border/background change for that state; text color is untouched, so
+// the already-verified ink-muted/panel contrast pair never shifts.
 export function ValueInput({
   id,
   value,
@@ -105,8 +115,12 @@ export function ValueInput({
         }}
         onBlur={commit}
         className={cn(
-          "w-full border bg-paper px-2 py-1 font-mono text-sm tabular-nums text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",
-          invalid ? "border-critical" : "border-line focus-visible:border-accent",
+          "w-full border bg-panel px-2 py-1 font-mono text-sm tabular-nums text-ink caret-brand [caret-shape:block] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",
+          invalid
+            ? "border-critical"
+            : value === null && !focused
+              ? "ghost-cell-texture border-dashed border-line focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)]"
+              : "border-line focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)]",
         )}
       />
       {invalid && (

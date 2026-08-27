@@ -38,7 +38,7 @@ export function SourcePopover({ source, snippet, context }: SourcePopoverProps) 
         <button
           type="button"
           aria-label={`${trigger}: ${context}`}
-          className="border border-line px-1.5 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:border-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="border border-line bg-panel px-1.5 py-0.5 font-mono text-xs uppercase tracking-wide text-ink-muted transition-colors hover:border-brand hover:text-brand hover:[text-shadow:0_0_0.3em_var(--accent)] focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {trigger}
         </button>

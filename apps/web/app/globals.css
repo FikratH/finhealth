@@ -503,6 +503,16 @@
   background-color: var(--ghost);
 }
 
+/* Docking-bay ghost-cell texture: a faint perforated dot grid in the ghost
+ * tone, for bezels awaiting media (the upload dropzone, an empty value
+ * slot) — "unlit segments are designed too" extended to an empty
+ * instrument bay. Purely decorative background-image, at 10% ghost-tone
+ * opacity — never load-bearing for legibility of any text drawn over it. */
+.ghost-cell-texture {
+  background-image: radial-gradient(circle, var(--ghost) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
 /*
  * scanlineSweep's (lib/motion.ts) content-hiding contract: the attribute is
  * only ever set imperatively at effect time (never render-time), so a

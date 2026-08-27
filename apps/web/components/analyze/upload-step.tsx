@@ -101,6 +101,12 @@ export function UploadStep({
 
       {displayError && <ErrorBanner error={displayError} hintT={hintT} />}
 
+      {/* The docking bay: an empty bezel awaiting media. Idle = a plain
+       * instrument slot (solid 1px border, ghost-cell perforation texture
+       * inside — "unlit segments are designed too" extended to an empty
+       * bay). Drag = teal edge lighting, the transient border-accent
+       * exemption re-skinned as a lit bezel edge + soft glow rather than a
+       * filled color wash. */}
       <div
         onDragOver={(event) => {
           event.preventDefault();
@@ -109,8 +115,10 @@ export function UploadStep({
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          "border border-dashed p-10 text-center transition-colors duration-150",
-          dragging ? "border-accent bg-accent-surface" : "border-line",
+          "ghost-cell-texture border bg-panel p-10 text-center transition-colors duration-150",
+          dragging
+            ? "border-brand shadow-[0_0_0_1px_var(--accent),0_0_24px_2px_color-mix(in_oklch,var(--accent)_35%,transparent)]"
+            : "border-line",
         )}
       >
         <input
@@ -123,11 +131,13 @@ export function UploadStep({
           onChange={(event) => handleFiles(event.target.files)}
         />
         <p className="font-display text-lg text-ink">{t("dropzoneLabel")}</p>
-        <p className="mt-1 text-sm text-ink-muted">{t("dropzoneHint")}</p>
+        <p className="mt-1.5 font-mono text-xs uppercase tracking-wide text-ink-muted">
+          {t("dropzoneHint")}
+        </p>
         <Button
           type="button"
           variant="outline"
-          className="mt-4"
+          className="mt-4 font-mono text-xs uppercase tracking-wide"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
@@ -136,8 +146,14 @@ export function UploadStep({
       </div>
 
       {file && (
-        <div className="flex items-center justify-between border border-line px-3 py-2 font-mono text-sm text-ink">
-          <span>{t("selectedFile", { name: file.name })}</span>
+        <div className="flex items-center justify-between border border-line bg-panel px-3 py-2 font-mono text-sm text-ink">
+          <span className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block size-1.5 shrink-0 rounded-full bg-brand shadow-[0_0_4px_1px_var(--accent)]"
+            />
+            {t("selectedFile", { name: file.name })}
+          </span>
           <button
             type="button"
             onClick={onFileCleared}
@@ -149,8 +165,12 @@ export function UploadStep({
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <label htmlFor={`${inputId}-industry`} className="block text-sm text-ink">
+      {/* Industry select as an instrument switch panel: the same
+       * grid-paper + bezel + panel-surface recipe DocumentControls uses in
+       * Step 2, so the two "choose the document's industry" moments read
+       * as the same instrument, not two different UI languages. */}
+      <div className="grid-paper space-y-1.5 border border-line bg-panel p-4">
+        <label htmlFor={`${inputId}-industry`} className="block font-mono text-xs uppercase tracking-wide text-ink-muted">
           {t("industryLabel")}
         </label>
         {/* Always pass a defined string (never undefined) so Select stays
@@ -178,6 +198,7 @@ export function UploadStep({
           onClick={onSubmit}
           disabled={!canSubmit}
           aria-describedby={missingReason && !busy ? `${inputId}-submit-hint` : undefined}
+          className="font-mono text-xs uppercase tracking-wide shadow-[0_0_10px_1px_color-mix(in_oklch,var(--accent)_28%,transparent)] hover:shadow-[0_0_14px_2px_color-mix(in_oklch,var(--accent)_38%,transparent)] active:shadow-[0_0_6px_1px_color-mix(in_oklch,var(--accent)_28%,transparent)]"
         >
           {statusText ?? t("submitButton")}
         </Button>

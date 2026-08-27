@@ -84,9 +84,15 @@ export function AnalyzeFlow() {
     }
   }
 
+  // Display-only derivation for the step strip's blink gate — never fed
+  // back into the reducer, so it can't affect analyze-reducer's behavior
+  // or its own tests.
+  const stepPending =
+    state.step === "upload" ? state.uploadPhase !== "idle" : state.verifyPhase === "analyzing";
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-6 py-10">
-      <StepIndicator current={state.step} />
+      <StepIndicator current={state.step} pending={stepPending} />
       <div ref={stepRegionRef} tabIndex={-1} className="rounded-sm outline-none focus:ring-2 focus:ring-ring">
         {state.step === "upload" || !state.extraction ? (
           <UploadStep

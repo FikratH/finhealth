@@ -83,15 +83,17 @@ export function VerifyStep({
 
       {error && <ErrorBanner error={error} />}
 
+      {/* Amber annunciator lines: same glyph-plus-glow discipline as
+       * AnnunciatorCell/ErrorBanner, one status color doing one job. */}
       {extraction.warnings.length > 0 && (
-        <div className="border border-attention px-4 py-3 text-sm text-ink">
-          <p className="font-mono text-xs uppercase tracking-wide text-attention">
+        <div className="border border-attention bg-panel px-4 py-3 text-sm text-ink">
+          <p className="font-mono text-xs uppercase tracking-wide text-attention [text-shadow:0_0_0.3em_var(--attention)]">
             {t("warningsHeading")}
           </p>
           <ul className="mt-2 space-y-1">
             {extraction.warnings.map((warning) => (
               <li key={warning} className="flex gap-2">
-                <span aria-hidden="true" className="text-attention">
+                <span aria-hidden="true" className="text-attention [text-shadow:0_0_0.3em_var(--attention)]">
                   ▲
                 </span>
                 <span>{warning}</span>
@@ -128,7 +130,13 @@ export function VerifyStep({
 
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onBack}
+            disabled={busy}
+            className="font-mono text-xs uppercase tracking-wide"
+          >
             {t("backButton")}
           </Button>
           <Button
@@ -136,6 +144,7 @@ export function VerifyStep({
             onClick={onSubmit}
             disabled={!canSubmit}
             aria-describedby={missingReason && !busy ? "verify-submit-hint" : undefined}
+            className="font-mono text-xs uppercase tracking-wide shadow-[0_0_10px_1px_color-mix(in_oklch,var(--accent)_28%,transparent)] hover:shadow-[0_0_14px_2px_color-mix(in_oklch,var(--accent)_38%,transparent)] active:shadow-[0_0_6px_1px_color-mix(in_oklch,var(--accent)_28%,transparent)]"
           >
             {busy ? t("analyzingStatus") : t("submitButton")}
           </Button>
