@@ -394,47 +394,63 @@ export function parseContentDispositionFilename(header: string | null): string |
  * than the 15s default every small JSON call gets. A caller (the download
  * button's own in-flight state — see my-documents-table.tsx) still needs a
  * bound on how long "downloading…" can last; without one, a hung fetch
- * would be invisible AND unrecoverable short of a page reload. */
+ * would be invisible AND unrecoverable short of a page reload.
+ *
+ * Unlike `request<T>()`, the timer isn't cleared the moment headers arrive
+ * — it stays armed through `response.blob()` too, so the 30s budget bounds
+ * the whole transfer, not just the round-trip to the first byte. That's a
+ * deliberate divergence from `request()`'s shape, not an oversight: a
+ * multi-megabyte file (up to the 15MB upload cap) spends most of its time
+ * in the body read, and the same `AbortSignal` that can cancel `fetch()`
+ * itself also cancels an in-flight `response.blob()` call, throwing the
+ * same `AbortError` — so one `catch` below handles both a stalled request
+ * and a stalled transfer identically. */
 export async function downloadMyDocument(id: string, fallbackFilename: string): Promise<void> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPLOAD_EXTRACT_TIMEOUT_MS);
 
-  let response: Response;
   try {
     const headers = await withAuthHeader(undefined);
-    response = await fetch(`/api/my/documents/${encodeURIComponent(id)}/download`, {
+    const response = await fetch(`/api/my/documents/${encodeURIComponent(id)}/download`, {
       headers,
       signal: controller.signal,
     });
+    if (!response.ok) {
+      const detail = await readDetail(response);
+      throw new ApiError(response.status, detail.message ?? fallbackKey(response.status), detail.code);
+    }
+    const blob = await response.blob();
+    const filename = parseContentDispositionFilename(response.headers.get("Content-Disposition"))
+      ?? fallbackFilename;
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    // Deferred, not immediate: revoking the object URL synchronously after
+    // click() has been observed to cancel the download in some browsers
+    // (Safari in particular) before they've finished reading the blob —
+    // a macrotask delay lets the download actually start first.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
   } catch (err) {
+    // Already normalized by the !response.ok branch above — pass it
+    // through as-is rather than let it fall into the network/timeout
+    // catch-all below.
+    if (err instanceof ApiError) {
+      throw err;
+    }
     if (isAbortError(err)) {
       throw new ApiError(0, "timeout");
     }
-    // Network failure (offline, DNS, connection reset) — no status code
-    // to report, same convention request()'s catch branch uses.
+    // Network failure (offline, DNS, connection reset, a transfer that
+    // dies mid-stream) — no status code to report, same convention
+    // request()'s catch branch uses.
     throw new ApiError(0, "errors.network");
   } finally {
     clearTimeout(timer);
   }
-  if (!response.ok) {
-    const detail = await readDetail(response);
-    throw new ApiError(response.status, detail.message ?? fallbackKey(response.status), detail.code);
-  }
-  const blob = await response.blob();
-  const filename = parseContentDispositionFilename(response.headers.get("Content-Disposition"))
-    ?? fallbackFilename;
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  // Deferred, not immediate: revoking the object URL synchronously after
-  // click() has been observed to cancel the download in some browsers
-  // (Safari in particular) before they've finished reading the blob —
-  // a macrotask delay lets the download actually start first.
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }
 
 /** POST /api/waitlist — Pro waitlist signup (P6.T6). Anonymous allowed;

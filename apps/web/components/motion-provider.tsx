@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import type { ReactNode } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -43,10 +42,6 @@ export function getLenis(): Lenis | null {
   return activeLenis;
 }
 
-type MotionProviderProps = {
-  children: ReactNode;
-};
-
 /**
  * The scroll layer of the one metronome. Registers ScrollTrigger once for
  * the whole app, and — only on /results/* (the diagnosis cinema) and only
@@ -57,10 +52,20 @@ type MotionProviderProps = {
  * route, and reduced motion on any route, gets native scroll: no Lenis
  * instance is ever constructed.
  *
- * Pure infrastructure — renders `children` directly, never a wrapper
- * element, so it never participates in layout.
+ * Pure infrastructure — takes no children and renders nothing (`null`).
+ * components/motion-provider-lazy.tsx (the only caller) mounts this as an
+ * effects-only SIBLING of the app's actual content, not a wrapper around
+ * it (review-t4-verdict.md, Finding 7): a wrapper's own type flips between
+ * a Fragment and this component's `next/dynamic()` boundary depending on
+ * route, and React remounts everything at that tree position on a type
+ * change — which was unmounting/remounting the whole app shell
+ * (AuthBootstrap, SiteHeader, main, SiteFooter) on every results↔non-
+ * results client navigation. Rendering nothing and living beside the
+ * content instead of around it means this component's own mount/unmount
+ * cycle (which SHOULD happen exactly on that route boundary) never touches
+ * anything else's.
  */
-export function MotionProvider({ children }: MotionProviderProps) {
+export function MotionProvider() {
   const pathname = usePathname();
   const prefersReducedMotion = usePrefersReducedMotion();
   const isResultsRoute = pathname?.includes(RESULTS_ROUTE_SEGMENT) ?? false;
@@ -115,5 +120,5 @@ export function MotionProvider({ children }: MotionProviderProps) {
     };
   }, [isResultsRoute, prefersReducedMotion]);
 
-  return <>{children}</>;
+  return null;
 }

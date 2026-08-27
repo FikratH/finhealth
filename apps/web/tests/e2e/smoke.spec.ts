@@ -402,27 +402,45 @@ test("results page mini-nav click, under full motion: Lenis actually engages, no
   await expect(recommendationsLink).toHaveAttribute("aria-current", "true", { timeout: 5000 });
   expect(page.url()).not.toContain("#recommendations");
 
-  const samples = await page.evaluate(async () => {
+  // Sampling a fixed FRAME COUNT rather than a wall-clock window
+  // (review-t4-verdict.md, Finding 8): a loaded CI runner drawing fewer
+  // frames per second used to shrink how many samples a fixed-duration
+  // window could collect, thinning the margin this assertion needs. This
+  // always waits for exactly SAMPLE_FRAMES real animation frames, however
+  // long that takes in wall-clock terms, so runner speed can't starve it.
+  const SAMPLE_FRAMES = 20;
+  const samples = await page.evaluate(async (frameCount) => {
     const nav = document.querySelector('nav[aria-label="Навигация по разделам отчёта"]');
     const link = nav?.querySelector('a[href="#score"]');
     link?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     const trace: number[] = [];
-    const start = performance.now();
-    while (performance.now() - start < 250) {
+    for (let i = 0; i < frameCount; i++) {
       trace.push(Math.round(window.scrollY));
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     return trace;
-  });
+  }, SAMPLE_FRAMES);
 
-  // Genuinely animating: many distinct scrollY values sampled across the
-  // window (a one-frame native jump would produce essentially one value,
-  // then hold there for every remaining sample).
-  expect(new Set(samples).size).toBeGreaterThan(5);
-  // Still mid-transit partway through the sample window, not already
-  // parked at the destination.
-  const midpoint = samples[Math.floor(samples.length / 2)];
-  expect(Math.abs(midpoint - scoreTop)).toBeGreaterThan(50);
+  // Not yet arrived after the very first sampled frame — the earliest,
+  // runner-speed-independent check: a native #id jump is synchronous
+  // (completes within the same task the click handler runs in), so its
+  // *first* post-click frame would already read at-or-past the target.
+  // Lenis's scrollTo() is RAF-driven, so even one frame in it's still far
+  // off for a scroll of this distance, regardless of how fast or slow the
+  // runner draws subsequent frames.
+  expect(Math.abs(samples[0] - scoreTop)).toBeGreaterThan(50);
+  // Genuinely animating, not a one-frame-then-hold jump: scrollY strictly
+  // decreases (scrolling UP from Рекомендации toward #score) across most
+  // consecutive sample pairs. This inference depends on no CSS anywhere
+  // setting `scroll-behavior: smooth` (verified absent in this codebase,
+  // review-t4-verdict.md Finding 9) — that would make the native anchor
+  // jump animate too and stop this from discriminating the two paths; the
+  // no-hash-change assertion above remains valid either way.
+  let decreasingSteps = 0;
+  for (let i = 1; i < samples.length; i++) {
+    if (samples[i] < samples[i - 1]) decreasingSteps++;
+  }
+  expect(decreasingSteps).toBeGreaterThan(5);
   // ...and it does arrive, eventually, at the right place — proving this
   // was a real (if slower) navigation, not a stall.
   await expect

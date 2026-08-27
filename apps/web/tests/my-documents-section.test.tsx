@@ -257,9 +257,15 @@ describe("MyDocumentsSection", () => {
       });
       fireEvent.click(button);
       await waitFor(() => expect(button).toBeDisabled());
-      // The button is disabled now, so a real user can't click it again —
-      // but fire the event directly anyway, to prove the section's own
-      // guard (not just the disabled attribute) is what's holding the line.
+      // Fired directly rather than relying on a real click, but this can't
+      // isolate the section's own `if (downloadingId !== null) return;`
+      // guard from the `disabled` attribute alone: React-DOM suppresses
+      // synthetic mouse events on a disabled button/input/select/textarea
+      // (getListener's shouldPreventMouseEvent), so this dispatch never
+      // reaches the handler either way. What this actually proves is the
+      // externally-observable contract — a second click while disabled
+      // never starts a second call — which is what a real user experiences
+      // regardless of which layer enforces it.
       fireEvent.click(button);
 
       expect(downloadMyDocument).toHaveBeenCalledTimes(1);

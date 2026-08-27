@@ -542,6 +542,43 @@ describe("lib/api", () => {
       await vi.advanceTimersByTimeAsync(15_000);
       await assertion;
     });
+
+    // Close-wave fix, review-t4-verdict.md appendix (T5-N1): the timeout
+    // used to be cleared the instant fetch() resolved (headers arrived),
+    // leaving the actual body transfer — response.blob(), the slow part of
+    // any real download — unbounded. This proves the budget now survives
+    // past that point: fetch() resolves immediately (a real 200, headers
+    // and all), but blob() itself hangs until the same AbortSignal fires,
+    // mirroring how a real browser ties an in-flight body read to the
+    // fetch's own signal.
+    it("aborts downloadMyDocument() at 30s even when headers already arrived and only the body transfer is stalled", async () => {
+      vi.useFakeTimers();
+      let capturedSignal: AbortSignal | undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+          capturedSignal = init?.signal ?? undefined;
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            blob: () =>
+              new Promise<Blob>((_resolve, reject) => {
+                capturedSignal?.addEventListener("abort", () => {
+                  reject(new DOMException("The operation was aborted.", "AbortError"));
+                });
+              }),
+          } as unknown as Response);
+        }),
+      );
+
+      const promise = downloadMyDocument("doc_1", "fallback.csv");
+      const assertion = expect(promise).rejects.toMatchObject({ status: 0, message: "timeout" });
+
+      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await assertion;
+    });
   });
 
   describe("parseContentDispositionFilename", () => {

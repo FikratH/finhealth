@@ -113,3 +113,17 @@ jobs:
       - name: Run Playwright e2e suite
         working-directory: apps/web
         run: npm run e2e
+      # playwright.config.ts sets trace: "retain-on-failure", and
+      # apps/web/test-results/ is already gitignored to hold exactly this —
+      # without uploading it, a CI failure here leaves only the `line`
+      # reporter's console output, no trace/screenshot to actually debug
+      # from. `if: failure()` only (never `always()`): a green run has
+      # nothing worth keeping, and this is the one step that should run
+      # when everything above it didn't.
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7

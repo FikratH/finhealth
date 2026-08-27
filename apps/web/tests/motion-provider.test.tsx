@@ -76,18 +76,20 @@ afterEach(() => {
 });
 
 describe("MotionProvider", () => {
-  it("renders children directly, with no wrapper element", () => {
+  // review-t4-verdict.md Finding 7 (P6 close wave): MotionProvider is now
+  // an effects-only sibling, not a wrapper — components/motion-provider-
+  // lazy.tsx renders it beside `children`, not around them, so a route
+  // change never flips the element TYPE at `children`'s own tree position
+  // (the bug: that flip was unmounting/remounting the whole app shell on
+  // every results↔non-results navigation). This module's own contract
+  // shrinks accordingly: it takes no children and renders nothing.
+  it("takes no children and renders nothing itself", () => {
     usePathname.mockReturnValue("/analyze");
     mockMatchMedia(false);
 
-    const { container } = render(
-      <MotionProvider>
-        <p>child content</p>
-      </MotionProvider>,
-    );
+    const { container } = render(<MotionProvider />);
 
-    expect(container.children).toHaveLength(1);
-    expect(container.firstElementChild?.tagName).toBe("P");
+    expect(container.children).toHaveLength(0);
   });
 
   it("on a /results/* route, adds exactly one gsap.ticker callback and removes it again on unmount — no leak", () => {
@@ -96,11 +98,7 @@ describe("MotionProvider", () => {
 
     const baseline = tickerListenerCount();
 
-    const { unmount } = render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    const { unmount } = render(<MotionProvider />);
 
     expect(tickerListenerCount()).toBe(baseline + 1);
     expect(LenisMock).toHaveBeenCalledTimes(1);
@@ -115,11 +113,7 @@ describe("MotionProvider", () => {
     usePathname.mockReturnValue("/en/results/abc123");
     mockMatchMedia(false);
 
-    render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    render(<MotionProvider />);
 
     expect(LenisMock).toHaveBeenCalledTimes(1);
   });
@@ -130,11 +124,7 @@ describe("MotionProvider", () => {
 
     const baseline = tickerListenerCount();
 
-    render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    render(<MotionProvider />);
 
     expect(LenisMock).not.toHaveBeenCalled();
     expect(tickerListenerCount()).toBe(baseline);
@@ -146,11 +136,7 @@ describe("MotionProvider", () => {
 
     const baseline = tickerListenerCount();
 
-    render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    render(<MotionProvider />);
 
     expect(LenisMock).not.toHaveBeenCalled();
     expect(tickerListenerCount()).toBe(baseline);
@@ -162,11 +148,7 @@ describe("MotionProvider", () => {
 
     expect(getLenis()).toBeNull();
 
-    const { unmount } = render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    const { unmount } = render(<MotionProvider />);
 
     expect(getLenis()).toBe(lenisInstances[0]);
 
@@ -179,11 +161,7 @@ describe("MotionProvider", () => {
     usePathname.mockReturnValue("/analyze");
     mockMatchMedia(false);
 
-    render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    render(<MotionProvider />);
 
     expect(getLenis()).toBeNull();
   });
@@ -194,11 +172,7 @@ describe("MotionProvider", () => {
 
     const lagSmoothingSpy = vi.spyOn(gsap.ticker, "lagSmoothing");
 
-    const { unmount } = render(
-      <MotionProvider>
-        <p>child</p>
-      </MotionProvider>,
-    );
+    const { unmount } = render(<MotionProvider />);
 
     expect(lagSmoothingSpy).toHaveBeenCalledWith(0);
 

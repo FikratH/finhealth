@@ -14,9 +14,9 @@ import { RESULTS_ROUTE_SEGMENT } from "@/lib/motion-routes";
 // when a Server Component reaches for it directly — so this tiny client
 // wrapper is what app/[locale]/layout.tsx (a Server Component) imports
 // normally and synchronously, and *this* file is the one that calls
-// dynamic(). Default `ssr` (true): the real MotionProvider still renders
-// during SSR on the routes that do reach for it, so `children` is never
-// missing from the initial HTML.
+// dynamic(). Default `ssr` (true): on the routes that do reach for it, the
+// real MotionProvider still renders during SSR rather than waiting for a
+// client-only mount.
 const MotionProviderImpl = dynamic(() =>
   import("@/components/motion-provider").then((mod) => mod.MotionProvider),
 );
@@ -40,13 +40,27 @@ const MotionProviderImpl = dynamic(() =>
 // self-registers the plugin. So gating here isn't losing anything — it's
 // just no longer paying for gsap/lenis/ScrollTrigger's PreloadChunks *or*
 // their hydration gate on routes that were never going to use them.
+//
+// round-2 fix (review-t4-verdict.md, Finding 7): `needsMotion` used to
+// choose between two different element TYPES at `children`'s own tree
+// position — `<>{children}</>` vs `<MotionProviderImpl>{children}</...>` —
+// and React remounts everything at a position when the type there changes.
+// Every results↔non-results client navigation was therefore unmounting and
+// remounting the entire app shell (AuthBootstrap, SiteHeader, main,
+// SiteFooter), not just this provider — including AuthBootstrap's own
+// useSession()-driven effect, a plausible source of a cleared API token
+// mid-navigation on an authenticated path. Fixed by making the provider an
+// effects-only SIBLING instead of a wrapper: `children` now sits at a
+// fixed position in the returned fragment regardless of `needsMotion`, so
+// only the *provider's own* presence toggles, never anything around it.
 export function MotionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const needsMotion = pathname?.includes(RESULTS_ROUTE_SEGMENT) ?? false;
 
-  if (!needsMotion) {
-    return <>{children}</>;
-  }
-
-  return <MotionProviderImpl>{children}</MotionProviderImpl>;
+  return (
+    <>
+      {needsMotion && <MotionProviderImpl />}
+      {children}
+    </>
+  );
 }
