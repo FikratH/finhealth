@@ -20,6 +20,12 @@ describe("NormBand", () => {
     expect(screen.getByText(/норма 1,50×–3,00×/)).toBeInTheDocument();
   });
 
+  it("separates the value from the reference interval with the binding «·» notation", () => {
+    // design-direction.md's canonical grammar: «1,66 · норма 1,5–3,0».
+    render(<NormBand {...baseProps} value={1.66} />);
+    expect(screen.getByText("·")).toBeInTheDocument();
+  });
+
   it("flags an above-range value with ▲ paired with text", () => {
     render(<NormBand {...baseProps} value={4.2} />);
     expect(screen.getByText("▲")).toBeInTheDocument();

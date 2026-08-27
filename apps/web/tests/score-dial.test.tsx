@@ -23,4 +23,13 @@ describe("ScoreDial", () => {
     expect(screen.getByText("86,8")).toBeInTheDocument();
     expect(container.querySelectorAll("circle")).toHaveLength(2);
   });
+
+  it("sets pathLength=100 on every arc circle, so dasharray reads as plain percentages against the 270° gauge rather than the true SVG circumference", () => {
+    const { container } = render(<ScoreDial score={86.8} locale="ru" />);
+    const circles = container.querySelectorAll("circle");
+    expect(circles).toHaveLength(2);
+    for (const circle of circles) {
+      expect(circle.getAttribute("pathLength")).toBe("100");
+    }
+  });
 });

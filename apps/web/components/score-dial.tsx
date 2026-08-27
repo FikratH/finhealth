@@ -62,6 +62,7 @@ export function ScoreDial({
           cx={CENTER}
           cy={CENTER}
           r={RADIUS}
+          pathLength={100}
           fill="none"
           stroke="var(--line)"
           strokeWidth={8}
@@ -74,6 +75,7 @@ export function ScoreDial({
             cx={CENTER}
             cy={CENTER}
             r={RADIUS}
+            pathLength={100}
             fill="none"
             stroke="var(--accent)"
             strokeWidth={8}

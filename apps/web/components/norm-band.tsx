@@ -55,13 +55,18 @@ export function NormBand({
       <span className={cn("tabular-nums", value === null ? "text-ink-muted" : "text-ink")}>
         {value === null ? naLabel : formatNumber(value, { locale, unit })}
       </span>
+      {/* Binding grammar: «1,66 · норма 1,5–3,0» — the middle dot is the
+       * canonical separator between the value and its reference interval. */}
+      <span aria-hidden="true" className="text-ink-muted">
+        ·
+      </span>
+      <span className="text-xs text-ink-muted">{rangeText}</span>
       {outOfRange && (
         <span className={cn("inline-flex items-center gap-1", flagClass)}>
           <span aria-hidden="true">{flagGlyph}</span>
           <span className="sr-only">{flagText}</span>
         </span>
       )}
-      <span className="text-xs text-ink-muted">{rangeText}</span>
     </span>
   );
 }
