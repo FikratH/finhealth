@@ -71,7 +71,12 @@ RU (source of truth, polished first) + EN (full quality).
 
 ## Brand Commitments
 
-Working name «Tonus» / "Tonus AI" (founder-chosen, pending Rospatent check).
+Working name "Tonus" / "Tonus AI" (founder-chosen, pending Rospatent check).
+The wordmark is ALWAYS Latin "Tonus" — never transliterated to «Тонус», in
+any locale (founder mandate 2026-08-27). Founder rejected the first
+rendition of the lab-report world (2026-08-27): too quiet, colors included —
+the replacement direction must commit at full boldness (scrollytelling,
+orchestrated GSAP/Lenis motion, committed color).
 Design language (founder-confirmed): light clinical «lab report» base with a
 full dark-mode toggle; premium-fintech restraint with the medical-checkup
 metaphor deployed at key moments (score reveal, diagnosis sections), not as
