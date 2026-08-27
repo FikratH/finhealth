@@ -395,6 +395,14 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         // never lands the stamp mid-ignition.
         const igniteTl = scoreDisplay ? igniteSequence(scoreDisplay, "[data-segment-on]") : null;
 
+        // The заключение block's own LED bar-graph cells (ConfidenceMeter)
+        // cascade alongside the score — scoped to "#score" only, so this
+        // never touches a not-yet-revealed section's LedBar cells further
+        // down the document (those cascade on their own scanline sweep
+        // below instead, "where a reveal already animates").
+        const scoreHeaderEl = root.querySelector<HTMLElement>("#score");
+        if (scoreHeaderEl) igniteSequence(scoreHeaderEl, "[data-cell-on]");
+
         if (stamp) {
           gsap.timeline().fromTo(
             stamp,
@@ -480,6 +488,17 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
             if (!sectionEl.dataset.swept) {
               sectionEl.dataset.swept = "true";
               scanlineSweep(sectionEl);
+              // Any LED bar-graph cells this section reveals right now
+              // (category score bars) cascade in the same moment as its
+              // scanline sweep — "cells light in sequence via the boot
+              // grammar where a reveal already animates" (finish review,
+              // material_fixes 2). Excludes cells inside a <details> (a
+              // ratio's own provenance ConfidenceMeter): those aren't part
+              // of this reveal at all — nothing sees them until a reader
+              // opens that disclosure, at which point they're already at
+              // their default lit state, same as every other primitive's
+              // no-JS/reduced-motion baseline.
+              igniteSequence(sectionEl, "[data-cell-on]:not(details [data-cell-on])");
             }
             // Sections without a mini-nav id (warnings, missing-metrics,
             // footnotes, the disclaimer) still reveal — they just never

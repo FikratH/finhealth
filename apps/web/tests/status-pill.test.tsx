@@ -9,16 +9,21 @@ describe("StatusPill", () => {
   });
 
   it("pairs every status with a distinct symbol, not color alone", () => {
-    const { rerender } = render(<StatusPill status="good" label="Хорошо" />);
-    expect(screen.getByText("✓")).toBeInTheDocument();
+    // good/attention/critical draw a StatusGlyph SVG icon (craft floor:
+    // icons are drawn, never a raw unicode/emoji stand-in) — "na" alone
+    // stays a literal middle dot, a typographic separator rather than an
+    // icon (CalibrationScale's own «·» convention).
+    const { container, rerender } = render(<StatusPill status="good" label="Хорошо" />);
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<StatusPill status="attention" label="Внимание" />);
-    expect(screen.getByText("▲")).toBeInTheDocument();
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<StatusPill status="critical" label="Критично" />);
-    expect(screen.getByText("✕")).toBeInTheDocument();
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<StatusPill status="na" label="Н/Д" />);
+    expect(container.querySelector("svg")).not.toBeInTheDocument();
     expect(screen.getByText("·")).toBeInTheDocument();
   });
 

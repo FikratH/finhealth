@@ -5,6 +5,7 @@ import { StatusPill } from "@/components/status-pill";
 import { CalibrationScale, type CalibrationScaleTone } from "@/components/calibration-scale";
 import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
+import { ChevronRightIcon, TriangleDownIcon, TriangleUpIcon } from "@/components/icons";
 import {
   classifyProvenance,
   traceRatioInputs,
@@ -144,11 +145,18 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
   const flagToneClass = ratio.status === "attention" ? "text-attention" : "text-critical";
 
   const detailsDisclosure = (
-    <details className="mt-2">
-      <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-brand">
+    // elevated-surface: the world's active-state glow (globals.css),
+    // standing in for a drop shadow — its own [open] CSS selector means
+    // it only shows while this block is actually expanded (`details.
+    // elevated-surface[open]`) — "floats read above the board" (finish
+    // review, material_fixes 3) — rather than a permanent glow on every
+    // closed row.
+    <details className="group elevated-surface mt-1.5">
+      <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-xs text-ink-muted hover:text-brand [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon className="transition-transform duration-150 group-open:rotate-90" />
         {t("detailsToggle")}
       </summary>
-      <div className="mt-2 space-y-2 border-t border-line pt-2 text-sm text-ink">
+      <div className="mt-1.5 space-y-2 border-t border-line pt-2 text-sm text-ink">
         <p>
           <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
             {t("formulaLabel")}:
@@ -234,7 +242,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
       </div>
 
       {ratio.benchmark && (
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-1.5 space-y-1">
           <CalibrationScale
             value={ratio.value}
             low={ratio.benchmark.good[0]}
@@ -250,7 +258,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
               data-calibration-flag
               className={cn("inline-flex items-center gap-1 font-mono text-xs", flagToneClass)}
             >
-              <span aria-hidden="true">{above ? "▲" : "▼"}</span>
+              {above ? <TriangleUpIcon /> : <TriangleDownIcon />}
               <span className="sr-only">{above ? t("aboveLabel") : t("belowLabel")}</span>
             </span>
           )}
@@ -263,7 +271,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
         // hidden inside the <details> the way the trace list itself is) —
         // the wire is always visible; the popover/disclosure keeps the
         // details.
-        <div className="mt-2 space-y-2 border-l-2 border-brand/40 pl-3">
+        <div className="mt-1.5 space-y-1.5 border-l-2 border-brand/40 pl-3">
           <OriginTicket tone="accent">{t("provenanceTraced")}</OriginTicket>
           {detailsDisclosure}
         </div>

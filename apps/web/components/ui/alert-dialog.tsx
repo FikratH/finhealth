@@ -36,11 +36,12 @@ function AlertDialogOverlay({
         // from the retired paper-only world, where --ink was always the
         // dark color. In the Monitor register --ink is now light
         // (#E6EDF0), so that same class produced a translucent white haze
-        // over the dark ground instead of dimming it. Fixed black, not a
-        // token, since a modal scrim's job (dim what's behind it) is the
-        // same convention in both registers, unlike foreground/surface
-        // tokens that are meant to flip.
-        "fixed inset-0 z-50 bg-black/60 duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
+        // over the dark ground instead of dimming it. `bg-scrim` (the
+        // --scrim token, globals.css) is register-invariant by design —
+        // a modal scrim's job (dim what's behind it) is the same
+        // convention in both registers, unlike foreground/surface tokens
+        // that are meant to flip.
+        "fixed inset-0 z-50 bg-scrim duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
         className
       )}
       {...props}

@@ -43,6 +43,16 @@ export function DemoInstrument() {
             decimals={2}
             locale={locale}
             caption={t("ratioName")}
+            // FIRST VIEWPORT's one live instrument reading — every lit
+            // segment already renders at full --accent + glow (the boot
+            // grammar's SSR-default "already on" state), but at the
+            // default 16px text size the bars are too thin for that glow
+            // to register: it reads as near-ghost luminance rather than
+            // "full saturation, no timid tints" (finish review,
+            // material_fixes 1). Sized to match the figure's role as the
+            // hero's one focal reading — the glow scales with it (its
+            // box-shadow blur is authored in em units).
+            className="text-5xl sm:text-6xl"
           />
         }
         unit="%"

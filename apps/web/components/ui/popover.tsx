@@ -32,9 +32,14 @@ function PopoverContent({
         className={cn(
           // Bezel grammar, not a shadowed card: hairline border-line, panel
           // surface (not flush page-ground bg-paper — same register-safe
-          // swap as select.tsx's trigger/content), no shadow/ring
-          // (design-direction: "Shadows ≈ 0; borders 1px").
-          "z-50 flex w-80 origin-(--radix-popover-content-transform-origin) flex-col gap-2 border border-line bg-panel p-3 text-sm text-ink outline-hidden duration-150 ease-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
+          // swap as select.tsx's trigger/content), no drop shadow
+          // (design-direction: "Shadows ≈ 0; borders 1px"). A floating
+          // panel-on-panel surface still needs one elevation step over the
+          // board it sits above, so it gets the world's own active-state
+          // device instead — a faint teal edge-glow, the same
+          // elevated-surface treatment ratio-row.tsx's expanded detail
+          // uses (finish review, material_fixes 3).
+          "elevated-surface z-50 flex w-80 origin-(--radix-popover-content-transform-origin) flex-col gap-2 border border-line bg-panel p-3 text-sm text-ink outline-hidden duration-150 ease-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
           className
         )}
         {...props}

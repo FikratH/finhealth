@@ -70,12 +70,17 @@
 
   /* New in the Monitor world: the bezel/panel surface instrument modules
    * sit on (distinct from --paper's page ground, for depth via the 1px
-   * --line border alone — the direction bans shadows) and the two ghost
-   * tones (teal-family for LED-adjacent absence, neutral for plain
-   * numeric ghost cells). */
+   * --line border alone — the direction bans shadows) and the ghost tone
+   * (teal-family, for LED-adjacent absence). */
   --panel: #101418;
   --ghost: rgba(25, 194, 176, 0.1);
-  --ghost-neutral: #1a2126;
+  /* A modal scrim's job (dim whatever's behind it) is the same convention
+   * in both registers, unlike foreground/surface tokens that are meant to
+   * flip — so this is register-invariant, derived from the monitor
+   * register's own near-black ground (--paper's #0a0c0e) rather than
+   * whichever register happens to be active. Named so alert-dialog.tsx's
+   * overlay draws from the token system instead of a raw bg-black/60. */
+  --scrim: rgba(10, 12, 14, 0.6);
 
   --radius: 0.5rem;
 
@@ -130,7 +135,7 @@
   --critical: #ff4a3a;
   --panel: #101418;
   --ghost: rgba(25, 194, 176, 0.1);
-  --ghost-neutral: #1a2126;
+  --scrim: rgba(10, 12, 14, 0.6);
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -187,7 +192,9 @@
    * flush with the page, same as before the Monitor world existed. */
   --panel: #fbfaf7;
   --ghost: rgba(14, 117, 105, 0.08);
-  --ghost-neutral: #e3e1da;
+  /* Register-invariant, same value as :root/.dark — see --scrim's own
+   * comment there. */
+  --scrim: rgba(10, 12, 14, 0.6);
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -285,7 +292,7 @@
   --color-critical: var(--critical);
   --color-panel: var(--panel);
   --color-ghost: var(--ghost);
-  --color-ghost-neutral: var(--ghost-neutral);
+  --color-scrim: var(--scrim);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -335,7 +342,6 @@
     --critical: #b23b2e !important;
     --panel: #fbfaf7 !important;
     --ghost: rgba(14, 117, 105, 0.08) !important;
-    --ghost-neutral: #e3e1da !important;
     --font-display: var(--font-stix-two-text) !important;
   }
 
@@ -376,8 +382,7 @@
    * declaration always wins over a non-important one on the same
    * property, regardless of the other rule's higher selector specificity.
    */
-  [data-scanline-content],
-  [data-reveal-rule] {
+  [data-scanline-content] {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -508,6 +513,24 @@
   background-color: var(--ghost);
 }
 
+/*
+ * LedBar's discrete segmented LED bar-graph cells (components/led-bar.tsx)
+ * — the same "unlit segments are designed too" ignition contract as the
+ * segment mask above, one rectangular cell at a time instead of one
+ * seven-bar glyph. `--cell-tone` is set inline per instance (brand/good/
+ * attention); [data-lit="true"] is this cell's boot-grammar "on" state
+ * (igniteSequence toggles it during the cascade), [data-lit="false"] is
+ * the same cell mid-cascade before its turn — never a class swap, so the
+ * "instant state swap" law holds here too.
+ */
+.led-cell[data-lit="true"] {
+  background-color: var(--cell-tone);
+  box-shadow: 0 0 3px 0.5px var(--cell-tone);
+}
+.led-cell[data-lit="false"] {
+  background-color: var(--ghost);
+}
+
 /* Docking-bay ghost-cell texture: a faint perforated dot grid in the ghost
  * tone, for bezels awaiting media (the upload dropzone, an empty value
  * slot) — "unlit segments are designed too" extended to an empty
@@ -516,6 +539,33 @@
 .ghost-cell-texture {
   background-image: radial-gradient(circle, var(--ghost) 1px, transparent 1px);
   background-size: 14px 14px;
+}
+
+/* Floating-surface elevation: the world's own active-state device (a
+ * faint teal edge-glow) standing in for a drop shadow — the direction
+ * bans shadows ("depth via bezel lines and glow"), so a panel-on-panel
+ * floating surface (a popover, an expanded ratio detail) still needs one
+ * lift over the board it sits above (finish review, material_fixes 3).
+ * One shared device for both call sites, layered on top of each one's own
+ * hairline border, never a substitute for it.
+ *
+ * Not a Tailwind utility (a plain class, same idiom as .segment-active
+ * elsewhere in this file), so its "only while expanded" half is written
+ * as a real CSS attribute selector rather than Tailwind's `open:` variant
+ * — that variant only compiles for registered Tailwind utilities, and
+ * silently drops unknown class names instead of erroring. PopoverContent
+ * (never a <details>, portal-mounted only while open) gets the glow
+ * unconditionally; a <details> carrying this class gets it only for the
+ * stretch it's actually expanded, via the element's own [open] attribute.
+ */
+.elevated-surface {
+  box-shadow: 0 0 12px -2px color-mix(in oklch, var(--accent) 30%, transparent);
+}
+details.elevated-surface {
+  box-shadow: none;
+}
+details.elevated-surface[open] {
+  box-shadow: 0 0 12px -2px color-mix(in oklch, var(--accent) 30%, transparent);
 }
 
 /*

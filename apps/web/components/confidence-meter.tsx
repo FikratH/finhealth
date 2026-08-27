@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { formatNumber, type Locale } from "@/lib/format";
+import { LedBar } from "@/components/led-bar";
 
 export interface ConfidenceMeterProps {
   /** 0-100, or null when no confidence figure applies yet. */
@@ -15,10 +16,10 @@ export interface ConfidenceMeterProps {
 const LOW_CONFIDENCE_THRESHOLD = 60;
 
 // The instrument-bar re-skin: a bezelled track (border + panel surface)
-// with an LED-glow fill — still role="meter", not role="progressbar" (a
-// scalar reading of how much of the analysis to trust, not a task moving
-// toward completion). Same API, same accessible name/value contract as
-// before.
+// with the world's discrete LED bar-graph device (LedBar), not a
+// continuous fill — still role="meter", not role="progressbar" (a scalar
+// reading of how much of the analysis to trust, not a task moving toward
+// completion). Same API, same accessible name/value contract as before.
 export function ConfidenceMeter({
   value,
   locale,
@@ -28,8 +29,6 @@ export function ConfidenceMeter({
 }: ConfidenceMeterProps) {
   const clamped = value === null ? null : Math.min(100, Math.max(0, value));
   const low = clamped !== null && clamped < LOW_CONFIDENCE_THRESHOLD;
-  const fillClass =
-    clamped === null ? "" : low ? "bg-attention shadow-[0_0_4px_0px_var(--attention)]" : "bg-brand shadow-[0_0_4px_0px_var(--accent)]";
   const valueText =
     clamped === null
       ? (naLabel ?? formatNumber(null))
@@ -46,12 +45,7 @@ export function ConfidenceMeter({
         aria-valuetext={valueText}
         className="h-1.5 w-24 flex-1 border border-line bg-panel"
       >
-        {clamped !== null && (
-          <div
-            className={cn("h-full transition-[width] duration-700 ease-out motion-reduce:transition-none", fillClass)}
-            style={{ width: `${clamped}%` }}
-          />
-        )}
+        <LedBar value={clamped} tone={low ? "attention" : "brand"} />
       </div>
       <span className="font-mono text-xs tabular-nums text-ink-muted">
         {valueText}

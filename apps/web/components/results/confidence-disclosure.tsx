@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { OriginTicket } from "@/components/origin-ticket";
 import { MetricNumber } from "@/components/metric-number";
+import { ChevronRightIcon } from "@/components/icons";
 import type { ConfidenceBreakdown } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -21,8 +22,9 @@ export function ConfidenceDisclosure({ confidence, locale }: ConfidenceDisclosur
   const t = useTranslations("Results.header.confidence");
 
   return (
-    <details className="max-w-sm">
-      <summary className="cursor-pointer font-mono text-xs text-ink-muted hover:text-brand">
+    <details className="group max-w-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-xs text-ink-muted hover:text-brand [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon className="transition-transform duration-150 group-open:rotate-90" />
         {t("detailsToggle")}
       </summary>
       <div className="mt-3 space-y-3 border-t border-line pt-3">

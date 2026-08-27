@@ -1,12 +1,6 @@
 import { cn } from "@/lib/utils";
+import { StatusGlyph } from "@/components/icons";
 import type { Status } from "@/components/status-pill";
-
-const SYMBOL: Record<Status, string> = {
-  good: "✓",
-  attention: "▲",
-  critical: "✕",
-  na: "·",
-};
 
 const TEXT_CLASS: Record<Status, string> = {
   good: "text-good",
@@ -42,13 +36,20 @@ export interface AnnunciatorCellProps {
 // this family — SegmentDisplay, ScoreDial, CalibrationScale — treats its
 // glyph-plus-text as one opaque "picture" named by aria-label, since the
 // visible content itself is aria-hidden. AnnunciatorCell used to reach for
-// role="status" instead, but nothing here ever mutates post-mount (its one
-// real call site, score-header.tsx, sets the verdict once at initial
-// render) — a live region that never changes is announced zero times, so
-// the "status" role bought nothing while risking a double-announce
-// alongside the sr-only <h1> that also names the verdict. role="img"
-// matches the family's own naming convention and drops the unused
-// live-region semantics.
+// role="status" instead, but nothing here ever mutates post-mount — a live
+// region that never changes is announced zero times, so the "status" role
+// bought nothing. role="img" matches the family's own naming convention
+// and drops the unused live-region semantics.
+//
+// Its one real call site (score-header.tsx) goes a step further and wraps
+// this whole component in aria-hidden="true": the sr-only <h1> beside it
+// already carries the verdict as the document's one real heading landmark,
+// and this component's own role="img" aria-label would otherwise name that
+// same verdict a second time, adjacently (finish review, material_fixes
+// 5) — this component still exposes role="img"/aria-label on its own (the
+// /dev/tokens preview renders it un-hidden, and any future real call site
+// gets the same self-contained accessible name for free); only the score
+// header's specific instance opts out via its wrapper.
 export function AnnunciatorCell({ status, label, description, className }: AnnunciatorCellProps) {
   return (
     <div
@@ -64,7 +65,7 @@ export function AnnunciatorCell({ status, label, description, className }: Annun
           GLOW_CLASS[status],
         )}
       >
-        <span>{SYMBOL[status]}</span>
+        <StatusGlyph status={status} />
         <span>{label}</span>
       </p>
       {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}

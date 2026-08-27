@@ -18,16 +18,20 @@ describe("AnnunciatorCell", () => {
   });
 
   it("pairs every status with a distinct symbol, not color alone", () => {
-    const { rerender } = render(<AnnunciatorCell status="good" label="L" />);
-    expect(screen.getByText("✓")).toBeInTheDocument();
+    // Shares StatusPill's StatusGlyph icon set (craft floor: icons are
+    // drawn, never a raw unicode/emoji stand-in) — "na" alone stays a
+    // literal middle dot.
+    const { container, rerender } = render(<AnnunciatorCell status="good" label="L" />);
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<AnnunciatorCell status="attention" label="L" />);
-    expect(screen.getByText("▲")).toBeInTheDocument();
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<AnnunciatorCell status="critical" label="L" />);
-    expect(screen.getByText("✕")).toBeInTheDocument();
+    expect(container.querySelector("svg")).toBeInTheDocument();
 
     rerender(<AnnunciatorCell status="na" label="L" />);
+    expect(container.querySelector("svg")).not.toBeInTheDocument();
     expect(screen.getByText("·")).toBeInTheDocument();
   });
 

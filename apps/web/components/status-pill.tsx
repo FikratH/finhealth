@@ -1,16 +1,15 @@
 import { cn } from "@/lib/utils";
+import { StatusGlyph } from "@/components/icons";
 
 export type Status = "good" | "attention" | "critical" | "na";
 
 // Lab-flag glyphs pair every status with a shape, not just a color, so the
 // signal survives for colorblind readers and print (design-direction:
 // "status triad ... always paired with a text/symbol, never color-alone").
-const SYMBOL: Record<Status, string> = {
-  good: "✓",
-  attention: "▲",
-  critical: "✕",
-  na: "·",
-};
+// The shapes themselves are StatusGlyph's drawn SVG icons, not raw unicode
+// (craft floor: icons are drawn, in one consistent stroke, never a
+// unicode/emoji stand-in) — shared with AnnunciatorCell so both halves of
+// this "same glyph-plus-color discipline" family draw from one source.
 
 // The LED dot itself, plus a low-spread glow in the same color — decorative
 // on top of the AA-checked text color below it, never load-bearing for
@@ -55,7 +54,7 @@ export function StatusPill({ status, label, className }: StatusPillProps) {
         aria-hidden="true"
         className={cn("inline-block size-1.5 rounded-full", DOT_CLASS[status])}
       />
-      <span aria-hidden="true">{SYMBOL[status]}</span>
+      <StatusGlyph status={status} />
       <span>{label}</span>
     </span>
   );
