@@ -289,7 +289,15 @@ export function MethodologyDocument({ locale }: MethodologyDocumentProps) {
             {data.benchmarks.sources.map((s) => (
               <li key={s.url}>
                 {s.source} ({s.as_of}) —{" "}
-                <a href={s.url} className="underline hover:text-ink">
+                {/* break-all, not a shortened label: a raw, unbreakable
+                    URL string forced the whole page 160px wider than its
+                    390px viewport on mobile (Plan 3's "wide content
+                    scrolls in its own container" constraint, violated at
+                    the page level, not a container's). The full URL stays
+                    visible and clickable — same "nothing hidden" grammar
+                    as every other cited source on this document — it just
+                    wraps within its own width instead of forcing it. */}
+                <a href={s.url} className="break-all underline hover:text-ink">
                   {s.url}
                 </a>
               </li>
