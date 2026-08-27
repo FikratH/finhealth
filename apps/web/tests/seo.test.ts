@@ -31,9 +31,20 @@ describe("lib/seo — title template + shared OG image", () => {
     expect(TITLE_TEMPLATE.split("%s")).toHaveLength(2);
   });
 
-  it("SITE_URL falls back to localhost when NEXT_PUBLIC_SITE_URL is unset", async () => {
+  it("SITE_URL falls back to the literal localhost default when NEXT_PUBLIC_SITE_URL is unset", async () => {
+    // SITE_URL is computed once at module load (`?? "http://localhost:3000"`
+    // in lib/seo.ts), so stubbing the env var alone isn't enough — a
+    // module already imported earlier in this file (or cached from a
+    // prior test) would keep its already-resolved value. vi.resetModules()
+    // clears that cache so the re-import below re-evaluates the fallback
+    // fresh, actually exercising the branch this test claims to check
+    // (asserting against the same `?? "..."` expression the source uses
+    // would pass even if the fallback were silently deleted).
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", undefined);
+    vi.resetModules();
     const { SITE_URL } = await import("@/lib/seo");
-    expect(SITE_URL).toBe(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+    expect(SITE_URL).toBe("http://localhost:3000");
+    vi.unstubAllEnvs();
   });
 
   it("pageMetadata wires openGraph and twitter to the committed OG PNG at 1200×630", async () => {
