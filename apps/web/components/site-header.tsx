@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountMenu } from "@/components/account-menu";
 
 // The landing route composes this exact header row itself — wordmark,
 // locale switch, theme toggle — as the top row of the hero's teal band
@@ -29,6 +30,7 @@ export function SiteHeader() {
           {t("wordmark")}
         </Link>
         <div className="flex items-center gap-4">
+          <AccountMenu />
           <LocaleSwitch />
           <ThemeToggle />
         </div>

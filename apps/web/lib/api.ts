@@ -25,6 +25,37 @@ import type {
 const UPLOAD_EXTRACT_TIMEOUT_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+/** Registered by a small client bootstrap (components/auth-bootstrap.tsx)
+ * once a Better Auth session exists — this module otherwise knows nothing
+ * about Better Auth, sessions, or React, keeping it usable from any caller
+ * (including lib/api-server.ts's sibling, and tests with no provider set
+ * at all). `null`/a rejected promise/a resolved `null` all mean the same
+ * thing: send this request anonymously, exactly as before this feature. */
+type TokenProvider = () => Promise<string | null>;
+let tokenProvider: TokenProvider | null = null;
+
+export function setTokenProvider(provider: TokenProvider | null): void {
+  tokenProvider = provider;
+}
+
+async function withAuthHeader(headers: HeadersInit | undefined): Promise<HeadersInit | undefined> {
+  if (!tokenProvider) {
+    return headers;
+  }
+  let token: string | null;
+  try {
+    token = await tokenProvider();
+  } catch {
+    return headers;
+  }
+  if (!token) {
+    return headers;
+  }
+  const merged = new Headers(headers);
+  merged.set("Authorization", `Bearer ${token}`);
+  return merged;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -95,7 +126,8 @@ async function request<T>(
 
   let response: Response;
   try {
-    response = await fetch(path, { ...init, signal: controller.signal });
+    const headers = await withAuthHeader(init.headers);
+    response = await fetch(path, { ...init, headers, signal: controller.signal });
   } catch (err) {
     if (isAbortError(err)) {
       throw new ApiError(0, "timeout");

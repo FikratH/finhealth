@@ -29,7 +29,11 @@ if (typeof globalThis.requestAnimationFrame === "undefined") {
 // usePrefersReducedMotion's own SSR-safe default ("motion allowed"); tests
 // that need the reduced-motion branch still override `window.matchMedia`
 // locally, which takes precedence over this default.
-if (typeof window.matchMedia === "undefined") {
+// `window` itself doesn't exist under a `// @vitest-environment node`
+// override (tests/auth-token-route.test.ts — a pure Node/API integration
+// test with no DOM involved) — guard the whole block, not just the
+// property check.
+if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
   window.matchMedia = ((query: string) => ({
     matches: false,
     media: query,

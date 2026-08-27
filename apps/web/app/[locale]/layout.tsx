@@ -9,6 +9,7 @@ import { MotionProvider } from "@/components/motion-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { DirectionContract } from "@/components/direction-contract";
+import { AuthBootstrap } from "@/components/auth-bootstrap";
 import "../globals.css";
 
 const inter = Inter({
@@ -73,6 +74,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <MotionProvider>
+              <AuthBootstrap />
               <SiteHeader />
               <main className="flex-1">{children}</main>
               <SiteFooter />

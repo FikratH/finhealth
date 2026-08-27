@@ -25,6 +25,15 @@ jobs:
     defaults:
       run:
         working-directory: apps/web
+    env:
+      # `next build` always runs in production mode, and Better Auth
+      # (apps/web/lib/auth.ts) throws at startup in production without a
+      # real secret — this CI job never talks to a real Better Auth
+      # deployment, so a fixed placeholder is fine here; it just needs to
+      # exist. AUTH_JWT_SECRET stays unset (it's deliberately optional —
+      # see apps/api/app/auth.py) and GOOGLE_CLIENT_ID/SECRET stay unset
+      # (the Google button is correctly absent from the build either way).
+      BETTER_AUTH_SECRET: ci-placeholder-secret-not-used-for-anything-real
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

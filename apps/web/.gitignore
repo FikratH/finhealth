@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# Better Auth's own SQLite database (session/user/magic-link storage) —
+# apps/web/lib/auth.ts, dev-local, never committed.
+/.data
+
 # next.js
 /.next/
 /out/

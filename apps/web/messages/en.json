@@ -5,7 +5,30 @@
     "themeToggleLabel": "Toggle theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
+  "SignIn": {
+    "meta": {
+      "title": "Tonus — sign in",
+      "description": "Sign in with an email link to save your analyses."
+    },
+    "heading": "Sign in",
+    "intro": "We'll send a one-time link to your email — no password needed.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "emailInvalid": "Enter a valid email address.",
+    "submitButton": "Send link",
+    "submitPending": "Sending…",
+    "sentChip": "Link sent",
+    "sentTitle": "Check your email",
+    "sentDescription": "We sent a sign-in link to {email}.",
+    "sentHint": "The link expires after a short time. If it doesn't arrive, check spam or send it again.",
+    "resendButton": "Send again",
+    "orDivider": "or",
+    "googleButton": "Sign in with Google",
+    "genericError": "Couldn't send the link. Please try again in a minute."
   },
   "Footer": {
     "disclaimer": "Tonus generates its analysis automatically from the data you provide. It is not financial, tax, or legal advice."
