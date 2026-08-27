@@ -33,10 +33,17 @@ function renderTable(
   documents: MyDocumentSummary[] = fixtures,
   onDelete = vi.fn(),
   onDownload = vi.fn(),
+  downloadingId: string | null = null,
 ) {
   render(
     <NextIntlClientProvider locale="ru" messages={ruMessages}>
-      <MyDocumentsTable documents={documents} locale="ru" onDownload={onDownload} onDelete={onDelete} />
+      <MyDocumentsTable
+        documents={documents}
+        locale="ru"
+        onDownload={onDownload}
+        onDelete={onDelete}
+        downloadingId={downloadingId}
+      />
     </NextIntlClientProvider>,
   );
   return { onDelete, onDownload };
@@ -68,7 +75,7 @@ describe("MyDocumentsTable", () => {
   it("the scroll wrapper is a positioning context (relative), the fix for the sr-only-span escape bug", () => {
     const { container } = render(
       <NextIntlClientProvider locale="ru" messages={ruMessages}>
-        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} />
+        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} downloadingId={null} />
       </NextIntlClientProvider>,
     );
     const wrapper = container.querySelector(".overflow-x-auto");
@@ -81,7 +88,7 @@ describe("MyDocumentsTable", () => {
   it("the scroll wrapper carries the scroll-affordance class (table-scroll-x)", () => {
     const { container } = render(
       <NextIntlClientProvider locale="ru" messages={ruMessages}>
-        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} />
+        <MyDocumentsTable documents={fixtures} locale="ru" onDownload={vi.fn()} onDelete={vi.fn()} downloadingId={null} />
       </NextIntlClientProvider>,
     );
     const wrapper = container.querySelector(".overflow-x-auto");
@@ -195,5 +202,70 @@ describe("MyDocumentsTable", () => {
     expect(onDownload).toHaveBeenCalledWith("doc_1", "Баланс_2024.csv");
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.queryByText(ruMessages.My.documents.deleteDialog.title)).not.toBeInTheDocument();
+  });
+
+  // P6.T5 review round 1, Finding 5: an undialogged async row action needs
+  // its own in-flight state (analyst-narrative.tsx's generate-button idiom
+  // — disabled + label swap + aria-busy) or a second click starts a second
+  // fetch while the button just looks inert.
+  describe("in-flight download state (downloadingId)", () => {
+    it("the downloading row swaps its label and sets aria-busy", () => {
+      renderTable(fixtures, vi.fn(), vi.fn(), "doc_1");
+
+      const downloadingButton = screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW1_ARIA.filename, ROW1_ARIA.date),
+      });
+      expect(downloadingButton).toHaveTextContent(ruMessages.My.documents.table.downloading);
+      expect(downloadingButton).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("a row NOT being downloaded keeps its normal label and aria-busy=false", () => {
+      renderTable(fixtures, vi.fn(), vi.fn(), "doc_1");
+
+      const idleButton = screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW2_ARIA.filename, ROW2_ARIA.date),
+      });
+      expect(idleButton).toHaveTextContent(ruMessages.My.documents.table.download);
+      expect(idleButton).toHaveAttribute("aria-busy", "false");
+    });
+
+    it("every download button is disabled while any one row is downloading — including the idle rows", () => {
+      renderTable(fixtures, vi.fn(), vi.fn(), "doc_1");
+
+      expect(
+        screen.getByRole("button", {
+          name: ariaName(ruMessages.My.documents.table.downloadAria, ROW1_ARIA.filename, ROW1_ARIA.date),
+        }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", {
+          name: ariaName(ruMessages.My.documents.table.downloadAria, ROW2_ARIA.filename, ROW2_ARIA.date),
+        }),
+      ).toBeDisabled();
+    });
+
+    it("no download in flight (downloadingId null): every download button is enabled with the normal label", () => {
+      renderTable(fixtures, vi.fn(), vi.fn(), null);
+
+      const button = screen.getByRole("button", {
+        name: ariaName(ruMessages.My.documents.table.downloadAria, ROW1_ARIA.filename, ROW1_ARIA.date),
+      });
+      expect(button).toBeEnabled();
+      expect(button).toHaveTextContent(ruMessages.My.documents.table.download);
+      expect(button).toHaveAttribute("aria-busy", "false");
+    });
+
+    it("delete stays fully interactive while a download is in flight — the two actions don't gate each other", () => {
+      const { onDelete } = renderTable(fixtures, vi.fn(), vi.fn(), "doc_1");
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: ariaName(ruMessages.My.documents.table.deleteAria, ROW2_ARIA.filename, ROW2_ARIA.date),
+        }),
+      );
+      fireEvent.click(screen.getByRole("button", { name: ruMessages.My.documents.deleteDialog.confirm }));
+
+      expect(onDelete).toHaveBeenCalledWith("doc_2");
+    });
   });
 });

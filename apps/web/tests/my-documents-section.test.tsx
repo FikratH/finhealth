@@ -182,4 +182,114 @@ describe("MyDocumentsSection", () => {
     await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
     expect(screen.queryByText(ruMessages.My.documents.downloadError)).not.toBeInTheDocument();
   });
+
+  // P6.T5 review round 1, Finding 5: the section owns downloadingId and
+  // must actually flip it around the await, not just accept the prop —
+  // these need a promise the test controls the timing of, since a
+  // same-tick mock resolution would never let the "in flight" state be
+  // observed at all.
+  describe("in-flight download state", () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      let reject!: (reason?: unknown) => void;
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it("the clicked row's button goes busy while the download is in flight, then returns to normal on success", async () => {
+      vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+      const { promise, resolve } = deferred<void>();
+      vi.mocked(downloadMyDocument).mockReturnValueOnce(promise);
+      renderSection();
+
+      await screen.findByText("Баланс.csv");
+      const button = screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      });
+      fireEvent.click(button);
+
+      await waitFor(() => expect(button).toHaveAttribute("aria-busy", "true"));
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent(ruMessages.My.documents.table.downloading);
+
+      resolve();
+      await waitFor(() => expect(button).toHaveAttribute("aria-busy", "false"));
+      expect(button).toBeEnabled();
+      expect(button).toHaveTextContent(ruMessages.My.documents.table.download);
+    });
+
+    it("busy state clears on a failed download too — the button doesn't stay stuck", async () => {
+      vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+      const { promise, reject } = deferred<void>();
+      vi.mocked(downloadMyDocument).mockReturnValueOnce(promise);
+      renderSection();
+
+      await screen.findByText("Баланс.csv");
+      const button = screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      });
+      fireEvent.click(button);
+      await waitFor(() => expect(button).toBeDisabled());
+
+      reject(new ApiError(503, "vault_unavailable"));
+      await waitFor(() => expect(button).toBeEnabled());
+      expect(await screen.findByText(ruMessages.My.documents.downloadError)).toBeInTheDocument();
+    });
+
+    it("a second click on the SAME row while its download is in flight does not start a second call", async () => {
+      vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+      const { promise } = deferred<void>();
+      vi.mocked(downloadMyDocument).mockReturnValueOnce(promise);
+      renderSection();
+
+      await screen.findByText("Баланс.csv");
+      const button = screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "Баланс.csv")
+          .replace("{date}", "27.08.2026"),
+      });
+      fireEvent.click(button);
+      await waitFor(() => expect(button).toBeDisabled());
+      // The button is disabled now, so a real user can't click it again —
+      // but fire the event directly anyway, to prove the section's own
+      // guard (not just the disabled attribute) is what's holding the line.
+      fireEvent.click(button);
+
+      expect(downloadMyDocument).toHaveBeenCalledTimes(1);
+    });
+
+    it("the OTHER row's download button is also disabled while one download is in flight (single global pending id)", async () => {
+      vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
+      const { promise } = deferred<void>();
+      vi.mocked(downloadMyDocument).mockReturnValueOnce(promise);
+      renderSection();
+
+      await screen.findByText("Баланс.csv");
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: ruMessages.My.documents.table.downloadAria
+            .replace("{filename}", "Баланс.csv")
+            .replace("{date}", "27.08.2026"),
+        }),
+      );
+
+      const otherButton = screen.getByRole("button", {
+        name: ruMessages.My.documents.table.downloadAria
+          .replace("{filename}", "otchet.pdf")
+          .replace("{date}", "01.08.2026"),
+      });
+      await waitFor(() => expect(otherButton).toBeDisabled());
+      // It's disabled, but it's not the one downloading — its own label
+      // and aria-busy stay in the idle state.
+      expect(otherButton).toHaveTextContent(ruMessages.My.documents.table.download);
+      expect(otherButton).toHaveAttribute("aria-busy", "false");
+    });
+  });
 });

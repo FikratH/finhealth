@@ -9,9 +9,20 @@ Off by default (`RATE_LIMIT_PER_MINUTE` unset or `0`), so it never affects
 an environment that hasn't opted in, including the test suite: only tests
 that explicitly monkeypatch the limit on exercise the 429 path.
 
-Applied via `Depends(rate_limit)` on the four endpoints that do real
-per-request work — upload, extract, analyze, narrative — not on cheap GET
-readers like /api/health or /api/industries.
+Applied via `Depends(rate_limit)` on seven routes: the four that do real
+per-request work (upload, extract, analyze, narrative), plus, as of P6.T5,
+all three `/api/my/documents...` routes (list, delete, download) — not on
+cheap GET readers like /api/health or /api/industries in general.
+`GET /api/my/documents` reads that way in isolation (one local query), but
+its actual cost is R2Vault's when a document vault backend is configured:
+`list_for_user` issues a paginated `list_objects_v2` plus one `get_object`
+per retained document, so it's rate-limited for the same reason
+upload/extract/analyze are — an unauthenticated-rate flood turns into N
+round trips against a metered third-party service, not because it's
+expensive locally. `/api/my/analyses...` (a single indexed local query,
+no third-party amplification) is deliberately NOT included — see
+app/routers/my.py's module docstring and docs/api-contract-v1.md's
+Rate limiting section for the same call recorded there.
 """
 from __future__ import annotations
 

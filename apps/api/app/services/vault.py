@@ -170,6 +170,17 @@ class LocalDiskVault:
         return doc
 
     def get(self, doc_id: str, user_id: str) -> Optional[tuple[bytes, VaultDocument]]:
+        """Same OSError split as `delete()` below, for the same reason:
+        by the time this reads the data file, `_read_meta` has already
+        succeeded, so the document is known to exist. `FileNotFoundError`
+        (a torn write, or a delete that removed the data file but not yet
+        the sidecar) genuinely means "not found" and returns `None` — the
+        download endpoint's 404. Any OTHER `OSError` — `PermissionError`, a
+        read-only filesystem, a full disk — is a real backend failure, not
+        a "gone" one, and telling the caller "not found" for a document
+        this method just confirmed exists would misinform them exactly the
+        way this module's own `VaultBackendError` docstring warns against;
+        it becomes `VaultBackendError` instead, same as `delete()`."""
         _require_safe(user_id, doc_id)
         user_dir = self._user_dir(user_id)
         doc = self._read_meta(user_dir, doc_id)
@@ -177,8 +188,10 @@ class LocalDiskVault:
             return None
         try:
             return (user_dir / f"{doc_id}.{doc.kind}").read_bytes(), doc
-        except OSError:
+        except FileNotFoundError:
             return None
+        except OSError as e:
+            raise VaultBackendError(str(e)) from e
 
     def delete(self, doc_id: str, user_id: str) -> bool:
         """Idempotent: a doc_id that isn't (or is no longer) present simply
@@ -275,8 +288,20 @@ class R2Vault:
         resp = self._get_object_or_none(self._meta_key(user_id, doc_id))
         if resp is None:
             return None
+        # Same reasoning as get()'s data-body read below: _get_object_or_none
+        # only guards the request that OPENS the stream — a connection death
+        # while reading the body (a small JSON sidecar, but still a network
+        # read) raises here, not there, and every caller of this method
+        # (get(), delete(), list_for_user() — once per object) needs it
+        # translated to VaultBackendError too, not left to propagate raw
+        # past their `except vault.VaultBackendError` and surface as a 500.
+        from botocore.exceptions import BotoCoreError, ClientError
         try:
-            raw = json.loads(resp["Body"].read().decode("utf-8"))
+            body = resp["Body"].read()
+        except (ClientError, BotoCoreError) as e:
+            raise VaultBackendError(str(e)) from e
+        try:
+            raw = json.loads(body.decode("utf-8"))
             return VaultDocument(**raw)
         except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
             return None

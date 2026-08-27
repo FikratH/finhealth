@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from app import ratelimit
 from app.main import app
+from app.routers.my import _content_disposition
 from app.services import vault
 
 client = TestClient(app)
@@ -69,7 +70,6 @@ def test_download_requires_auth(monkeypatch):
     monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
     resp = client.get("/api/my/documents/whatever/download")
     assert resp.status_code == 401
-    assert resp.json()["detail"] == {"code": "auth_required", "message": "Требуется вход в систему."}
     assert resp.json()["detail"] == {"code": "auth_required", "message": "Требуется вход в систему."}
 
 
@@ -171,6 +171,46 @@ def test_download_nonexistent_document_is_404(monkeypatch):
     resp = client.get("/api/my/documents/does-not-exist/download", headers=_auth("user-a"))
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Документ не найден."
+
+
+# --------------- _content_disposition() header sanitization (round 1, F2) ---
+# Direct unit tests against the function itself, NOT through TestClient:
+# Starlette's TestClient goes over httpx's ASGI transport, which does not
+# validate outgoing header values the way a real ASGI server (uvicorn) does
+# — a control-character regression here would pass every TestClient-based
+# test above and only surface in production, after the response has
+# already started. This is the gap the review named explicitly.
+
+def test_content_disposition_strips_cr_lf_from_the_ascii_fallback():
+    header = _content_disposition("evil\r\nX-Injected: 1.csv")
+    assert "\r" not in header
+    assert "\n" not in header
+    # The percent-encoded filename*= half is unaffected — quote() already
+    # escapes CR/LF there, so this only proves the ASCII filename= half,
+    # the one that used to leak them, is now clean.
+    assert 'filename="evilX-Injected: 1.csv"' in header
+
+
+def test_content_disposition_strips_other_c0_controls_and_del():
+    # NUL, VT, FF, and DEL — the rest of HEADER_VALUE_RE's blocked set
+    # beyond CR/LF, all valid ASCII and all previously untouched by
+    # encode("ascii", "replace").
+    header = _content_disposition("a\x00b\x0bc\x0cd\x7fe.csv")
+    for bad in ("\x00", "\x0b", "\x0c", "\x7f"):
+        assert bad not in header
+    assert 'filename="abcde.csv"' in header
+
+
+def test_content_disposition_falls_back_to_document_when_ascii_fallback_is_all_control_chars():
+    header = _content_disposition("\r\n\x00")
+    assert 'filename="document"' in header
+
+
+def test_content_disposition_still_percent_encodes_cyrillic_in_filename_star():
+    # Regression guard: the control-char strip must not touch the
+    # filename*= parameter's own (already-correct) percent-encoding.
+    header = _content_disposition("Баланс.csv")
+    assert "filename*=UTF-8''%D0%91%D0%B0%D0%BB%D0%B0%D0%BD%D1%81.csv" in header
 
 
 # ---------------------------------- projection --------------------------------

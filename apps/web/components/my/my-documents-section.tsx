@@ -28,6 +28,11 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
   const [documents, setDocuments] = useState<MyDocumentSummary[]>([]);
   const [deleteError, setDeleteError] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
+  // The section owns this (not the table) because it's the one that calls
+  // downloadMyDocument() and knows when the request settles — the table
+  // only renders whichever row's doc_id matches. null = no download
+  // in flight anywhere in this list.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +70,13 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
   }
 
   async function handleDownload(id: string, filename: string) {
+    // The table's own button is already disabled once a row is
+    // downloading (see my-documents-table.tsx), but a re-entrant guard
+    // here too costs nothing and keeps this function safe to call
+    // directly (e.g. from a future keyboard-triggered path that doesn't
+    // go through the disabled button at all).
+    if (downloadingId !== null) return;
+    setDownloadingId(id);
     try {
       await downloadMyDocument(id, filename);
       setDownloadError(false);
@@ -74,6 +86,8 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
         return;
       }
       setDownloadError(true);
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -109,6 +123,7 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
             locale={locale}
             onDownload={handleDownload}
             onDelete={handleDelete}
+            downloadingId={downloadingId}
           />
         </>
       )}

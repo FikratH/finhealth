@@ -530,6 +530,7 @@
         "sizeUnderMb": "<0,1 МБ",
         "actions": "Действия",
         "download": "Скачать",
+        "downloading": "Скачивание…",
         "downloadAria": "Скачать документ: {filename}, {date}",
         "delete": "Удалить",
         "deleteAria": "Удалить документ: {filename}, {date}"

@@ -524,6 +524,23 @@ describe("lib/api", () => {
       await vi.advanceTimersByTimeAsync(15_000);
       await assertion;
     });
+
+    // P6.T5 review round 1, Finding 6: downloadMyDocument bypasses
+    // request() for its JSON-vs-file body shape, but must NOT silently
+    // lose request()'s timeout convention along with it — same 30s budget
+    // as upload/extract, the other two whole-document-bytes calls.
+    it("aborts downloadMyDocument() after 30s, not the 15s default", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal("fetch", abortableFetchMock());
+
+      const promise = downloadMyDocument("doc_1", "fallback.csv");
+      const assertion = expect(promise).rejects.toMatchObject({ status: 0, message: "timeout" });
+
+      // Still short of the 30s budget: must not have settled yet.
+      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await assertion;
+    });
   });
 
   describe("parseContentDispositionFilename", () => {

@@ -530,6 +530,7 @@
         "sizeUnderMb": "<0.1 MB",
         "actions": "Actions",
         "download": "Download",
+        "downloading": "Downloading…",
         "downloadAria": "Download document: {filename}, {date}",
         "delete": "Delete",
         "deleteAria": "Delete document: {filename}, {date}"

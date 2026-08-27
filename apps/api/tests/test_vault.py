@@ -462,6 +462,62 @@ def test_r2_get_raises_vault_backend_error_when_body_read_fails_mid_stream():
 
 
 # --------------------------------------------------------------------------
+# R2Vault._read_meta: a connection death WHILE READING THE SIDECAR ITSELF
+# (P6.T5 review round 1, Finding 1) — _read_meta's own Body.read() sat
+# outside the ClientError/BotoCoreError translation, so every one of its
+# callers (get(), delete(), list_for_user() — once per object) could 500
+# instead of degrading to the 503 envelope the download/delete endpoints
+# depend on. Distinct from the block above, which failed the DATA object's
+# body read; this fails the METADATA sidecar's read, which all three
+# methods hit FIRST — before any of them gets far enough to touch a data
+# object at all.
+# --------------------------------------------------------------------------
+
+class _MidStreamFailingMetaS3Client:
+    """get_object() always succeeds at the request level, for every key —
+    but the returned Body always raises on read(). Isolates the failure to
+    exactly _read_meta's own read, since every caller reaches it before
+    (or, for get()/delete(), instead of) any data-object request."""
+
+    def get_object(self, Bucket, Key):
+        return {"Body": _MidStreamFailingBody()}
+
+    def get_paginator(self, name):
+        class _Paginator:
+            def paginate(self, **kwargs):
+                # One meta key on the page — enough for list_for_user to
+                # reach _read_meta("doc1") and hit the failing Body.read().
+                return [{"Contents": [{"Key": "user-a/doc1.meta.json"}]}]
+
+        return _Paginator()
+
+
+def _r2_with_meta_read_failure() -> R2Vault:
+    store = R2Vault(bucket="b", endpoint_url="https://example.test",
+                    access_key_id="k", secret_access_key="s")
+    store._client = _MidStreamFailingMetaS3Client()
+    return store
+
+
+def test_r2_get_raises_vault_backend_error_when_meta_body_read_fails_mid_stream():
+    store = _r2_with_meta_read_failure()
+    with pytest.raises(VaultBackendError):
+        store.get("doc1", "user-a")
+
+
+def test_r2_delete_raises_vault_backend_error_when_meta_body_read_fails_mid_stream():
+    store = _r2_with_meta_read_failure()
+    with pytest.raises(VaultBackendError):
+        store.delete("doc1", "user-a")
+
+
+def test_r2_list_for_user_raises_vault_backend_error_when_meta_body_read_fails_mid_stream():
+    store = _r2_with_meta_read_failure()
+    with pytest.raises(VaultBackendError):
+        store.list_for_user("user-a")
+
+
+# --------------------------------------------------------------------------
 # LocalDiskVault.delete: a genuine OSError (not "already gone") also
 # becomes VaultBackendError, matching R2Vault's posture.
 # --------------------------------------------------------------------------
@@ -476,6 +532,37 @@ def test_local_vault_delete_raises_vault_backend_error_on_os_error(tmp_path, mon
     monkeypatch.setattr(Path, "unlink", _raise_permission_error)
     with pytest.raises(VaultBackendError):
         store.delete("doc1", "user-a")
+
+
+# --------------------------------------------------------------------------
+# LocalDiskVault.get(): same OSError split as delete() (P6.T5 review round
+# 1, S2). By the time get() reads the data file, _read_meta has already
+# succeeded — the document is known to exist — so a genuine OSError there
+# (PermissionError, a read-only filesystem, a full disk) must not report
+# "not found" for something just confirmed present; it becomes
+# VaultBackendError, same as delete(). FileNotFoundError specifically (a
+# torn write / partial delete leaving the sidecar but not the data file)
+# is the one case that legitimately still means "not found."
+# --------------------------------------------------------------------------
+
+def test_local_vault_get_returns_none_when_data_file_is_missing_but_meta_exists(tmp_path):
+    store = LocalDiskVault(base_dir=tmp_path / "vault")
+    store.put("doc1", b"data", "csv", "user-a")
+    (tmp_path / "vault" / "user-a" / "doc1.csv").unlink()  # sidecar survives, data file doesn't
+
+    assert store.get("doc1", "user-a") is None
+
+
+def test_local_vault_get_raises_vault_backend_error_on_os_error(tmp_path, monkeypatch):
+    store = LocalDiskVault(base_dir=tmp_path / "vault")
+    store.put("doc1", b"data", "csv", "user-a")
+
+    def _raise_permission_error(self):
+        raise PermissionError("simulated read-only filesystem")
+
+    monkeypatch.setattr(Path, "read_bytes", _raise_permission_error)
+    with pytest.raises(VaultBackendError):
+        store.get("doc1", "user-a")
 
 
 # --------------------------------------------------------------------------

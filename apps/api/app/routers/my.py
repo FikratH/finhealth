@@ -11,11 +11,15 @@ All three `/api/my/documents...` routes (list, delete, download) carry
 finding) — per-route, not router-level, matching the idiom `main.py`'s four
 rate-limited endpoints already use, so a reader checking either module sees
 the same pattern. `/api/my/analyses...` is deliberately NOT rate-limited:
-out of scope for this pass, same as before.
+its cost curve is categorically different (a single indexed local query
+with `LIMIT 50`), where `GET /api/my/documents`'s worst case is R2Vault
+issuing a paginated list plus one remote `get_object` per document — see
+app/ratelimit.py's module docstring for the fuller reasoning.
 """
 from __future__ import annotations
 
 import logging
+import re
 import urllib.parse
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -40,20 +44,43 @@ _CONTENT_TYPES = {
     "csv": "text/csv",
 }
 
+# CR/LF/NUL/other C0 controls + DEL are all valid ASCII, so
+# encode("ascii", "replace") in _content_disposition below lets them
+# through untouched — they must be stripped separately, before this
+# string ever reaches a header. Matches uvicorn's own outgoing-header
+# validation (HEADER_VALUE_RE), but the application must not depend on
+# the ASGI server to be the only thing standing between a stored filename
+# and a malformed header — see _content_disposition's docstring.
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
 
 def _content_disposition(filename: str) -> str:
     """Builds a Content-Disposition header carrying the document's REAL
     original filename, which is routinely Cyrillic (RSBU statements — see
     app/services/vault.py's module docstring). Per RFC 6266/5987, both
     parameters are always sent together, never just one: `filename*=` is
-    the UTF-8 percent-encoded form modern clients use; the plain `filename=`
-    is an ASCII-only fallback (non-ASCII characters replaced, not dropped)
-    for anything that only understands the older form — a client that
-    honors both is expected to prefer `filename*=`."""
+    the UTF-8 percent-encoded form modern clients use — `quote(name,
+    safe="")` percent-encodes everything, including control characters, so
+    that half is safe by construction. The plain `filename=` is an
+    ASCII-only fallback for anything that only understands the older form
+    — a client that honors both is expected to prefer `filename*=`. Its
+    non-ASCII characters are replaced (not dropped) by
+    `encode("ascii", "replace")`, but CR/LF/NUL and the other C0 controls
+    ARE ASCII and survive that step untouched; left unstripped, a filename
+    containing one would either break the header outright (uvicorn's own
+    HEADER_VALUE_RE rejects it — after the response has already started,
+    so that document becomes permanently undownloadable) or, on a server
+    that doesn't validate, inject an arbitrary header line. Stripped here
+    instead, so this holds regardless of which ASGI server sits underneath
+    — see tests/test_my_documents.py's direct (not-through-TestClient)
+    unit test on this function, since Starlette's TestClient transport
+    does not validate outgoing header values and would never catch a
+    regression here."""
     name = filename or "document"
     ascii_fallback = (
         name.encode("ascii", "replace").decode("ascii").replace('"', "'").replace("\\", "_")
     )
+    ascii_fallback = _CONTROL_CHARS_RE.sub("", ascii_fallback) or "document"
     encoded = urllib.parse.quote(name, safe="")
     return f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{encoded}'
 
@@ -156,16 +183,25 @@ def delete_my_document(doc_id: str, user_id: str = Depends(auth.require_user)):
 
 @router.get("/api/my/documents/{doc_id}/download", dependencies=[Depends(rate_limit)])
 def download_my_document(doc_id: str, user_id: str = Depends(auth.require_user)):
-    """Streams the caller's own retained document back — the retrieval
-    half of P5.T7's "retention without retrieval" gap (see
-    docs/founder-todo.md). Same ownership-checked, 404-never-403 idiom as
-    DELETE above: an id that doesn't exist and an id that belongs to
-    someone else both 404 identically, so the response can't be used to
-    probe for other users' doc ids. Mirrors DELETE's error posture on a
-    backend failure too — 503, never a silent empty/degraded response —
-    because a download that returned the wrong thing (or nothing, framed
-    as success) would misinform the caller about their own data, the same
-    reasoning DELETE's own comment gives."""
+    """Returns the caller's own retained document — the retrieval half of
+    P5.T7's "retention without retrieval" gap (see docs/founder-todo.md).
+    Same ownership-checked, 404-never-403 idiom as DELETE above: an id
+    that doesn't exist and an id that belongs to someone else both 404
+    identically, so the response can't be used to probe for other users'
+    doc ids. Mirrors DELETE's error posture on a backend failure too —
+    503, never a silent empty/degraded response — because a download that
+    returned the wrong thing (or nothing, framed as success) would
+    misinform the caller about their own data, the same reasoning DELETE's
+    own comment gives.
+
+    Wrapped in `StreamingResponse` for the `Content-Length` control it
+    gives (keeps uvicorn off chunked encoding), not because the transfer
+    is actually incremental: `vault.get_vault().get()` already reads the
+    whole document into memory (≤15MB, the upload cap) before this
+    function is even called, so every download buffers fully before the
+    first byte leaves — a plain `Response(content=data, ...)` would behave
+    identically. Don't describe this endpoint as "streaming" bytes
+    incrementally; it isn't."""
     try:
         result = vault.get_vault().get(doc_id, user_id)
     except vault.VaultPathError:

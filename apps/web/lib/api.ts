@@ -371,8 +371,8 @@ export function parseContentDispositionFilename(header: string | null): string |
   return undefined;
 }
 
-/** GET /api/my/documents/{id}/download — streams the caller's own retained
- * document back. Unlike every other function in this file, this bypasses
+/** GET /api/my/documents/{id}/download — returns the caller's own retained
+ * document. Unlike every other function in this file, this bypasses
  * request<T>(): the response body is the raw file, not JSON, so it's
  * fetched directly (reusing withAuthHeader(), the same auth-header
  * attachment every other call gets) and handed to the browser as a
@@ -384,16 +384,36 @@ export function parseContentDispositionFilename(header: string | null): string |
  * ever catches one error type. `fallbackFilename` (typically the
  * MyDocumentSummary row's own `filename`) is used only if the response
  * somehow lacks a parseable Content-Disposition — the server always sends
- * one, so this is a defensive backstop, not the common path. */
+ * one, so this is a defensive backstop, not the common path.
+ *
+ * The `request<T>()` bypass is only for the JSON-vs-file body shape — the
+ * timeout convention is deliberately KEPT, not dropped along with it: this
+ * uses the same `UPLOAD_EXTRACT_TIMEOUT_MS` (30s) budget as upload/extract,
+ * the other two calls that move a whole document's worth of bytes, rather
+ * than the 15s default every small JSON call gets. A caller (the download
+ * button's own in-flight state — see my-documents-table.tsx) still needs a
+ * bound on how long "downloading…" can last; without one, a hung fetch
+ * would be invisible AND unrecoverable short of a page reload. */
 export async function downloadMyDocument(id: string, fallbackFilename: string): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPLOAD_EXTRACT_TIMEOUT_MS);
+
   let response: Response;
   try {
     const headers = await withAuthHeader(undefined);
-    response = await fetch(`/api/my/documents/${encodeURIComponent(id)}/download`, { headers });
-  } catch {
+    response = await fetch(`/api/my/documents/${encodeURIComponent(id)}/download`, {
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (isAbortError(err)) {
+      throw new ApiError(0, "timeout");
+    }
     // Network failure (offline, DNS, connection reset) — no status code
     // to report, same convention request()'s catch branch uses.
     throw new ApiError(0, "errors.network");
+  } finally {
+    clearTimeout(timer);
   }
   if (!response.ok) {
     const detail = await readDetail(response);

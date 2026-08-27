@@ -21,6 +21,14 @@ export interface MyDocumentsTableProps {
   locale: Locale;
   onDownload: (id: string, filename: string) => void;
   onDelete: (id: string) => void;
+  /** The doc_id currently being downloaded, or null if none — owned by
+   * my-documents-section.tsx (it's the one that awaits downloadMyDocument()
+   * and knows when the request settles), read here only to render the
+   * in-flight state. A single id, not a set: only one download is ever
+   * in flight at a time (see the section's own guard), so while it's set,
+   * EVERY row's download button is disabled — not just the matching one —
+   * and only the matching row swaps its label + sets aria-busy. */
+  downloadingId: string | null;
 }
 
 // The retained-document vault as a table — same hairline grammar as
@@ -29,8 +37,18 @@ export interface MyDocumentsTableProps {
 // («Открыть»/«Удалить»: outline + ghost, same button sizes, same
 // contextual-aria pattern) — download (P6.T5) closes the vault's
 // retention-without-retrieval gap: a retained document can now actually be
-// retrieved, not just listed and deleted.
-export function MyDocumentsTable({ documents, locale, onDownload, onDelete }: MyDocumentsTableProps) {
+// retrieved, not just listed and deleted. Unlike delete (gated by a
+// confirmation dialog, so it never needed one), download fires immediately
+// and can take several seconds for a large file — its in-flight state
+// (disabled + label swap + aria-busy) follows the same idiom
+// analyst-narrative.tsx's generate button already uses.
+export function MyDocumentsTable({
+  documents,
+  locale,
+  onDownload,
+  onDelete,
+  downloadingId,
+}: MyDocumentsTableProps) {
   const t = useTranslations("My.documents.table");
   const tDialog = useTranslations("My.documents.deleteDialog");
 
@@ -86,6 +104,7 @@ export function MyDocumentsTable({ documents, locale, onDownload, onDelete }: My
             // "Удалить" is ambiguous once there's more than one row, same
             // reasoning as my-analyses-table.tsx's ariaContext.
             const ariaContext = { filename: doc.filename, date };
+            const isThisRowDownloading = downloadingId === doc.doc_id;
             return (
               <tr key={doc.doc_id} className="border-b border-line last:border-b-0">
                 <td className="px-3 py-2 font-mono text-ink">
@@ -103,9 +122,11 @@ export function MyDocumentsTable({ documents, locale, onDownload, onDelete }: My
                       variant="outline"
                       size="sm"
                       aria-label={t("downloadAria", ariaContext)}
+                      aria-busy={isThisRowDownloading}
+                      disabled={downloadingId !== null}
                       onClick={() => onDownload(doc.doc_id, doc.filename)}
                     >
-                      {t("download")}
+                      {isThisRowDownloading ? t("downloading") : t("download")}
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
