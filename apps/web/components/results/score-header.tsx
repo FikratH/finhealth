@@ -43,12 +43,14 @@ const SCALE_KEY: Record<
 // aria-hidden in favor of its role="status" aria-label, so the document
 // still needs one genuine heading landmark) wired to data-verdict-stamp,
 // the wrapper results-document.tsx's opening timeline fades/scales in.
-// The score's own accessible name deliberately omits a `caption` — the
-// verdict is already announced twice (the sr-only h1, and AnnunciatorCell's
-// own role="status" live region), and a third repetition inside the
-// score's name would just be noise (review finding 9); it reads as its
-// bare RU-formatted value instead. When overall_score is null this is also
-// where the insufficient-data state composes its guidance — designed
+// The score's own `caption` names the READING ("Общий балл"/"Overall
+// score"), never the verdict — the verdict is already announced twice
+// (the sr-only h1, and AnnunciatorCell's own role="status" live region),
+// and repeating it a third time inside the score's own name would just be
+// noise (review finding 9); a metric-naming caption instead gives the
+// bare figure a meaningful accessible name without reintroducing that
+// duplication (review finding N2). When overall_score is null this is
+// also where the insufficient-data state composes its guidance — designed
 // absence (ghost segment cells), not a blank dial with nothing to act on.
 //
 // Print: SegmentDisplay's animated mask paints every bar as a
@@ -78,6 +80,8 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
             digits={SCORE_DIGITS}
             locale={locale}
             className="text-6xl sm:text-7xl print:hidden"
+            caption={insufficientData ? undefined : t("scoreLabel")}
+            naLabel={insufficientData ? t("scoreLabel") : undefined}
           />
           <span
             aria-hidden="true"

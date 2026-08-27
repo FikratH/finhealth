@@ -245,6 +245,7 @@
       "retry": "Try again"
     },
     "header": {
+      "scoreLabel": "Overall score",
       "confidenceLabel": "Overall analysis confidence",
       "insufficientGuidance": "To get a score, add the missing figures:",
       "confidence": {

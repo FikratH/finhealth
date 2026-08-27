@@ -414,11 +414,13 @@ describe("ResultsDocument", () => {
   it("renders the overall score and verdict, RU-formatted", () => {
     renderDocument(analysisFixture);
     // The score renders as a SegmentDisplay (a CSS clip-path mask, not a
-    // text node) — its accessible name is its bare RU-formatted value.
-    // No `caption`: the verdict is already announced by the sr-only <h1>
+    // text node) — its accessible name combines the RU-formatted value with
+    // a metric-naming caption ("Общий балл"/"Overall score"), never the
+    // verdict itself: the verdict is already announced by the sr-only <h1>
     // and by AnnunciatorCell's own role="status" live region below, so the
-    // score's own name doesn't repeat it a third time (review finding 9).
-    expect(screen.getByRole("img", { name: "85,1" })).toBeInTheDocument();
+    // score's own name doesn't repeat it a third time (review finding 9),
+    // while still reading as more than a bare number (review finding N2).
+    expect(screen.getByRole("img", { name: "85,1 — Общий балл" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Сильное состояние" }),
     ).toBeInTheDocument();
@@ -534,10 +536,11 @@ describe("ResultsDocument", () => {
     const header = heading.closest("section") as HTMLElement;
     // No fabricated number: the score renders as ghost segment cells (never
     // hidden, never faked as 0), and its accessible name falls back to the
-    // same "—" placeholder formatNumber(null) uses everywhere else — the
-    // verdict itself is announced by the sr-only <h1> above, not repeated
-    // through the score's own name (review finding 9).
-    expect(within(header).getByRole("img", { name: "—" })).toBeInTheDocument();
+    // same metric-naming caption alone ("Общий балл") rather than any
+    // placeholder figure — the verdict itself is announced by the sr-only
+    // <h1> above, not repeated through the score's own name (review
+    // findings 9 and N2).
+    expect(within(header).getByRole("img", { name: "Общий балл" })).toBeInTheDocument();
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }
@@ -706,6 +709,52 @@ describe("ResultsDocument — the scroll cinema", () => {
   });
 });
 
+describe("ResultsDocument — mount scroll reset (review round 2, finding N1)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // Object.defineProperty isn't a vi mock — restoreAllMocks doesn't
+    // touch it, so window.scrollY would otherwise stay pinned at 500 for
+    // every later test in this file (jsdom's window is shared process-
+    // wide, not reset between tests) and quietly change other tests'
+    // "already at the top" assumptions.
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
+  // PerformanceNavigationTiming describes how the *document* was loaded,
+  // not how this route was reached — a client-side transition never
+  // creates a new navigation entry, so after a reload of an *earlier*
+  // page in the same SPA session, the entry's own `type` would still read
+  // "reload" here even though this results page itself was never
+  // reloaded. The fix compares the entry's own `name` (the URL its load
+  // resolved to) against the current location — only a match means *this*
+  // page was the one actually reloaded/restored.
+  it("still resets scroll when performance reports type \"reload\" but that reload's own URL doesn't match this page (a soft nav from a reloaded earlier page)", () => {
+    mockMatchMedia(false); // motion enabled — the reset only runs then
+    Object.defineProperty(window, "scrollY", { value: 500, configurable: true });
+    const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "reload", name: "http://localhost:3000/analyze" } as unknown as PerformanceEntry,
+    ]);
+
+    renderDocument(analysisFixture);
+
+    expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+  });
+
+  it("does not reset scroll when the reload/back_forward entry's own URL matches the current page (a genuine restored scroll)", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "scrollY", { value: 500, configurable: true });
+    const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+      { type: "reload", name: window.location.href } as unknown as PerformanceEntry,
+    ]);
+
+    renderDocument(analysisFixture);
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("ResultsDocument — narrative-driven scroll-cinema re-sync (fix-wave F1)", () => {
   afterEach(() => {
     vi.mocked(generateNarrative).mockReset();
@@ -818,6 +867,12 @@ describe("revealAlreadyInView (fix-wave round 3, F1 completion)", () => {
 describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sections on a re-sync (fix-wave round 3, F1 completion)", () => {
   afterEach(() => {
     vi.mocked(generateNarrative).mockReset();
+    // Restores the Element.prototype.setAttribute/removeAttribute spies
+    // the test below installs — in afterEach rather than at the end of
+    // the test body, so a failed assertion partway through still tears
+    // them down instead of leaking a patched Element.prototype into every
+    // later test in the file.
+    vi.restoreAllMocks();
   });
 
   it("instant-settles sections instead of hiding-then-re-animating them when the narrative section collapses on a 503", async () => {
@@ -876,9 +931,6 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
       ([attr]) => attr === "data-scanline-hidden",
     );
     expect(settleCallsDuringResync.length).toBeGreaterThan(0);
-
-    setAttributeSpy.mockRestore();
-    removeAttributeSpy.mockRestore();
 
     // End-state sanity, kept alongside the transient checks above: every
     // scanline-content element ends the resync already visible.

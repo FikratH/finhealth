@@ -107,10 +107,13 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // further down the page renders two more (the real + ghost control-bench
   // readouts), so an unscoped role=img query would now match those too.
   // The score is a CSS segment mask, not a text node — its accessible name
-  // is its bare RU-formatted value (no caption: the verdict is already
-  // announced by the heading below and by AnnunciatorCell's own status
-  // live region, review finding 9).
-  await expect(page.locator("#score").getByRole("img", { name: "85,1" })).toBeVisible();
+  // combines the RU-formatted value with a metric-naming caption ("Общий
+  // балл"), never the verdict itself: the verdict is already announced by
+  // the heading below and by AnnunciatorCell's own status live region
+  // (review findings 9 and N2).
+  await expect(
+    page.locator("#score").getByRole("img", { name: "85,1 — Общий балл" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
 
   // net_margin row: name + Damodaran-sourced footnote marker
@@ -190,7 +193,9 @@ test("landing → analyze → verify → results → public share", async ({ pag
   const shareContext = await browser.newContext();
   const sharePage = await shareContext.newPage();
   await sharePage.goto(resultsUrl);
-  await expect(sharePage.locator("#score").getByRole("img", { name: "85,1" })).toBeVisible();
+  await expect(
+    sharePage.locator("#score").getByRole("img", { name: "85,1 — Общий балл" }),
+  ).toBeVisible();
   await expect(sharePage.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
   await shareContext.close();
 

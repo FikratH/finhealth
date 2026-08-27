@@ -245,6 +245,7 @@
       "retry": "Повторить попытку"
     },
     "header": {
+      "scoreLabel": "Общий балл",
       "confidenceLabel": "Общая уверенность анализа",
       "insufficientGuidance": "Чтобы получить балл, добавьте недостающие показатели:",
       "confidence": {

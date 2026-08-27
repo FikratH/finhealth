@@ -361,15 +361,28 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         // document at all. Narrowly scoped to exactly that case: skipped
         // when the URL carries its own hash (a direct deep link wins
         // instead), and skipped on a reload or a back/forward navigation
-        // — both restore a scroll position *deliberately* (the share-link
-        // reader who reloads mid-scroll, or navigates back into this
-        // page, should land exactly where they were), so this reset must
-        // never fight that restoration.
+        // of *this* page — both restore a scroll position *deliberately*
+        // (the share-link reader who reloads mid-scroll, or navigates back
+        // into this page, should land exactly where they were), so this
+        // reset must never fight that restoration.
+        //
+        // PerformanceNavigationTiming describes how the *document* was
+        // loaded, not how this route was reached — under Next's App
+        // Router, a client-side transition (e.g. /analyze → /results/[id])
+        // never creates a new navigation entry at all, so after a reload
+        // of /analyze, the soft nav into this results page would still see
+        // type "reload" here even though *this* page was never reloaded.
+        // `navEntry.name` (the URL that entry's own load resolved to) is
+        // what distinguishes the two: it only matches window.location.href
+        // when this exact page — not an earlier one in the same SPA
+        // session — was the one actually reloaded or restored.
         const navEntry = performance.getEntriesByType("navigation")[0] as
           | PerformanceNavigationTiming
           | undefined;
         const isRestoredNavigation =
-          navEntry?.type === "reload" || navEntry?.type === "back_forward";
+          navEntry != null &&
+          (navEntry.type === "reload" || navEntry.type === "back_forward") &&
+          navEntry.name === window.location.href;
         if (!window.location.hash && !isRestoredNavigation && window.scrollY > 0) {
           window.scrollTo(0, 0);
         }

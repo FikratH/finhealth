@@ -38,15 +38,21 @@ export interface RevealSectionProps {
 // is what it reveals — an instant pop the moment the beam passes over it,
 // never a fade/y tween ("every change is an instant segment swap").
 //
-// The beam lives in its own `absolute inset-x-0 top-0 overflow-hidden`
-// strip, capped to one viewport tall (`h-screen`) and anchored to the
-// section's own top rather than spanning `inset-y-0` the way
-// how-it-works.tsx's short cards do — on a tall section (ratios, risk
-// radar run thousands of px) a full-height beam reads as a saturated
-// curtain rather than "one thin line," and the sweep only ever fires as
-// the section's *top* crosses into view (SECTION_REVEAL_START, "top 75%"
-// in results-document.tsx), so nothing below the first screenful is ever
-// part of what's actually seen sweeping. That strip is a sibling of the
+// The beam lives in its own `absolute inset-0 max-h-screen overflow-hidden`
+// strip — `inset-0` stretches it to the section's own real height (its
+// containing block, the root `relative` div below, whose height is driven
+// entirely by the normal-flow content sibling), and `max-h-screen` then
+// caps that at one viewport tall, so the beam's own height is always
+// min(section height, 100vh), anchored to the section's top. On a tall
+// section (ratios, risk radar run thousands of px) an uncapped beam reads
+// as a saturated curtain rather than "one thin line," and the sweep only
+// ever fires as the section's *top* crosses into view
+// (SECTION_REVEAL_START, "top 75%" in results-document.tsx), so nothing
+// below the first screenful is ever part of what's actually seen sweeping
+// — while on a *short* section (warnings, footnotes, the disclaimer), an
+// uncapped `h-screen` beam would run past that section's own bottom edge
+// and sweep into its neighbor's space; `inset-0` keeps it inside its own
+// section regardless. That strip is a sibling of the
 // content, not a wrapper around it, so its own `overflow-hidden` (the
 // same how-it-works.tsx/logo-reveal.tsx fix — the beam's translate would
 // otherwise transiently widen the document's scrollable width mid-sweep)
@@ -75,7 +81,7 @@ export function RevealSection({
       className={cn("relative scroll-mt-24", printHidden && "print:hidden")}
     >
       <div aria-hidden="true" data-reveal-rule className="mb-6 h-px w-full bg-line" />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-screen overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 max-h-screen overflow-hidden">
         <span
           data-scanline
           className="absolute inset-y-0 left-0 w-full opacity-0 bg-[linear-gradient(90deg,transparent,var(--accent)_45%,var(--accent)_55%,transparent)]"
