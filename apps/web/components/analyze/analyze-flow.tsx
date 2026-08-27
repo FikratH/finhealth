@@ -64,7 +64,7 @@ export function AnalyzeFlow() {
     if (!state.file || state.industry === "") return;
     dispatch({ type: "upload_started" });
     try {
-      const uploaded = await uploadFile(state.file);
+      const uploaded = await uploadFile(state.file, state.retain);
       dispatch({ type: "upload_succeeded", upload: uploaded });
       const extraction = await extract(uploaded.upload_id);
       dispatch({ type: "extract_succeeded", extraction });
@@ -101,9 +101,11 @@ export function AnalyzeFlow() {
             industry={state.industry}
             uploadPhase={state.uploadPhase}
             error={state.error}
+            retain={state.retain}
             onFileSelected={(file) => dispatch({ type: "file_selected", file })}
             onFileCleared={() => dispatch({ type: "file_cleared" })}
             onIndustryChange={(industry) => dispatch({ type: "industry_selected", industry })}
+            onRetainChange={(retain) => dispatch({ type: "retain_changed", retain })}
             onSubmit={handleUploadSubmit}
           />
         ) : (

@@ -265,6 +265,34 @@ describe("analyzeReducer", () => {
     expect(state.industry).toBe("manufacturing");
   });
 
+  it("retain defaults to false and is toggled by retain_changed", () => {
+    const initial = initialAnalyzeState();
+    expect(initial.retain).toBe(false);
+
+    const checked = analyzeReducer(initial, { type: "retain_changed", retain: true });
+    expect(checked.retain).toBe(true);
+
+    const unchecked = analyzeReducer(checked, { type: "retain_changed", retain: false });
+    expect(unchecked.retain).toBe(false);
+  });
+
+  it("clearing the file resets retain — a new document never inherits the previous one's opt-in", () => {
+    const withRetain: AnalyzeState = { ...initialAnalyzeState(), retain: true };
+    const state = analyzeReducer(withRetain, { type: "file_cleared" });
+    expect(state.retain).toBe(false);
+  });
+
+  it("back_to_upload resets retain, unlike the preserved industry choice", () => {
+    const withRetain: AnalyzeState = {
+      ...initialAnalyzeState(),
+      step: "verify",
+      extraction: extractionFixture,
+      retain: true,
+    };
+    const state = analyzeReducer(withRetain, { type: "back_to_upload" });
+    expect(state.retain).toBe(false);
+  });
+
   it("applies the suggested industry on demand without touching anything else", () => {
     const state = analyzeReducer(
       { ...initialAnalyzeState(), industry: "retail", suggestedIndustry: "manufacturing" },

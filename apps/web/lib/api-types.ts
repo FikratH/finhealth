@@ -340,6 +340,31 @@ export interface MyAnalysesResponse {
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/my/documents, DELETE /api/my/documents/{id}
+// ---------------------------------------------------------------------------
+
+/** One row of the signed-in user's retained-document vault (P5.T7,
+ * apps/api/app/main.py's `my_documents` endpoint) — metadata only, never
+ * the document's raw bytes. */
+export interface MyDocumentSummary {
+  doc_id: string;
+  filename: string;
+  /** "pdf" | "xlsx" | "xls" | "csv" — same vocabulary as
+   * UploadedDocument.detected_kind. */
+  kind: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export interface MyDocumentsResponse {
+  documents: MyDocumentSummary[];
+}
+
+export interface DeleteDocumentResponse {
+  deleted: string;
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/analysis/{id}/narrative
 // ---------------------------------------------------------------------------
 

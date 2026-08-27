@@ -4,6 +4,7 @@ import { useId, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,9 +24,11 @@ export interface UploadStepProps {
   industry: string;
   uploadPhase: UploadPhase;
   error: AnalyzeError | null;
+  retain: boolean;
   onFileSelected: (file: File) => void;
   onFileCleared: () => void;
   onIndustryChange: (industry: string) => void;
+  onRetainChange: (retain: boolean) => void;
   onSubmit: () => void;
 }
 
@@ -40,17 +43,26 @@ export function UploadStep({
   industry,
   uploadPhase,
   error,
+  retain,
   onFileSelected,
   onFileCleared,
   onIndustryChange,
+  onRetainChange,
   onSubmit,
 }: UploadStepProps) {
   const t = useTranslations("Analyze.upload");
   const hintT = useTranslations("Analyze.upload.hints");
   const inputId = useId();
+  const retainId = `${inputId}-retain`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  // isPending collapses to "not signed in" — same convention as
+  // account-menu.tsx and my-analyses-view.tsx: a checkbox that briefly
+  // flashes in once the session check resolves reads worse than it simply
+  // not being there yet for something this optional.
+  const { data: session, isPending: sessionPending } = useSession();
+  const signedIn = !sessionPending && !!session;
 
   const busy = uploadPhase !== "idle";
   const canSubmit = file !== null && industry !== "" && !busy;
@@ -191,6 +203,40 @@ export function UploadStep({
         </Select>
         <p className="text-xs text-ink-muted">{t("industryHint")}</p>
       </div>
+
+      {/* Opt-in document retention (P5.T7) — visible ONLY when signed in
+       * (default off, matching the product's privacy default — see
+       * PRODUCT.md). Same instrument switch grammar as DocumentControls'
+       * `audited` toggle: a visually-hidden native checkbox driving a
+       * bezelled track + LED thumb via the peer pattern, so behavior and
+       * screen-reader semantics stay on the real control while the visible
+       * focus ring lands on its decorative sibling. */}
+      {signedIn && (
+        <div className="grid-paper space-y-2 border border-line bg-panel p-4">
+          <label htmlFor={retainId} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+            <span className="relative inline-flex h-4 w-8 shrink-0 items-center border border-line bg-panel">
+              <input
+                id={retainId}
+                type="checkbox"
+                checked={retain}
+                disabled={busy}
+                onChange={(event) => onRetainChange(event.target.checked)}
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute left-0.5 size-2.5 bg-ink-muted transition-transform duration-150 peer-checked:translate-x-4 peer-checked:bg-brand peer-checked:shadow-[0_0_4px_1px_var(--accent)]"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 border border-transparent peer-focus-visible:border-ring"
+              />
+            </span>
+            {t("retainLabel")}
+          </label>
+          <p className="text-xs text-ink-muted">{t("retainDisclosure")}</p>
+        </div>
+      )}
 
       <div>
         <Button

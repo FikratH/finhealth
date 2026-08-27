@@ -45,6 +45,13 @@ export interface AnalyzeState {
   scale: Scale;
   currency: string;
   audited: boolean;
+  /** Opt-in document retention (P5.T7) — whether Step 1's «Сохранить
+   * документ в моём хранилище» checkbox is checked. Sent to uploadFile()
+   * as `retain`; only ever offered/effective when signed in (see
+   * UploadStep). Reset on file_cleared/back_to_upload — a fresh document
+   * always starts from the privacy default (off), never inherits the
+   * previous document's choice. */
+  retain: boolean;
   error: AnalyzeError | null;
   analysisId: string | null;
 }
@@ -65,6 +72,7 @@ export function initialAnalyzeState(): AnalyzeState {
     scale: "units",
     currency: "",
     audited: false,
+    retain: false,
     error: null,
     analysisId: null,
   };
@@ -75,6 +83,7 @@ export type AnalyzeAction =
   | { type: "file_selected"; file: File }
   | { type: "file_cleared" }
   | { type: "industry_selected"; industry: string }
+  | { type: "retain_changed"; retain: boolean }
   | { type: "upload_started" }
   | { type: "upload_succeeded"; upload: UploadedDocument }
   | { type: "extract_succeeded"; extraction: ExtractionResult }
@@ -142,10 +151,15 @@ export function analyzeReducer(state: AnalyzeState, action: AnalyzeAction): Anal
       return { ...state, file: action.file, error: null };
 
     case "file_cleared":
-      return { ...state, file: null };
+      // A cleared document is a fresh start for the retention choice too —
+      // the checkbox never carries a stale "yes" into a different file.
+      return { ...state, file: null, retain: false };
 
     case "industry_selected":
       return { ...state, industry: action.industry };
+
+    case "retain_changed":
+      return { ...state, retain: action.retain };
 
     case "upload_started":
       return { ...state, uploadPhase: "uploading", error: null };
@@ -216,6 +230,7 @@ export function analyzeReducer(state: AnalyzeState, action: AnalyzeAction): Anal
         values: [],
         previousValues: [],
         suggestedIndustry: null,
+        retain: false,
         error: null,
       };
 

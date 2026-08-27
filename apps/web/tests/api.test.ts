@@ -343,6 +343,51 @@ describe("lib/api", () => {
       expect(init?.body).toBeInstanceOf(FormData);
     });
 
+    it("uploadFile() omits the retain field entirely when not requested — byte-identical to pre-P5.T7", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, {
+          upload_id: "up_1", filename: "report.xlsx", content_type: "x",
+          size_bytes: 4, detected_kind: "xlsx",
+        }),
+      );
+
+      await uploadFile(new File(["data"], "report.xlsx"));
+
+      const [, init] = vi.mocked(fetch).mock.calls[0];
+      const body = init?.body as FormData;
+      expect(body.has("retain")).toBe(false);
+    });
+
+    it("uploadFile(file, true) sends retain=1 in the multipart body", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, {
+          upload_id: "up_1", filename: "report.xlsx", content_type: "x",
+          size_bytes: 4, detected_kind: "xlsx",
+        }),
+      );
+
+      await uploadFile(new File(["data"], "report.xlsx"), true);
+
+      const [, init] = vi.mocked(fetch).mock.calls[0];
+      const body = init?.body as FormData;
+      expect(body.get("retain")).toBe("1");
+    });
+
+    it("uploadFile(file, false) omits the retain field, same as the default", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, {
+          upload_id: "up_1", filename: "report.xlsx", content_type: "x",
+          size_bytes: 4, detected_kind: "xlsx",
+        }),
+      );
+
+      await uploadFile(new File(["data"], "report.xlsx"), false);
+
+      const [, init] = vi.mocked(fetch).mock.calls[0];
+      const body = init?.body as FormData;
+      expect(body.has("retain")).toBe(false);
+    });
+
     it("returns the industries list", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
         jsonResponse(200, {

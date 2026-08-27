@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import ruMessages from "@/messages/ru.json";
@@ -9,10 +9,22 @@ vi.mock("@/lib/auth-client", () => ({ useSession }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, getMyAnalyses: vi.fn(), deleteMyAnalysis: vi.fn() };
+  return {
+    ...actual,
+    getMyAnalyses: vi.fn(),
+    deleteMyAnalysis: vi.fn(),
+    // MyAnalysesView now also renders MyDocumentsSection (P5.T7) — mocked
+    // here too so this file's tests (which are about the analyses table,
+    // not the documents vault; see my-documents-section.test.tsx for that
+    // component's own coverage) never make a real fetch() call and default
+    // to an empty, quickly-resolved list rather than hanging in "loading".
+    getMyDocuments: vi.fn(),
+    deleteMyDocument: vi.fn(),
+  };
 });
 
-const { ApiError, deleteMyAnalysis, getMyAnalyses } = await import("@/lib/api");
+const { ApiError, deleteMyAnalysis, deleteMyDocument, getMyAnalyses, getMyDocuments } =
+  await import("@/lib/api");
 const { MyAnalysesView } = await import("@/components/my/my-analyses-view");
 
 const fixtures: MyAnalysisSummary[] = [
@@ -40,9 +52,19 @@ function renderView() {
   );
 }
 
+beforeEach(() => {
+  // Sane default so every signed-in render below resolves the documents
+  // section to its empty state quickly, without every single test having
+  // to stub it individually — tests exercising the documents section
+  // itself live in my-documents-section.test.tsx.
+  vi.mocked(getMyDocuments).mockResolvedValue({ documents: [] });
+});
+
 afterEach(() => {
   vi.mocked(getMyAnalyses).mockReset();
   vi.mocked(deleteMyAnalysis).mockReset();
+  vi.mocked(getMyDocuments).mockReset();
+  vi.mocked(deleteMyDocument).mockReset();
 });
 
 describe("MyAnalysesView", () => {
@@ -54,6 +76,7 @@ describe("MyAnalysesView", () => {
     const link = screen.getByRole("link", { name: ruMessages.My.signedOut.cta });
     expect(link).toHaveAttribute("href", "/signin");
     expect(getMyAnalyses).not.toHaveBeenCalled();
+    expect(getMyDocuments).not.toHaveBeenCalled();
   });
 
   it("while the session check is pending, shows the signed-out prompt rather than a loading flicker", () => {
@@ -62,6 +85,7 @@ describe("MyAnalysesView", () => {
 
     expect(screen.getByText(ruMessages.My.signedOut.heading)).toBeInTheDocument();
     expect(getMyAnalyses).not.toHaveBeenCalled();
+    expect(getMyDocuments).not.toHaveBeenCalled();
   });
 
   it("signed-in: fetches and renders the table with fixture rows, including the null-score row", async () => {
@@ -142,9 +166,12 @@ describe("MyAnalysesView", () => {
     );
 
     // Reset to loading immediately — user-a's row is gone before user-b's
-    // fetch has even resolved, not lingering until it does.
+    // fetch has even resolved, not lingering until it does. Both the
+    // analyses table and the documents section (P5.T7) share the same
+    // "Загрузка…" copy and both remount together, so this is now
+    // necessarily a multi-match query rather than a single one.
     expect(screen.queryByText("Производство")).not.toBeInTheDocument();
-    expect(screen.getByText(ruMessages.My.loading)).toBeInTheDocument();
+    expect(screen.getAllByText(ruMessages.My.loading).length).toBeGreaterThan(0);
 
     resolveSecondFetch({ plan: "pro", analyses: otherUserFixture });
     expect(await screen.findByText("Строительство")).toBeInTheDocument();

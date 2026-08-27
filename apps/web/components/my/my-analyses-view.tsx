@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/section-heading";
 import { MyAnalysesTable } from "./my-analyses-table";
+import { MyDocumentsSection } from "./my-documents-section";
 import { OriginTicket } from "@/components/origin-ticket";
 import { ApiError, deleteMyAnalysis, getMyAnalyses } from "@/lib/api";
 import type { MyAnalysisSummary } from "@/lib/api-types";
@@ -168,6 +169,12 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
           <MyAnalysesTable analyses={analyses} locale={locale} onDelete={handleDelete} />
         </>
       )}
+
+      {/* P5.T7's opt-in document vault: its own fetch/delete state, own
+       * loading/empty/error rendering — deliberately not blocked on the
+       * analyses table above finishing first (a slow/failed analyses list
+       * must not hide an unrelated, already-loaded documents section). */}
+      <MyDocumentsSection locale={locale} onSessionExpired={onSessionExpired} />
     </div>
   );
 }

@@ -15,10 +15,12 @@ import type {
   AnalysisRequest,
   AnalysisResult,
   DeleteAnalysisResponse,
+  DeleteDocumentResponse,
   ExtractionResult,
   IndustriesResponse,
   IndustryBenchmarksResponse,
   MyAnalysesResponse,
+  MyDocumentsResponse,
   NarrativeResult,
   UploadedDocument,
 } from "./api-types";
@@ -175,10 +177,17 @@ function requestJson<T>(
 
 /** POST /api/upload — multipart file upload. 400 empty file, 413 too large
  * (>15MB, or an Excel archive whose decompressed size exceeds 200MB), 415
- * unrecognized format. */
-export function uploadFile(file: File): Promise<UploadedDocument> {
+ * unrecognized format. `retain` (P5.T7's opt-in document vault, default
+ * false) requires a signed-in user — 401 otherwise — and the server-side
+ * vault feature to be turned on — 503 ({code:"vault_unavailable"})
+ * otherwise; when accepted, POST /api/extract moves the document into the
+ * vault on success instead of deleting it. */
+export function uploadFile(file: File, retain = false): Promise<UploadedDocument> {
   const formData = new FormData();
   formData.append("file", file);
+  if (retain) {
+    formData.append("retain", "1");
+  }
   return request<UploadedDocument>(
     "/api/upload",
     { method: "POST", body: formData },
@@ -261,6 +270,29 @@ export function getMyAnalyses(): Promise<MyAnalysesResponse> {
 export function deleteMyAnalysis(id: string): Promise<DeleteAnalysisResponse> {
   return request<DeleteAnalysisResponse>(
     `/api/my/analyses/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** GET /api/my/documents — the signed-in user's own retained documents
+ * (P5.T7 opt-in vault), newest first. Metadata only (doc_id, filename,
+ * kind, size_bytes, created_at) — never the raw bytes. 401 (`auth_required`)
+ * when signed out. */
+export function getMyDocuments(): Promise<MyDocumentsResponse> {
+  return request<MyDocumentsResponse>(
+    "/api/my/documents",
+    { method: "GET" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** DELETE /api/my/documents/{id} — 401 signed out. 404 for BOTH an unknown
+ * id and an id owned by a different user, same never-distinguish idiom as
+ * deleteMyAnalysis. */
+export function deleteMyDocument(id: string): Promise<DeleteDocumentResponse> {
+  return request<DeleteDocumentResponse>(
+    `/api/my/documents/${encodeURIComponent(id)}`,
     { method: "DELETE" },
     DEFAULT_TIMEOUT_MS,
   );
