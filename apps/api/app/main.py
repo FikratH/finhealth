@@ -22,12 +22,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import auth, entitlements, storage
 from .ratelimit import rate_limit
+from .routers import my as my_router
 from .schemas import (
     AnalysisRequest,
     ExtractRequest,
     ExtractionResult,
-    MyAnalysesResponse,
-    MyDocumentsResponse,
     NarrativeResult,
     UploadedDocument,
 )
@@ -126,6 +125,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+# `/api/my/*` — analysis history (P5.T4) + the document vault (P5.T7) — is
+# split into its own router (P5.T8) to keep this module under the 500-line
+# ceiling; paths and behavior are unchanged by the move (app/routers/my.py).
+app.include_router(my_router.router)
 
 
 def _detect_kind(filename: str, data: bytes) -> str:
@@ -174,7 +177,12 @@ def _detect_kind(filename: str, data: bytes) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    # `vault_enabled` (additive, P5.T8): lets the frontend know whether
+    # POST /api/upload will actually accept retain=1 before it ever offers
+    # the checkbox — see components/analyze/upload-step.tsx. Cheap (one env
+    # read, see services.vault.vault_enabled) and safe to poll from an
+    # unauthenticated route.
+    return {"status": "ok", "vault_enabled": vault.vault_enabled()}
 
 
 @app.get("/api/industries")
@@ -200,10 +208,16 @@ def industry_benchmarks(industry_id: str):
 @app.post("/api/upload", response_model=UploadedDocument, dependencies=[Depends(rate_limit)])
 async def upload(
     file: UploadFile = File(...),
-    # Opt-in vault retention (P5.T7): "1"/"true"/"yes"/"on" all count as
-    # set, matching services.vault._env_bool's own leniency. Absent/"0"/
-    # anything else is False — the ordinary, unmodified delete-after-
-    # extract path (see /api/extract below).
+    # Opt-in vault retention (P5.T7). Pydantic's bool coercion accepts the
+    # usual truthy/falsy string spellings (case-insensitive
+    # 0/off/f/false/n/no vs. 1/on/t/true/y/yes) and takes effect during
+    # dependency resolution, before the handler body ever runs; absent
+    # defaults to `False` via the declared default below. Anything OUTSIDE
+    # that vocabulary (e.g. `retain=banana`) is a 422 from FastAPI itself —
+    # never silently coerced to False — so a malformed value fails loud,
+    # not quiet. Absent or a recognized "false" spelling both take the
+    # ordinary, unmodified delete-after-extract path (see /api/extract
+    # below).
     retain: bool = Form(False),
     user_id: str | None = Depends(auth.get_current_user_id),
 ):
@@ -373,79 +387,6 @@ def delete_analysis(analysis_id: str):
     if not storage.delete_analysis(analysis_id):
         raise HTTPException(status_code=404, detail="Анализ не найден.")
     return {"deleted": analysis_id}
-
-
-@app.get("/api/my/analyses", response_model=MyAnalysesResponse)
-def my_analyses(user_id: str = Depends(auth.require_user)):
-    """«Мои анализы» — the signed-in user's own analyses, newest first,
-    capped at 50. Auth-gated (401 anonymous, via require_user); a summary
-    projection only, never the full stored payload. Also carries the
-    caller's plan (get_or_create is cheap and idempotent) so the frontend
-    can show a quiet plan chip without a second request."""
-    rows = storage.list_analyses_for_user(user_id, limit=50)
-    plan = entitlements.get_or_create(user_id)["plan"]
-    return {
-        "plan": plan,
-        "analyses": [
-            {
-                "analysis_id": row["id"],
-                "created_at": row["created_at"],
-                "industry_name": row["payload"].get("industry_name", ""),
-                "overall_score": row["payload"].get("overall_score"),
-                "health_label": row["payload"].get("health_label", ""),
-            }
-            for row in rows
-        ]
-    }
-
-
-@app.delete("/api/my/analyses/{analysis_id}")
-def delete_my_analysis(analysis_id: str, user_id: str = Depends(auth.require_user)):
-    """Ownership-checked delete: an id that doesn't exist and an id that
-    belongs to a different user both 404 identically — never a 403, so the
-    response can't be used to probe for other users' analysis ids."""
-    if not storage.delete_analysis_for_user(analysis_id, user_id):
-        raise HTTPException(status_code=404, detail="Анализ не найден.")
-    return {"deleted": analysis_id}
-
-
-@app.get("/api/my/documents", response_model=MyDocumentsResponse)
-def my_documents(user_id: str = Depends(auth.require_user)):
-    """The caller's own retained documents (P5.T7 opt-in vault), newest
-    first. Metadata only — GET never returns the raw bytes. Mirrors
-    GET /api/my/analyses' require_user + scoped-projection idiom."""
-    try:
-        docs = vault.get_vault().list_for_user(user_id)
-    except vault.VaultPathError:
-        # user_id comes from a verified JWT sub — this should be
-        # unreachable in practice, but a failed path-safety check must
-        # never 500; degrade to "no documents" rather than leak why.
-        log.warning("vault path validation rejected user_id on list")
-        docs = []
-    return {"documents": [
-        {
-            "doc_id": d.doc_id,
-            "filename": d.filename,
-            "kind": d.kind,
-            "size_bytes": d.size_bytes,
-            "created_at": d.created_at,
-        }
-        for d in docs
-    ]}
-
-
-@app.delete("/api/my/documents/{doc_id}")
-def delete_my_document(doc_id: str, user_id: str = Depends(auth.require_user)):
-    """Ownership-checked delete, same 404-never-403 idiom as
-    DELETE /api/my/analyses/{id}: an id that doesn't exist and an id that
-    belongs to someone else both 404 identically."""
-    try:
-        deleted = vault.get_vault().delete(doc_id, user_id)
-    except vault.VaultPathError:
-        deleted = False
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Документ не найден.")
-    return {"deleted": doc_id}
 
 
 @app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult,

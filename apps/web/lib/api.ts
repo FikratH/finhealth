@@ -17,6 +17,7 @@ import type {
   DeleteAnalysisResponse,
   DeleteDocumentResponse,
   ExtractionResult,
+  HealthResponse,
   IndustriesResponse,
   IndustryBenchmarksResponse,
   MyAnalysesResponse,
@@ -172,6 +173,18 @@ function requestJson<T>(
       body: JSON.stringify(body),
     },
     timeoutMs,
+  );
+}
+
+/** GET /api/health — `vault_enabled` (P5.T8, additive) tells the caller
+ * whether the server currently accepts `retain=1` on POST /api/upload,
+ * before ever offering the checkbox for it. Cheap, unauthenticated, safe
+ * to fetch alongside getIndustries() on the analyze flow's mount. */
+export function getHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>(
+    "/api/health",
+    { method: "GET" },
+    DEFAULT_TIMEOUT_MS,
   );
 }
 

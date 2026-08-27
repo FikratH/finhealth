@@ -138,8 +138,12 @@ def save_upload(data: bytes, kind: str, *, retain: bool = False,
     owning user and original filename, so `POST /api/extract` — a separate
     request, minutes apart, that only receives `upload_id` — can look up
     "was retention requested, and by whom" without any other state. The
-    sidecar is swept by the exact same `delete_upload`/`cleanup_stale_uploads`
-    glob (`{upload_id}.*`) as the document itself, so it never outlives it."""
+    sidecar never outlives the document: `delete_upload`'s `{upload_id}.*`
+    glob picks it up alongside the document itself, and — belt and braces —
+    `cleanup_stale_uploads`'s independent mechanism (a plain
+    `UPLOAD_DIR.iterdir()` + per-file mtime check, not a glob at all) sweeps
+    it too once it's past the 15-minute TTL, the same as any other file in
+    the directory."""
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     upload_id = uuid.uuid4().hex
     path = UPLOAD_DIR / f"{upload_id}.{kind}"
@@ -180,7 +184,13 @@ def read_upload_retain_meta(upload_id: str) -> Optional[dict]:
     meta_path = UPLOAD_DIR / f"{upload_id}{_RETAIN_META_SUFFIX}"
     try:
         return json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        # UnicodeDecodeError is a ValueError, but a *sibling* of
+        # json.JSONDecodeError, not a parent — read_text(encoding="utf-8")
+        # raises it directly on a sidecar containing invalid UTF-8, so it
+        # needs its own name here, not coverage-by-accident. Matches
+        # app/services/vault.py's LocalDiskVault._read_meta and R2Vault's
+        # own identical catch.
         return None
 
 

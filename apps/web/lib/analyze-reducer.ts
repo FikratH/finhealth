@@ -52,6 +52,13 @@ export interface AnalyzeState {
    * always starts from the privacy default (off), never inherits the
    * previous document's choice. */
   retain: boolean;
+  /** GET /api/health's `vault_enabled` (P5.T8) — whether the server
+   * currently accepts `retain=1` at all. Starts false (fail-closed: the
+   * checkbox stays hidden) and flips true once the mount-time health fetch
+   * resolves; a failed/slow health check just leaves it false rather than
+   * ever showing a control the server would 503. Gates UploadStep's
+   * checkbox alongside `signedIn` — see analyze-flow.tsx. */
+  vaultEnabled: boolean;
   error: AnalyzeError | null;
   analysisId: string | null;
 }
@@ -73,6 +80,7 @@ export function initialAnalyzeState(): AnalyzeState {
     currency: "",
     audited: false,
     retain: false,
+    vaultEnabled: false,
     error: null,
     analysisId: null,
   };
@@ -80,6 +88,7 @@ export function initialAnalyzeState(): AnalyzeState {
 
 export type AnalyzeAction =
   | { type: "industries_loaded"; industries: Industry[] }
+  | { type: "vault_enabled_loaded"; vaultEnabled: boolean }
   | { type: "file_selected"; file: File }
   | { type: "file_cleared" }
   | { type: "industry_selected"; industry: string }
@@ -146,6 +155,9 @@ export function analyzeReducer(state: AnalyzeState, action: AnalyzeAction): Anal
   switch (action.type) {
     case "industries_loaded":
       return { ...state, industries: action.industries };
+
+    case "vault_enabled_loaded":
+      return { ...state, vaultEnabled: action.vaultEnabled };
 
     case "file_selected":
       return { ...state, file: action.file, error: null };

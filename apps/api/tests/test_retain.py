@@ -214,3 +214,16 @@ def test_retain_absent_anonymous_default_delete_unchanged():
     ex = client.post("/api/extract", json={"upload_id": upload_id})
     assert ex.status_code == 200, ex.text
     assert storage.read_upload(upload_id) is None
+
+
+def test_read_upload_retain_meta_survives_invalid_utf8_sidecar():
+    """A corrupt (invalid-UTF-8) retain sidecar must degrade to "not
+    retained," never raise — read_upload_retain_meta's own docstring
+    promises "never raises," and UnicodeDecodeError is a sibling of
+    json.JSONDecodeError (both ValueError), not covered by it."""
+    upload_id = "a" * 32  # any well-formed (hex, 32-char) upload_id
+    storage.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    meta_path = storage.UPLOAD_DIR / f"{upload_id}.retain.json"
+    meta_path.write_bytes(b"\xff\xfe not valid utf-8")
+
+    assert storage.read_upload_retain_meta(upload_id) is None

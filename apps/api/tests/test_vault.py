@@ -10,7 +10,7 @@ import pytest
 from moto import mock_aws
 
 from app.services import vault
-from app.services.vault import LocalDiskVault, R2Vault, VaultPathError
+from app.services.vault import LocalDiskVault, R2Vault, VaultBackendError, VaultPathError
 
 
 # --------------------------------------------------------------------------
@@ -156,6 +156,15 @@ def test_list_rejects_unsafe_user_id(store):
         store.list_for_user("../escape")
 
 
+@pytest.mark.parametrize("bad_kind", ["../escape", "csv/../../etc", "a/b", ".."])
+def test_put_rejects_unsafe_kind(store, bad_kind):
+    """`kind` is the other half of every path/key this module builds
+    (`f"{doc_id}.{kind}"`) — validated the same as user_id/doc_id, per the
+    module's own "validated anyway, not trusted by provenance" stance."""
+    with pytest.raises(VaultPathError):
+        store.put("doc1", b"data", bad_kind, "user-a")
+
+
 def test_local_vault_put_does_not_escape_base_dir(tmp_path):
     """Concrete proof for the local backend: even if validation were
     somehow bypassed, nothing under base_dir's parent gets touched. Here we
@@ -210,3 +219,134 @@ def test_get_vault_selects_r2_when_fully_configured(monkeypatch):
     monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
     store = vault.get_vault()
     assert isinstance(store, R2Vault)
+
+
+# --------------------------------------------------------------------------
+# get_vault() caching (Finding 4): the same config must not rebuild a
+# fresh boto3 client (or a fresh LocalDiskVault) on every call.
+# --------------------------------------------------------------------------
+
+def test_get_vault_returns_the_same_local_instance_across_calls(monkeypatch, tmp_path):
+    monkeypatch.setattr(vault, "DEFAULT_VAULT_DIR", tmp_path / "vault")
+    first = vault.get_vault()
+    second = vault.get_vault()
+    assert first is second
+
+
+def test_get_vault_returns_a_fresh_instance_when_the_local_dir_changes(monkeypatch, tmp_path):
+    monkeypatch.setattr(vault, "DEFAULT_VAULT_DIR", tmp_path / "a")
+    first = vault.get_vault()
+    monkeypatch.setattr(vault, "DEFAULT_VAULT_DIR", tmp_path / "b")
+    second = vault.get_vault()
+    assert first is not second
+
+
+def test_get_vault_returns_the_same_r2_instance_and_client_across_calls(monkeypatch):
+    monkeypatch.setenv("R2_BUCKET", "b")
+    monkeypatch.setenv("R2_ACCOUNT_ID", "acct")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "key")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
+    first = vault.get_vault()
+    second = vault.get_vault()
+    assert first is second
+    assert first._client is second._client  # the expensive part never rebuilds
+
+
+def test_get_vault_returns_a_fresh_r2_instance_when_credentials_change(monkeypatch):
+    monkeypatch.setenv("R2_BUCKET", "b")
+    monkeypatch.setenv("R2_ACCOUNT_ID", "acct")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "key-one")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
+    first = vault.get_vault()
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "key-two")
+    second = vault.get_vault()
+    assert first is not second
+
+
+# --------------------------------------------------------------------------
+# R2Vault: a non-404 ClientError becomes VaultBackendError, never a raw
+# botocore exception (Finding 3's root cause, one layer down).
+# --------------------------------------------------------------------------
+
+class _FailingS3Client:
+    """A stand-in for a boto3 S3 client that always fails with a real
+    (non-404) service error — simulates bad credentials, a missing bucket,
+    or an outage without needing a live R2 account."""
+
+    def __init__(self, code: str = "AccessDenied"):
+        from botocore.exceptions import ClientError
+        self._error = ClientError(
+            {"Error": {"Code": code, "Message": "nope"}}, "GetObject")
+
+    def get_object(self, **kwargs):
+        raise self._error
+
+    def put_object(self, **kwargs):
+        raise self._error
+
+    def delete_object(self, **kwargs):
+        raise self._error
+
+    def get_paginator(self, name):
+        error = self._error
+
+        class _Paginator:
+            def paginate(self, **kwargs):
+                raise error
+
+        return _Paginator()
+
+
+def _r2_with_failing_client() -> R2Vault:
+    store = R2Vault(bucket="b", endpoint_url="https://example.test",
+                    access_key_id="k", secret_access_key="s")
+    store._client = _FailingS3Client()
+    return store
+
+
+def test_r2_get_raises_vault_backend_error_on_non_404_client_error():
+    store = _r2_with_failing_client()
+    with pytest.raises(VaultBackendError):
+        store.get("doc1", "user-a")
+
+
+def test_r2_put_raises_vault_backend_error_on_non_404_client_error():
+    store = _r2_with_failing_client()
+    with pytest.raises(VaultBackendError):
+        store.put("doc1", b"data", "csv", "user-a")
+
+
+def test_r2_delete_raises_vault_backend_error_when_lookup_fails():
+    store = _r2_with_failing_client()
+    with pytest.raises(VaultBackendError):
+        store.delete("doc1", "user-a")
+
+
+def test_r2_list_for_user_raises_vault_backend_error_on_non_404_client_error():
+    store = _r2_with_failing_client()
+    with pytest.raises(VaultBackendError):
+        store.list_for_user("user-a")
+
+
+def test_r2_get_returns_none_on_genuine_404_not_vault_backend_error():
+    """The existing not-found path must still be silent — only a REAL
+    backend error becomes VaultBackendError."""
+    store = R2Vault(bucket="b", endpoint_url="https://example.test",
+                    access_key_id="k", secret_access_key="s")
+    store._client = _FailingS3Client(code="NoSuchKey")
+    assert store.get("doc1", "user-a") is None
+
+
+# --------------------------------------------------------------------------
+# LocalDiskVault: UnicodeDecodeError parity with R2Vault's _read_meta.
+# --------------------------------------------------------------------------
+
+def test_local_vault_read_meta_survives_invalid_utf8_sidecar(tmp_path):
+    store = LocalDiskVault(base_dir=tmp_path / "vault")
+    store.put("doc1", b"data", "csv", "user-a")
+    meta_path = tmp_path / "vault" / "user-a" / "doc1.meta.json"
+    meta_path.write_bytes(b"\xff\xfe not valid utf-8 json")
+
+    assert store.get("doc1", "user-a") is None
+    assert store.list_for_user("user-a") == []
+    assert store.delete("doc1", "user-a") is False

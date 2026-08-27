@@ -41,6 +41,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,9 +56,20 @@ _META_SUFFIX = ".meta.json"
 
 
 class VaultPathError(ValueError):
-    """A `user_id`/`doc_id` failed path-safety validation. Always treat as
-    "not found" at the HTTP boundary — never let the raw exception surface,
-    and never distinguish it from a genuine miss (see main.py's handlers)."""
+    """A `user_id`/`doc_id`/`kind` failed path-safety validation. Always
+    treat as "not found" at the HTTP boundary — never let the raw exception
+    surface, and never distinguish it from a genuine miss (see main.py's
+    handlers)."""
+
+
+class VaultBackendError(Exception):
+    """A vault backend operation failed for a reason that isn't "not
+    found" — e.g. R2/S3 returned a real error (bad credentials, missing
+    bucket, throttling, an outage). Distinct from `VaultPathError` (a
+    caller-side validation failure): this is the storage medium itself
+    misbehaving. Callers should treat it as "vault temporarily
+    unavailable" and never let the underlying cause reach the client (see
+    main.py's `/api/my/documents` handlers)."""
 
 
 def _safe_component(value: str) -> bool:
@@ -72,11 +84,19 @@ def _safe_component(value: str) -> bool:
     return all(c.isalnum() or c in "-_" for c in value)
 
 
-def _require_safe(user_id: str, doc_id: Optional[str] = None) -> None:
+def _require_safe(user_id: str, doc_id: Optional[str] = None, kind: Optional[str] = None) -> None:
     if not _safe_component(user_id):
         raise VaultPathError("unsafe user_id")
     if doc_id is not None and not _safe_component(doc_id):
         raise VaultPathError("unsafe doc_id")
+    # `kind` is the other half of every filename/key this module builds
+    # (`f"{doc_id}.{kind}"`) — safe today by provenance alone (main.py's
+    # `_detect_kind` only ever returns "pdf"/"xlsx"/"xls"/"csv"), but this
+    # module's own stance is "validated anyway, not trusted by provenance"
+    # (see the module docstring), so `kind` gets the same treatment as the
+    # two components already covered.
+    if kind is not None and not _safe_component(kind):
+        raise VaultPathError("unsafe kind")
 
 
 def _now_iso() -> str:
@@ -129,12 +149,17 @@ class LocalDiskVault:
         try:
             raw = json.loads(meta_path.read_text(encoding="utf-8"))
             return VaultDocument(**raw)
-        except (OSError, json.JSONDecodeError, TypeError):
+        except (OSError, json.JSONDecodeError, TypeError, UnicodeDecodeError):
+            # UnicodeDecodeError is a ValueError, but a *sibling* of
+            # json.JSONDecodeError, not a parent — read_text(encoding="utf-8")
+            # raises it directly on a sidecar containing invalid UTF-8, so it
+            # needs its own name in this tuple, not coverage-by-accident.
+            # Matches R2Vault._read_meta's identical catch below.
             return None
 
     def put(self, doc_id: str, data: bytes, kind: str, user_id: str,
             filename: str = "") -> VaultDocument:
-        _require_safe(user_id, doc_id)
+        _require_safe(user_id, doc_id, kind)
         user_dir = self._user_dir(user_id, create=True)
         (user_dir / f"{doc_id}.{kind}").write_bytes(data)
         doc = VaultDocument(doc_id=doc_id, user_id=user_id, kind=kind,
@@ -205,7 +230,7 @@ class R2Vault:
         )
 
     def _data_key(self, user_id: str, doc_id: str, kind: str) -> str:
-        _require_safe(user_id, doc_id)
+        _require_safe(user_id, doc_id, kind)
         return f"{user_id}/{doc_id}.{kind}"
 
     def _meta_key(self, user_id: str, doc_id: str) -> str:
@@ -220,7 +245,12 @@ class R2Vault:
             code = e.response.get("Error", {}).get("Code")
             if code in ("NoSuchKey", "404"):
                 return None
-            raise
+            # A real backend failure (bad credentials, missing bucket,
+            # throttling, an outage) — never let the raw ClientError (or
+            # anything about the underlying cause) reach a caller; translate
+            # to the one vault-level "something's wrong with the backend"
+            # signal every call site already knows to handle.
+            raise VaultBackendError(str(e)) from e
 
     def _read_meta(self, user_id: str, doc_id: str) -> Optional[VaultDocument]:
         resp = self._get_object_or_none(self._meta_key(user_id, doc_id))
@@ -234,15 +264,19 @@ class R2Vault:
 
     def put(self, doc_id: str, data: bytes, kind: str, user_id: str,
             filename: str = "") -> VaultDocument:
+        from botocore.exceptions import ClientError
         doc = VaultDocument(doc_id=doc_id, user_id=user_id, kind=kind,
                             filename=filename, size_bytes=len(data),
                             created_at=_now_iso())
-        self._client.put_object(
-            Bucket=self._bucket, Key=self._data_key(user_id, doc_id, kind), Body=data)
-        self._client.put_object(
-            Bucket=self._bucket, Key=self._meta_key(user_id, doc_id),
-            Body=json.dumps(asdict(doc), ensure_ascii=False).encode("utf-8"),
-            ContentType="application/json")
+        try:
+            self._client.put_object(
+                Bucket=self._bucket, Key=self._data_key(user_id, doc_id, kind), Body=data)
+            self._client.put_object(
+                Bucket=self._bucket, Key=self._meta_key(user_id, doc_id),
+                Body=json.dumps(asdict(doc), ensure_ascii=False).encode("utf-8"),
+                ContentType="application/json")
+        except ClientError as e:
+            raise VaultBackendError(str(e)) from e
         return doc
 
     def get(self, doc_id: str, user_id: str) -> Optional[tuple[bytes, VaultDocument]]:
@@ -255,19 +289,28 @@ class R2Vault:
         return resp["Body"].read(), doc
 
     def delete(self, doc_id: str, user_id: str) -> bool:
+        from botocore.exceptions import ClientError
         doc = self._read_meta(user_id, doc_id)
         if doc is None:
             return False
-        self._client.delete_object(Bucket=self._bucket, Key=self._data_key(user_id, doc_id, doc.kind))
-        self._client.delete_object(Bucket=self._bucket, Key=self._meta_key(user_id, doc_id))
+        try:
+            self._client.delete_object(Bucket=self._bucket, Key=self._data_key(user_id, doc_id, doc.kind))
+            self._client.delete_object(Bucket=self._bucket, Key=self._meta_key(user_id, doc_id))
+        except ClientError as e:
+            raise VaultBackendError(str(e)) from e
         return True
 
     def list_for_user(self, user_id: str) -> list[VaultDocument]:
+        from botocore.exceptions import ClientError
         _require_safe(user_id)
         docs = []
         prefix = f"{user_id}/"
         paginator = self._client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix):
+        try:
+            pages = list(paginator.paginate(Bucket=self._bucket, Prefix=prefix))
+        except ClientError as e:
+            raise VaultBackendError(str(e)) from e
+        for page in pages:
             for obj in page.get("Contents", []):
                 key = obj["Key"]
                 if not key.endswith(_META_SUFFIX):
@@ -294,27 +337,61 @@ def vault_enabled() -> bool:
     return _env_bool("VAULT_ENABLED")
 
 
+# get_vault() is called fresh on every request that touches the vault
+# (there's no FastAPI-dependency-level caching) — without a cache, that
+# meant a brand-new boto3.client("s3", ...) (session creation, endpoint
+# resolution, credential-chain traversal) on every single list/delete/
+# retain once R2 is configured. Keyed by whatever actually determines
+# identity for each backend (the four R2 values, or DEFAULT_VAULT_DIR for
+# local disk — read fresh from the module global each call, same as
+# get_vault() always has, so the call-time-lookup property conftest.py
+# depends on for test isolation is unaffected: a monkeypatched
+# DEFAULT_VAULT_DIR changes the cache key, which simply misses and builds
+# a fresh (correctly-scoped) LocalDiskVault rather than returning a stale
+# cached one). Mirrors storage.py's `_engine_cache` pattern.
+_vault_cache: dict[tuple, "VaultStore"] = {}
+_vault_cache_lock = threading.Lock()
+
+
 def get_vault() -> VaultStore:
     """Selects the active backend: `R2Vault` when all four `R2_*` env vars
     are present, `LocalDiskVault` otherwise. A partially-configured
     environment (e.g. `R2_BUCKET` set but not the credentials) falls back to
     `LocalDiskVault` rather than constructing a client that would fail on
     first use — R2Vault is UNTESTED-LIVE, so failing soft here matters more
-    than failing loud."""
+    than failing loud. The selected instance (and, for `R2Vault`, its boto3
+    client) is cached per distinct configuration — see `_vault_cache`'s own
+    comment — rather than rebuilt on every call."""
     bucket = os.environ.get("R2_BUCKET")
     account_id = os.environ.get("R2_ACCOUNT_ID")
     access_key = os.environ.get("R2_ACCESS_KEY_ID")
     secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
     if bucket and account_id and access_key and secret_key:
-        return R2Vault(
-            bucket=bucket,
-            endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
-            access_key_id=access_key, secret_access_key=secret_key,
-        )
-    # `base_dir=DEFAULT_VAULT_DIR` is a call-time lookup of the module
-    # global, not `LocalDiskVault()`'s own bind-at-import-time default —
-    # deliberately, so tests can `monkeypatch.setattr(vault,
-    # "DEFAULT_VAULT_DIR", tmp_path)` and have it actually take effect here
-    # (a bare `LocalDiskVault()` would keep resolving to the original path
-    # baked into the class's default argument at module-import time).
-    return LocalDiskVault(base_dir=DEFAULT_VAULT_DIR)
+        cache_key = ("r2", bucket, account_id, access_key, secret_key)
+    else:
+        # `base_dir=DEFAULT_VAULT_DIR` is a call-time lookup of the module
+        # global, not `LocalDiskVault()`'s own bind-at-import-time default —
+        # deliberately, so tests can `monkeypatch.setattr(vault,
+        # "DEFAULT_VAULT_DIR", tmp_path)` and have it actually take effect
+        # here (a bare `LocalDiskVault()` would keep resolving to the
+        # original path baked into the class's default argument at
+        # module-import time).
+        cache_key = ("local", str(DEFAULT_VAULT_DIR))
+
+    cached = _vault_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    with _vault_cache_lock:
+        cached = _vault_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        if cache_key[0] == "r2":
+            instance: VaultStore = R2Vault(
+                bucket=bucket,
+                endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+                access_key_id=access_key, secret_access_key=secret_key,
+            )
+        else:
+            instance = LocalDiskVault(base_dir=DEFAULT_VAULT_DIR)
+        _vault_cache[cache_key] = instance
+        return instance

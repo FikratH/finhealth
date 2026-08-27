@@ -265,6 +265,17 @@ describe("analyzeReducer", () => {
     expect(state.industry).toBe("manufacturing");
   });
 
+  it("vaultEnabled defaults to false (fail-closed) and is set by vault_enabled_loaded", () => {
+    const initial = initialAnalyzeState();
+    expect(initial.vaultEnabled).toBe(false);
+
+    const enabled = analyzeReducer(initial, { type: "vault_enabled_loaded", vaultEnabled: true });
+    expect(enabled.vaultEnabled).toBe(true);
+
+    const disabled = analyzeReducer(enabled, { type: "vault_enabled_loaded", vaultEnabled: false });
+    expect(disabled.vaultEnabled).toBe(false);
+  });
+
   it("retain defaults to false and is toggled by retain_changed", () => {
     const initial = initialAnalyzeState();
     expect(initial.retain).toBe(false);

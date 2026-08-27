@@ -25,6 +25,12 @@ export interface UploadStepProps {
   uploadPhase: UploadPhase;
   error: AnalyzeError | null;
   retain: boolean;
+  /** GET /api/health's `vault_enabled` (P5.T8) — whether the server
+   * currently accepts `retain=1` at all. The checkbox renders only when
+   * this AND signedIn are both true, so a signed-in user in the default
+   * (vault-disabled) configuration never sees a control that would 503 the
+   * whole upload — see analyze-flow.tsx for where this is fetched. */
+  vaultEnabled: boolean;
   onFileSelected: (file: File) => void;
   onFileCleared: () => void;
   onIndustryChange: (industry: string) => void;
@@ -44,6 +50,7 @@ export function UploadStep({
   uploadPhase,
   error,
   retain,
+  vaultEnabled,
   onFileSelected,
   onFileCleared,
   onIndustryChange,
@@ -205,13 +212,18 @@ export function UploadStep({
       </div>
 
       {/* Opt-in document retention (P5.T7) — visible ONLY when signed in
-       * (default off, matching the product's privacy default — see
-       * PRODUCT.md). Same instrument switch grammar as DocumentControls'
-       * `audited` toggle: a visually-hidden native checkbox driving a
-       * bezelled track + LED thumb via the peer pattern, so behavior and
-       * screen-reader semantics stay on the real control while the visible
-       * focus ring lands on its decorative sibling. */}
-      {signedIn && (
+       * AND the server actually offers retention (P5.T8's vaultEnabled
+       * capability signal: without this second condition, a signed-in
+       * user in the default vault-disabled configuration could tick the
+       * box and 503 the whole upload — see analyze-flow.tsx for where
+       * vaultEnabled is fetched). Default off either way, matching the
+       * product's privacy default — see PRODUCT.md. Same instrument switch
+       * grammar as DocumentControls' `audited` toggle: a visually-hidden
+       * native checkbox driving a bezelled track + LED thumb via the peer
+       * pattern, so behavior and screen-reader semantics stay on the real
+       * control while the visible focus ring lands on its decorative
+       * sibling. */}
+      {signedIn && vaultEnabled && (
         <div className="grid-paper space-y-2 border border-line bg-panel p-4">
           <label htmlFor={retainId} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
             <span className="relative inline-flex h-4 w-8 shrink-0 items-center border border-line bg-panel">

@@ -22,7 +22,14 @@ def _upload_and_extract():
 
 
 def test_health():
-    assert client.get("/api/health").json() == {"status": "ok"}
+    # `vault_enabled` (additive, P5.T8) — off by default, matching
+    # VAULT_ENABLED unset in conftest.py's autouse isolation fixture.
+    assert client.get("/api/health").json() == {"status": "ok", "vault_enabled": False}
+
+
+def test_health_reflects_vault_enabled(monkeypatch):
+    monkeypatch.setenv("VAULT_ENABLED", "1")
+    assert client.get("/api/health").json() == {"status": "ok", "vault_enabled": True}
 
 
 def test_industries_list():

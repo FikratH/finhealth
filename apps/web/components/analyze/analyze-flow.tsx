@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useLocale } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { analyze, extract, getIndustries, uploadFile } from "@/lib/api";
+import { analyze, extract, getHealth, getIndustries, uploadFile } from "@/lib/api";
 import {
   analyzeReducer,
   buildAnalysisRequest,
@@ -36,6 +36,20 @@ export function AnalyzeFlow() {
       })
       .catch((err) => {
         if (!cancelled) dispatch({ type: "upload_failed", error: toAnalyzeError(err, "errors.network") });
+      });
+    // Fetched alongside industries (not after — no waterfall), but kept on
+    // its own independent promise chain: whether the vault-availability
+    // check succeeds, fails, or is slow must never block or error out the
+    // industries load or the rest of the flow. A failed/slow check simply
+    // leaves state.vaultEnabled at its fail-closed default (false) — the
+    // retain checkbox in UploadStep stays hidden, which is the safe
+    // direction (see analyze-reducer.ts's own comment on the field).
+    getHealth()
+      .then((res) => {
+        if (!cancelled) dispatch({ type: "vault_enabled_loaded", vaultEnabled: res.vault_enabled });
+      })
+      .catch(() => {
+        // Silently ignored — see the comment above.
       });
     return () => {
       cancelled = true;
@@ -102,6 +116,7 @@ export function AnalyzeFlow() {
             uploadPhase={state.uploadPhase}
             error={state.error}
             retain={state.retain}
+            vaultEnabled={state.vaultEnabled}
             onFileSelected={(file) => dispatch({ type: "file_selected", file })}
             onFileCleared={() => dispatch({ type: "file_cleared" })}
             onIndustryChange={(industry) => dispatch({ type: "industry_selected", industry })}

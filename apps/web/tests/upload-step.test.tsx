@@ -22,6 +22,7 @@ function renderStep(overrides: Partial<React.ComponentProps<typeof UploadStep>> 
         uploadPhase="idle"
         error={null}
         retain={false}
+        vaultEnabled={true}
         onFileSelected={vi.fn()}
         onFileCleared={vi.fn()}
         onIndustryChange={vi.fn()}
@@ -86,5 +87,24 @@ describe("UploadStep — retain checkbox", () => {
 
     const checkbox = screen.getByRole("checkbox", { name: ruMessages.Analyze.upload.retainLabel });
     expect(checkbox).toBeDisabled();
+  });
+
+  // P5.T8, Finding 1's fix: signedIn alone is not enough — the server must
+  // also report vault_enabled (GET /api/health), or a signed-in user in the
+  // default (vault-disabled) configuration could tick the box and 503 the
+  // whole upload.
+  it("signed-in but the server doesn't offer retention (vaultEnabled=false): the checkbox is absent", () => {
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+    renderStep({ vaultEnabled: false });
+
+    expect(screen.queryByText(ruMessages.Analyze.upload.retainLabel)).not.toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.Analyze.upload.retainDisclosure)).not.toBeInTheDocument();
+  });
+
+  it("signed-out AND vaultEnabled=false: still absent (neither condition alone is sufficient)", () => {
+    useSession.mockReturnValue({ data: null, isPending: false });
+    renderStep({ vaultEnabled: false });
+
+    expect(screen.queryByText(ruMessages.Analyze.upload.retainLabel)).not.toBeInTheDocument();
   });
 });

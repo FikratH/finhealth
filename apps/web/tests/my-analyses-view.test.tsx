@@ -168,10 +168,14 @@ describe("MyAnalysesView", () => {
     // Reset to loading immediately — user-a's row is gone before user-b's
     // fetch has even resolved, not lingering until it does. Both the
     // analyses table and the documents section (P5.T7) share the same
-    // "Загрузка…" copy and both remount together, so this is now
-    // necessarily a multi-match query rather than a single one.
+    // "Загрузка…" copy and both remount together on the identity switch,
+    // so this is exactly two matches, not merely "at least one" — an
+    // assertion of ">0" would also pass if only the (separately-mocked,
+    // already-resolving) documents section were showing it, which would
+    // no longer prove the thing this test exists to guard: that the
+    // *analyses* section itself reset to loading.
     expect(screen.queryByText("Производство")).not.toBeInTheDocument();
-    expect(screen.getAllByText(ruMessages.My.loading).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(ruMessages.My.loading)).toHaveLength(2);
 
     resolveSecondFetch({ plan: "pro", analyses: otherUserFixture });
     expect(await screen.findByText("Строительство")).toBeInTheDocument();

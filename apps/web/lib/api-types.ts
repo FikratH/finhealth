@@ -15,6 +15,20 @@
 export type Scale = "units" | "thousands" | "millions" | "billions";
 
 // ---------------------------------------------------------------------------
+// GET /api/health
+// ---------------------------------------------------------------------------
+
+/** `vault_enabled` (P5.T8, additive): whether the server currently offers
+ * opt-in document retention — read before ever showing the retain checkbox
+ * (components/analyze/upload-step.tsx), so a signed-in user in the default
+ * (vault-disabled) configuration never sees a control that would 503 the
+ * whole upload. */
+export interface HealthResponse {
+  status: string;
+  vault_enabled: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/industries
 // ---------------------------------------------------------------------------
 

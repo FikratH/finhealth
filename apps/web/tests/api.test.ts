@@ -6,6 +6,7 @@ import {
   extract,
   generateNarrative,
   getAnalysis,
+  getHealth,
   getIndustries,
   getIndustryBenchmarks,
   uploadFile,
@@ -386,6 +387,17 @@ describe("lib/api", () => {
       const [, init] = vi.mocked(fetch).mock.calls[0];
       const body = init?.body as FormData;
       expect(body.has("retain")).toBe(false);
+    });
+
+    it("returns the health/vault_enabled response from getHealth()", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, { status: "ok", vault_enabled: true }));
+
+      const result = await getHealth();
+
+      expect(result).toEqual({ status: "ok", vault_enabled: true });
+      const [path, init] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/health");
+      expect(init?.method).toBe("GET");
     });
 
     it("returns the industries list", async () => {

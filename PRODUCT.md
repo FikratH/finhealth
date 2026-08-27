@@ -52,8 +52,10 @@ a key is present) only narrates around computed numbers.
 
 Statements arrive as RSBU/KZ-format PDF/XLSX/XLS/CSV (Наименование |
 Код | periods), RU-language labels, values in thousands KZT typically.
-Documents are deleted right after extraction (privacy default); only
-verified numbers persist. The verify step (user corrects extracted values)
+Documents are deleted right after extraction (privacy default), unless a
+signed-in user explicitly opts into retaining a copy in their personal
+vault (Phase 5); otherwise only verified numbers persist. The verify step
+(user corrects extracted values)
 is a mandatory part of the flow and a trust moment, not friction. Bilingual
 RU (source of truth, polished first) + EN (full quality).
 

@@ -23,13 +23,19 @@ export function isTranslationKey(message: string): boolean {
   return message.startsWith("errors.");
 }
 
-/** 413/415/422 carry an already-human backend detail; these keys point at
- * an additional next-step hint shown alongside it (relative to the
- * `Analyze.upload.hints` message namespace). */
+/** 413/415/422/503 carry an already-human backend detail; these keys point
+ * at an additional next-step hint shown alongside it (relative to the
+ * `Analyze.upload.hints` message namespace). 503 is P5.T8 defense-in-depth:
+ * UploadStep already hides the retain checkbox unless the server's
+ * `vault_enabled` capability signal says yes (see analyze-flow.tsx), but a
+ * race — the flag flips server-side between that check and this submit —
+ * can still land here, so the dead end gets a next-step hint instead of a
+ * bare "unavailable" message. */
 const HINT_KEY_BY_STATUS: Partial<Record<number, string>> = {
   413: "payloadTooLarge",
   415: "unsupportedType",
   422: "unprocessable",
+  503: "vaultUnavailable",
 };
 
 export function errorHintKey(status: number): string | null {

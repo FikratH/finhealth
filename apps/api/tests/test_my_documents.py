@@ -155,3 +155,36 @@ def test_list_and_delete_work_even_when_vault_disabled(monkeypatch):
 
     deleted = client.delete("/api/my/documents/d1", headers=_auth("user-a"))
     assert deleted.status_code == 200
+
+
+# --------------------------- VaultBackendError handling ---------------------
+# A real backend failure (R2 credentials, an outage) must never reach the
+# caller as a raw 500 — list degrades quietly to "no documents" (a read of
+# the user's own data, same posture as the VaultPathError branch above);
+# delete surfaces an honest 503 rather than silently claiming "not found"
+# or "deleted" for something that may still exist.
+
+class _BrokenVault:
+    def list_for_user(self, user_id):
+        raise vault.VaultBackendError("simulated R2 outage")
+
+    def delete(self, doc_id, user_id):
+        raise vault.VaultBackendError("simulated R2 outage")
+
+
+def test_list_degrades_to_empty_on_vault_backend_error(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(vault, "get_vault", lambda: _BrokenVault())
+
+    resp = client.get("/api/my/documents", headers=_auth("user-a"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"documents": []}
+
+
+def test_delete_returns_503_on_vault_backend_error(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(vault, "get_vault", lambda: _BrokenVault())
+
+    resp = client.delete("/api/my/documents/d1", headers=_auth("user-a"))
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["detail"]["code"] == "vault_unavailable"

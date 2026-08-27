@@ -65,7 +65,12 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
 
   return (
     <div className="space-y-6">
-      <SectionHeading level={3}>{t("heading")}</SectionHeading>
+      {/* Default level (h2), same as "Мои анализы" above — a peer section,
+       * not level={3}/h3 nested under it. Documents is its own section, and
+       * the shared parent <div> in my-analyses-view.tsx already puts the
+       * two side by side as siblings; the heading level should say so too,
+       * for anyone navigating this page by heading. */}
+      <SectionHeading>{t("heading")}</SectionHeading>
 
       {state === "loading" && (
         <p className="font-mono text-sm text-ink-muted">{t("loading")}</p>
