@@ -1,0 +1,503 @@
+{
+  "altman": {
+    "banking_note": "Модель Altman Z-Score не применима к банкам и финансовым организациям без отдельной адаптированной модели.",
+    "private": {
+      "formula": "0.717·(WC/TA) + 0.847·(RE/TA) + 3.107·(EBIT/TA) + 0.420·(BVE/TL) + 0.998·(Rev/TA)",
+      "name": "Altman Z′ (частная компания)",
+      "thresholds": {
+        "good": 2.9,
+        "grey": 1.23
+      }
+    },
+    "public": {
+      "formula": "1.2·(WC/TA) + 1.4·(RE/TA) + 3.3·(EBIT/TA) + 0.6·(MVE/TL) + 1.0·(Rev/TA)",
+      "name": "Altman Z (публичная модель)",
+      "thresholds": {
+        "good": 2.99,
+        "grey": 1.81
+      }
+    },
+    "x2_note": "Компонент X2 исключён (нераспределённая прибыль не извлекается); значение занижено."
+  },
+  "benchmarks": {
+    "band_method_note": "Отраслевые ориентиры (ratios с method=\"band-around-center-v1\") получены на основе публичных агрегированных данных Aswath Damodaran (NYU Stern), январь 2026; US Census Bureau QFR; SEC EDGAR financial statement data sets. Это не проценти́ли и не официальные нормативы — расчётные диапазоны вокруг средневзвешенного значения по отрасли, не одобренные и не проверенные указанными источниками. Часть показателей (method=\"demo\") по-прежнему остаётся демонстрационной и должна быть заменена проверенными данными в следующих итерациях (см. Tier 2/3 в docs/research/benchmark-sources.md).",
+    "per_industry": [
+      {
+        "demo_count": 9,
+        "id": "aerospace_defense",
+        "name": "Аэрокосмическая и оборонная промышленность",
+        "sourced_count": 15
+      },
+      {
+        "demo_count": 10,
+        "id": "banking",
+        "name": "Банки и финансовые услуги",
+        "sourced_count": 2
+      },
+      {
+        "demo_count": 9,
+        "id": "energy",
+        "name": "Энергетика, нефтегаз и коммунальные услуги",
+        "sourced_count": 15
+      },
+      {
+        "demo_count": 9,
+        "id": "healthcare",
+        "name": "Здравоохранение и фармацевтика",
+        "sourced_count": 15
+      },
+      {
+        "demo_count": 9,
+        "id": "manufacturing",
+        "name": "Производство",
+        "sourced_count": 15
+      },
+      {
+        "demo_count": 9,
+        "id": "realestate",
+        "name": "Недвижимость и строительство",
+        "sourced_count": 14
+      },
+      {
+        "demo_count": 9,
+        "id": "retail",
+        "name": "Розничная торговля и e-commerce",
+        "sourced_count": 15
+      },
+      {
+        "demo_count": 9,
+        "id": "saas",
+        "name": "Software и SaaS",
+        "sourced_count": 13
+      },
+      {
+        "demo_count": 9,
+        "id": "telecom",
+        "name": "Телекоммуникации",
+        "sourced_count": 14
+      },
+      {
+        "demo_count": 9,
+        "id": "transport",
+        "name": "Транспорт и логистика",
+        "sourced_count": 14
+      }
+    ],
+    "sources": [
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/pbvdata.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/pedata.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/roe.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/vebitda.html"
+      },
+      {
+        "as_of": "2026-01",
+        "source": "Damodaran (NYU Stern), Jan 2026",
+        "url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wcdata.html"
+      }
+    ]
+  },
+  "beneish": {
+    "formula": "M = -4.840 + 0.920·DSRI + 0.528·GMI + 0.404·AQI + 0.892·SGI + 0.115·DEPI - 0.172·SGAI - 0.327·LVGI + 4.679·TATA",
+    "indices": [
+      {
+        "coefficient": 0.92,
+        "key": "DSRI",
+        "name": "DSRI (индекс дебиторской задолженности к выручке)"
+      },
+      {
+        "coefficient": 0.528,
+        "key": "GMI",
+        "name": "GMI (индекс валовой маржи)"
+      },
+      {
+        "coefficient": 0.404,
+        "key": "AQI",
+        "name": "AQI (индекс качества активов)"
+      },
+      {
+        "coefficient": 0.892,
+        "key": "SGI",
+        "name": "SGI (индекс роста выручки)"
+      },
+      {
+        "coefficient": 0.115,
+        "key": "DEPI",
+        "name": "DEPI (индекс нормы амортизации)"
+      },
+      {
+        "coefficient": -0.172,
+        "key": "SGAI",
+        "name": "SGAI (индекс коммерческих и управленческих расходов)"
+      },
+      {
+        "coefficient": -0.327,
+        "key": "LVGI",
+        "name": "LVGI (индекс долговой нагрузки)"
+      },
+      {
+        "coefficient": 4.679,
+        "key": "TATA",
+        "name": "TATA (начисления к активам)"
+      }
+    ],
+    "intercept": -4.84,
+    "policy": {
+      "example_insufficient_disclosure": "M-Score Бениша не рассчитан: доступно 5 из 8 индексов (требуется минимум 6). Не удалось вычислить: SGAI (индекс коммерческих и управленческих расходов), LVGI (индекс долговой нагрузки), TATA (начисления к активам).",
+      "example_substituted_disclosure": "M-Score = -2.5112. Значение статистически ассоциируется с низкой вероятностью подобных паттернов в отчётности. Индексы без данных заменены нейтральным значением: LVGI (индекс долговой нагрузки).",
+      "min_available": 6,
+      "neutral_substitution": {
+        "AQI": 1.0,
+        "DEPI": 1.0,
+        "DSRI": 1.0,
+        "GMI": 1.0,
+        "LVGI": 1.0,
+        "SGAI": 1.0,
+        "SGI": 1.0,
+        "TATA": 0.0
+      },
+      "total_indices": 8
+    },
+    "thresholds": {
+      "grey": -2.22,
+      "high": -1.78
+    }
+  },
+  "category_labels": {
+    "cashflow": "Денежные потоки",
+    "efficiency": "Операционная эффективность",
+    "leverage": "Долговая нагрузка",
+    "liquidity": "Ликвидность",
+    "market": "Рыночная оценка",
+    "profitability": "Рентабельность"
+  },
+  "category_order": [
+    "liquidity",
+    "leverage",
+    "profitability",
+    "efficiency",
+    "cashflow",
+    "market"
+  ],
+  "confidence": {
+    "bonuses": {
+      "audited": 5.0,
+      "has_industry_benchmarks": 7.0,
+      "has_previous_period": 8.0
+    },
+    "weights": {
+      "data_completeness": 0.3,
+      "extraction_confidence": 0.3,
+      "ratio_coverage": 0.2
+    }
+  },
+  "generated_at": "2026-08-27T06:37:30.666321Z",
+  "generated_from": "e1712f3",
+  "health_bands": {
+    "bands": [
+      {
+        "label": "Критическое состояние",
+        "max": 25.0,
+        "min": 0.0
+      },
+      {
+        "label": "Слабое состояние",
+        "max": 45.0,
+        "min": 25.0
+      },
+      {
+        "label": "Удовлетворительное состояние",
+        "max": 65.0,
+        "min": 45.0
+      },
+      {
+        "label": "Хорошее состояние",
+        "max": 80.0,
+        "min": 65.0
+      },
+      {
+        "label": "Сильное состояние",
+        "max": 100.0,
+        "min": 80.0
+      }
+    ],
+    "insufficient_data_label": "Недостаточно данных для оценки"
+  },
+  "piotroski": {
+    "bands": [
+      {
+        "label": "слабая",
+        "max": 0.45,
+        "min": 0.0
+      },
+      {
+        "label": "средняя",
+        "max": 0.75,
+        "min": 0.45
+      },
+      {
+        "label": "высокая",
+        "max": 1.0,
+        "min": 0.75
+      }
+    ],
+    "signals": [
+      {
+        "key": "roa_positive",
+        "name": "Положительная рентабельность активов"
+      },
+      {
+        "key": "cfo_positive",
+        "name": "Положительный операционный денежный поток"
+      },
+      {
+        "key": "roa_improved",
+        "name": "Рост рентабельности активов"
+      },
+      {
+        "key": "accruals",
+        "name": "Операционный денежный поток превышает чистую прибыль"
+      },
+      {
+        "key": "leverage_down",
+        "name": "Снижение долговой нагрузки"
+      },
+      {
+        "key": "liquidity_up",
+        "name": "Рост текущей ликвидности"
+      },
+      {
+        "key": "no_dilution",
+        "name": "Отсутствие размытия акций"
+      },
+      {
+        "key": "gross_margin_up",
+        "name": "Рост валовой рентабельности"
+      },
+      {
+        "key": "turnover_up",
+        "name": "Рост оборачиваемости активов"
+      }
+    ]
+  },
+  "ratios": [
+    {
+      "category": "efficiency",
+      "formula": "revenue / average_total_assets",
+      "key": "asset_turnover",
+      "name": "Asset Turnover",
+      "unit": "x"
+    },
+    {
+      "category": "cashflow",
+      "formula": "operating_cash_flow / net_income",
+      "key": "cash_conversion",
+      "name": "Cash Conversion",
+      "unit": "x"
+    },
+    {
+      "category": "liquidity",
+      "formula": "(cash + short_term_investments) / current_liabilities",
+      "key": "cash_ratio",
+      "name": "Cash Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "liquidity",
+      "formula": "current_assets / current_liabilities",
+      "key": "current_ratio",
+      "name": "Current Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "leverage",
+      "formula": "total_liabilities / total_assets",
+      "key": "debt_ratio",
+      "name": "Debt Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "leverage",
+      "formula": "total_debt / shareholders_equity",
+      "key": "debt_to_equity",
+      "name": "Debt-to-Equity",
+      "unit": "x"
+    },
+    {
+      "category": "profitability",
+      "formula": "EBITDA / revenue",
+      "key": "ebitda_margin",
+      "name": "EBITDA Margin",
+      "unit": "%"
+    },
+    {
+      "category": "market",
+      "formula": "market_capitalization + total_debt - cash",
+      "key": "ev",
+      "name": "Enterprise Value",
+      "unit": "money"
+    },
+    {
+      "category": "market",
+      "formula": "enterprise_value / EBITDA",
+      "key": "ev_ebitda",
+      "name": "EV/EBITDA",
+      "unit": "x"
+    },
+    {
+      "category": "cashflow",
+      "formula": "free_cash_flow / revenue",
+      "key": "fcf_margin",
+      "name": "FCF Margin",
+      "unit": "%"
+    },
+    {
+      "category": "cashflow",
+      "formula": "operating_cash_flow - capital_expenditures",
+      "key": "free_cash_flow",
+      "name": "Free Cash Flow",
+      "unit": "money"
+    },
+    {
+      "category": "profitability",
+      "formula": "gross_profit / revenue",
+      "key": "gross_margin",
+      "name": "Gross Margin",
+      "unit": "%"
+    },
+    {
+      "category": "leverage",
+      "formula": "EBIT / interest_expense",
+      "key": "interest_coverage",
+      "name": "Interest Coverage",
+      "unit": "x"
+    },
+    {
+      "category": "efficiency",
+      "formula": "cost_of_goods_sold / average_inventory",
+      "key": "inventory_turnover",
+      "name": "Inventory Turnover",
+      "unit": "x"
+    },
+    {
+      "category": "leverage",
+      "formula": "total_liabilities / shareholders_equity",
+      "key": "liabilities_to_equity",
+      "name": "Liabilities-to-Equity",
+      "unit": "x"
+    },
+    {
+      "category": "leverage",
+      "formula": "total_debt - cash",
+      "key": "net_debt",
+      "name": "Net Debt",
+      "unit": "money"
+    },
+    {
+      "category": "leverage",
+      "formula": "(total_debt - cash) / EBITDA",
+      "key": "net_debt_to_ebitda",
+      "name": "Net Debt / EBITDA",
+      "unit": "x"
+    },
+    {
+      "category": "profitability",
+      "formula": "net_income / revenue",
+      "key": "net_margin",
+      "name": "Net Profit Margin",
+      "unit": "%"
+    },
+    {
+      "category": "liquidity",
+      "formula": "operating_cash_flow / current_liabilities",
+      "key": "ocf_ratio",
+      "name": "Operating Cash Flow Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "profitability",
+      "formula": "operating_income / revenue",
+      "key": "operating_margin",
+      "name": "Operating Margin",
+      "unit": "%"
+    },
+    {
+      "category": "efficiency",
+      "formula": "cost_of_goods_sold / average_accounts_payable",
+      "key": "payables_turnover",
+      "name": "Payables Turnover",
+      "unit": "x"
+    },
+    {
+      "category": "market",
+      "formula": "market_capitalization / shareholders_equity",
+      "key": "pb",
+      "name": "P/B Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "market",
+      "formula": "market_capitalization / net_income",
+      "key": "pe",
+      "name": "P/E Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "liquidity",
+      "formula": "(cash + short_term_investments + accounts_receivable) / current_liabilities",
+      "key": "quick_ratio",
+      "name": "Quick Ratio",
+      "unit": "x"
+    },
+    {
+      "category": "efficiency",
+      "formula": "revenue / average_accounts_receivable",
+      "key": "receivables_turnover",
+      "name": "Receivables Turnover",
+      "unit": "x"
+    },
+    {
+      "category": "profitability",
+      "formula": "net_income / average_total_assets",
+      "key": "roa",
+      "name": "Return on Assets",
+      "unit": "%"
+    },
+    {
+      "category": "profitability",
+      "formula": "net_income / average_shareholders_equity",
+      "key": "roe",
+      "name": "Return on Equity",
+      "unit": "%"
+    }
+  ]
+}
