@@ -118,7 +118,7 @@ describe("AnalystNarrative", () => {
     expect(onUnavailable).toHaveBeenCalledOnce();
   });
 
-  it("on a non-503 failure (e.g. a transient 502 provider error), keeps the action visible for a retry rather than hiding permanently", async () => {
+  it("on a non-503 failure (e.g. a transient 502 provider error), keeps the action visible for a retry rather than hiding permanently, and shows a composed error line (fix-wave F4)", async () => {
     const onUnavailable = vi.fn();
     vi.mocked(generateNarrative).mockRejectedValueOnce(new ApiError(502, "narrative_failed"));
     renderNarrative(analysisFixture, onUnavailable);
@@ -134,5 +134,61 @@ describe("AnalystNarrative", () => {
       ).toBeInTheDocument();
     });
     expect(onUnavailable).not.toHaveBeenCalled();
+    // Distinct from the 503 case: this is a transient failure, not a
+    // designed absence, so it gets a visible, composed error line — never
+    // the raw API message ("narrative_failed").
+    expect(screen.getByText(ruMessages.Results.narrative.generateError)).toBeInTheDocument();
+    expect(screen.queryByText("narrative_failed")).not.toBeInTheDocument();
+  });
+
+  it("clears a prior error line once a retry succeeds", async () => {
+    vi.mocked(generateNarrative).mockRejectedValueOnce(new ApiError(502, "narrative_failed"));
+    vi.mocked(generateNarrative).mockResolvedValueOnce(narrativeFixture);
+    renderNarrative(analysisFixture);
+
+    const button = screen.getByRole("button", {
+      name: ruMessages.Results.narrative.generateButton,
+    });
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(screen.getByText(ruMessages.Results.narrative.generateError)).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Компания в устойчивом состоянии.")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText(ruMessages.Results.narrative.generateError),
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls onGenerated once a successful click swaps the button for prose, never on the initial cached-narrative render", async () => {
+    const onGeneratedOnMount = vi.fn();
+    const { unmount } = render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <AnalystNarrative
+          analysis={{ ...analysisFixture, narrative: narrativeFixture }}
+          locale="ru"
+          onGenerated={onGeneratedOnMount}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(onGeneratedOnMount).not.toHaveBeenCalled();
+    unmount();
+
+    const onGenerated = vi.fn();
+    vi.mocked(generateNarrative).mockResolvedValueOnce(narrativeFixture);
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <AnalystNarrative analysis={analysisFixture} locale="ru" onGenerated={onGenerated} />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
+    );
+    await waitFor(() => expect(onGenerated).toHaveBeenCalledOnce());
   });
 });

@@ -17,6 +17,13 @@ export interface AnalystNarrativeProps {
    * drop that chrome too, so a designed-absence 503 leaves nothing behind
    * at all, not even an empty rule. */
   onUnavailable?: () => void;
+  /** Called once a `generate` click swaps the button for real prose — lets
+   * a parent that already knows the *initial* state from
+   * `analysis.narrative` (results-document.tsx's own `narrativeHasContent`
+   * seed) track the one client-side transition that can add content after
+   * mount. Never fires on the initial cached-narrative render — the parent
+   * already accounted for that case in its own seed. */
+  onGenerated?: () => void;
 }
 
 type GenerateState = "idle" | "loading" | "unavailable";
@@ -29,19 +36,31 @@ type GenerateState = "idle" | "loading" | "unavailable";
 // this component collapses to rendering nothing — no error banner, no
 // retry prompt, no trace that the feature was ever offered. A deployment
 // without a key never shows this section past its own button click.
-export function AnalystNarrative({ analysis, locale, onUnavailable }: AnalystNarrativeProps) {
+export function AnalystNarrative({
+  analysis,
+  locale,
+  onUnavailable,
+  onGenerated,
+}: AnalystNarrativeProps) {
   const t = useTranslations("Results.narrative");
   const [narrative, setNarrative] = useState<NarrativeResult | undefined>(analysis.narrative);
   const [state, setState] = useState<GenerateState>("idle");
+  // A transient failure (502 provider error, network/timeout) — distinct
+  // from `state === "unavailable"`'s permanent 503 collapse. Cleared at the
+  // start of every generate attempt so a second click's own outcome is
+  // never shown alongside a stale message from the first.
+  const [error, setError] = useState(false);
 
   if (state === "unavailable") return null;
 
   async function handleGenerate() {
     setState("loading");
+    setError(false);
     try {
       const result = await generateNarrative(analysis.analysis_id);
       setNarrative(result);
       setState("idle");
+      onGenerated?.();
     } catch (err) {
       if (err instanceof ApiError && err.status === 503) {
         // The designed-absence path: no key configured server-side, so the
@@ -51,9 +70,12 @@ export function AnalystNarrative({ analysis, locale, onUnavailable }: AnalystNar
         return;
       }
       // Any other failure (502 provider error, network/timeout) is
-      // transient rather than structural — quietly back to the action so
-      // the reader can try again, still no error banner.
+      // transient rather than structural — back to the action so the
+      // reader can retry, but with a visible composed error line now
+      // (not silent: a 503's total invisibility is a designed absence,
+      // this isn't).
       setState("idle");
+      setError(true);
     }
   }
 
@@ -61,6 +83,7 @@ export function AnalystNarrative({ analysis, locale, onUnavailable }: AnalystNar
     return (
       <section className="space-y-4 print:hidden">
         <SectionHeading>{t("heading")}</SectionHeading>
+        {error && <p className="text-sm text-critical">{t("generateError")}</p>}
         <Button
           type="button"
           variant="outline"
