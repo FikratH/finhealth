@@ -394,7 +394,8 @@
     },
     "heading": "Methodology",
     "lede": "This document is generated automatically from the engine's own source code — every formula, threshold, and source below matches exactly what Tonus computes, not a hand-copied summary.",
-    "generatedNote": "Generated from the engine's code, commit {sha}.",
+    "generatedNote": "Generated from the engine's code.",
+    "generatedCommitChip": "Commit {sha}",
     "ratios": {
       "heading": "Ratio formulas",
       "unitX": "ratio",

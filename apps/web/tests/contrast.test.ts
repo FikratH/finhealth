@@ -40,6 +40,13 @@ const MONITOR_PAIRS: Array<[name: string, fg: string, bg: string]> = [
   ["critical (LED) on ground", "#ff4a3a", MONITOR_GROUND],
   ["ink on panel", "#e6edf0", MONITOR_PANEL],
   ["ink-muted on panel", "#7c8a92", MONITOR_PANEL],
+  // Status-LED text/glyphs on the panel bezel — error.tsx's ✕, a future
+  // status readout on a bezel surface rather than bare ground. Computed
+  // directly (not eyeballed): critical 5.54:1, good 10.64:1, attention
+  // 10.11:1, all clearing 4.5:1 with room to spare.
+  ["critical (LED) on panel", "#ff4a3a", MONITOR_PANEL],
+  ["good (LED) on panel", "#33e07a", MONITOR_PANEL],
+  ["attention (LED) on panel", "#ffb020", MONITOR_PANEL],
 ];
 
 const PAPER_GROUND = "#fbfaf7";

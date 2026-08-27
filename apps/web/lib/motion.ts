@@ -82,13 +82,14 @@ export function usePrefersReducedMotion(): boolean {
  * "instant state" stays instant at every step.
  *
  * Elements should render with `[attribute]="true"` (already lit) by
- * default — the SSR/no-JS baseline, same discipline as ScoreDial's arc
- * (see score-dial.tsx): a crawler or no-JS visitor always sees the
- * finished state, never an empty one. Call this from a layout-timed effect
- * (`useGSAP`, not a plain `useEffect`) so the reset-to-off-then-cascade
- * happens before the browser's first paint — exactly how
- * results-document.tsx's load-time timeline draws ScoreDial's arc from 0
- * without a visible flash of the final state first.
+ * default — the SSR/no-JS baseline, same discipline as the score
+ * SegmentDisplay's own ignition cascade (score-header.tsx): a crawler or
+ * no-JS visitor always sees the finished state, never an empty one. Call
+ * this from a layout-timed effect (`useGSAP`, not a plain `useEffect`) so
+ * the reset-to-off-then-cascade happens before the browser's first paint —
+ * exactly how results-document.tsx's load-time timeline drives that
+ * ignition from an unlit state without a visible flash of the final state
+ * first.
  *
  * Reduced motion: every target is set lit immediately and synchronously,
  * no timeline is created, and this returns `null` — "instruments simply

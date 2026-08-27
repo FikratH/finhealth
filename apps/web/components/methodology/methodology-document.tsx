@@ -45,12 +45,18 @@ export function MethodologyDocument({ locale }: MethodologyDocumentProps) {
       <header className="space-y-4 border-b-2 border-ink pb-6">
         <h1 className="font-display text-3xl text-ink sm:text-4xl">{t("heading")}</h1>
         <p className="max-w-3xl text-ink-muted">{t("lede")}</p>
-        {/* The document's own provenance marker, same origin-ticket idiom
-         * as every other "where did this come from" sticker in the world
-         * (visible seams raise) — a single chip at the document's own
-         * anchor, not repeated per-row through the dense reference tables
-         * below (Read mode: comprehension first). */}
-        <OriginTicket>{t("generatedNote", { sha: data.generated_from })}</OriginTicket>
+        {/* The document's own provenance marker: a short origin-ticket
+         * sticker for the sha (the same idiom as every other "where did
+         * this come from" chip in the world), beside its own sentence as
+         * normal prose — OriginTicket's uppercase-tracked mono idiom is
+         * built for a short label/value pair, not a full RU sentence, so
+         * the sentence stays outside it (Read mode: comprehension first).
+         * A single marker at the document's own anchor, not repeated
+         * per-row through the dense reference tables below. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-ink-muted">{t("generatedNote")}</p>
+          <OriginTicket>{t("generatedCommitChip", { sha: data.generated_from })}</OriginTicket>
+        </div>
       </header>
 
       {/* Формулы коэффициентов ------------------------------------------ */}

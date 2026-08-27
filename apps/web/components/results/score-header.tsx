@@ -44,9 +44,10 @@ const SCALE_KEY: Record<
 // still needs one genuine heading landmark) wired to data-verdict-stamp,
 // the wrapper results-document.tsx's opening timeline fades/scales in.
 // The score's own `caption` names the READING ("Общий балл"/"Overall
-// score"), never the verdict — the verdict is already announced twice
-// (the sr-only h1, and AnnunciatorCell's own role="status" live region),
-// and repeating it a third time inside the score's own name would just be
+// score"), never the verdict — the verdict is already announced by the
+// sr-only h1 (AnnunciatorCell's own role="img" aria-label repeats the same
+// text but isn't a live region — see its own header comment), and
+// repeating it a third time inside the score's own name would just be
 // noise (review finding 9); a metric-naming caption instead gives the
 // bare figure a meaningful accessible name without reintroducing that
 // duplication (review finding N2). When overall_score is null this is

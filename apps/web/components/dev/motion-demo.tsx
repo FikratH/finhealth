@@ -102,7 +102,7 @@ export function MotionDemo({
           />
           <div
             data-role="fade"
-            className="border border-line bg-paper p-4 text-sm text-ink"
+            className="border border-line bg-panel p-4 text-sm text-ink"
           >
             {beatCopy[key]}
           </div>

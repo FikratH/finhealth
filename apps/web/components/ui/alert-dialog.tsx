@@ -32,7 +32,15 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-ink/40 duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
+        // A dark scrim regardless of register — `bg-ink/40` was a leftover
+        // from the retired paper-only world, where --ink was always the
+        // dark color. In the Monitor register --ink is now light
+        // (#E6EDF0), so that same class produced a translucent white haze
+        // over the dark ground instead of dimming it. Fixed black, not a
+        // token, since a modal scrim's job (dim what's behind it) is the
+        // same convention in both registers, unlike foreground/surface
+        // tokens that are meant to flip.
+        "fixed inset-0 z-50 bg-black/60 duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
         className
       )}
       {...props}
@@ -50,10 +58,19 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          // Document grammar, not a shadowed modal card: hairline-doubled
-          // border-ink on paper, no shadow (design-direction: "Shadows ≈
-          // 0; borders 1px" — see DESIGN.md's No-Shadow Rule).
-          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 border-2 border-ink bg-paper p-6 duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 motion-reduce:animate-none",
+          // Bezel grammar, not a shadowed modal card: hairline border-line,
+          // panel surface — the same instrument-module bezel every other
+          // floating/elevated surface in this world uses (Select's own
+          // content, the popover), not the page-ground bg-paper this used
+          // to sit on. No shadow (design-direction: "Shadows ≈ 0; borders
+          // 1px"). Motion: fade only, no zoom — zoom-in-95/zoom-out-95
+          // was the last scale-tween left in the product (the boot
+          // grammar's law is instant state swaps, not morphing); Select's
+          // own content already established fade-only as this codebase's
+          // reduced-motion-safe idiom for a Radix open/close transition,
+          // so this now matches it exactly instead of being the one
+          // outlier.
+          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 border border-line bg-panel p-6 duration-150 ease-out data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none",
           className
         )}
         {...props}

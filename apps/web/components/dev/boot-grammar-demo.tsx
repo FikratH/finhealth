@@ -75,7 +75,11 @@ export function BootGrammarDemo({
               key={i}
               data-boot-cell
               data-lit="true"
-              className="size-7 border border-line bg-panel data-[lit=true]:border-brand data-[lit=true]:bg-brand data-[lit=true]:shadow-[0_0_6px_1px_var(--accent)]"
+              // Unlit state uses the world's own --ghost tone (bg-ghost),
+              // the same "unlit segments are designed too" treatment
+              // SegmentDisplay's .segment-ghost cells use — not bg-panel,
+              // which is a surface tone, not the ghost-cell tone.
+              className="size-7 border border-line bg-ghost data-[lit=true]:border-brand data-[lit=true]:bg-brand data-[lit=true]:shadow-[0_0_6px_1px_var(--accent)]"
             />
           ))}
         </div>

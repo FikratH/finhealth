@@ -417,9 +417,10 @@ describe("ResultsDocument", () => {
     // text node) — its accessible name combines the RU-formatted value with
     // a metric-naming caption ("Общий балл"/"Overall score"), never the
     // verdict itself: the verdict is already announced by the sr-only <h1>
-    // and by AnnunciatorCell's own role="status" live region below, so the
-    // score's own name doesn't repeat it a third time (review finding 9),
-    // while still reading as more than a bare number (review finding N2).
+    // below (AnnunciatorCell's own role="img" aria-label repeats the same
+    // text but isn't a live region), so the score's own name doesn't
+    // repeat it a third time (review finding 9), while still reading as
+    // more than a bare number (review finding N2).
     expect(screen.getByRole("img", { name: "85,1 — Общий балл" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Сильное состояние" }),
