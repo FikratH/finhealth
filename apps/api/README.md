@@ -54,3 +54,7 @@ python3.12 -m venv /tmp/lockcheck && /tmp/lockcheck/bin/pip install -r requireme
 
 Commit `requirements.lock` alongside the `requirements.txt` change in the
 same PR.
+
+## Deployment note
+
+Extraction runs in a spawn-context process pool: the parent process must be import-safe (guarded `__main__`). `uvicorn` and `pytest` entrypoints are fine; embedding the app in an unguarded script or REPL will break extraction with `BrokenProcessPool`.
