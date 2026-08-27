@@ -68,3 +68,24 @@ def test_methodology_ratios_cover_every_ratio_def():
 def test_methodology_json_has_expected_top_level_shape(top_level_key):
     doc = build_methodology()
     assert top_level_key in doc
+
+
+def test_beneish_recovered_formula_is_verified_linear_off_derivation_points():
+    """The Beneish coefficient recovery (export_methodology._beneish_coefficients)
+    calls export_methodology._verify_beneish_linearity on every build, which
+    checks the recovered affine formula against three fresh Inputs
+    combinations that were never sampled during derivation (see that
+    function's own docstring) — a real linearity guard, not just a
+    two-point-per-index finite difference. build_methodology() already
+    exercises this path (it would raise AssertionError and fail every other
+    test in this file if the guard ever failed); this test names that
+    behavior explicitly so a regression here reads as "Beneish linearity
+    guard failed", not an opaque crash in an unrelated-looking test.
+    """
+    from export_methodology import _beneish_coefficients, _verify_beneish_linearity
+
+    coefficients, intercept = _beneish_coefficients()
+    # Re-running the guard here (not just relying on the one already run
+    # inside _beneish_coefficients) makes the assertion this test is
+    # actually about explicit in its own stack trace.
+    _verify_beneish_linearity(coefficients, intercept)

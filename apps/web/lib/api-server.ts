@@ -7,6 +7,7 @@
 // code reads API_URL directly to reach the API by its real address.
 //
 // Import this only from Server Components — never from a "use client" file.
+import { cache } from "react";
 import { ApiError, fallbackKey, readDetail } from "./api";
 import type { AnalysisResult } from "./api-types";
 
@@ -18,8 +19,19 @@ function isAbortError(err: unknown): boolean {
 
 /** GET /api/analysis/{id} — the stored AnalysisResult payload, fetched
  * directly from API_URL. 404 unknown id (the results page turns this into
- * notFound()). */
-export async function getAnalysisServer(id: string): Promise<AnalysisResult> {
+ * notFound()).
+ *
+ * Wrapped in React's `cache()` rather than relying on Next's automatic
+ * fetch memoization: this function passes its own per-call `AbortController`
+ * signal to `fetch`, which Next's docs name as the explicit opt-out from
+ * that memoization ("To opt out, pass an AbortController signal to fetch" —
+ * node_modules/next/dist/docs/01-app/03-api-reference/04-functions/fetch.md).
+ * Without `cache()` here, the results route's `generateMetadata` and its
+ * page body each independently re-fetch the same analysis. `cache()`
+ * memoizes by argument (`id`) for the lifetime of one server render pass,
+ * so both call sites share a single request; the timeout/abort behavior
+ * stays inside the cached function so every caller still gets it. */
+export const getAnalysisServer = cache(async (id: string): Promise<AnalysisResult> => {
   const apiUrl = process.env.API_URL ?? "http://localhost:8000";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
@@ -49,4 +61,4 @@ export async function getAnalysisServer(id: string): Promise<AnalysisResult> {
   } catch {
     throw new ApiError(response.status, "errors.parseFailure");
   }
-}
+});

@@ -271,7 +271,67 @@ def _beneish_coefficients() -> tuple[dict[str, float], float]:
     coefficients["SGI"] = (sgi_result["m_score"] - m0) / (idx_sgi["SGI"] - idx0["SGI"])
 
     intercept = m0 - sum(coefficients[key] * idx0[key] for key in coefficients)
+    _verify_beneish_linearity(coefficients, intercept)
     return coefficients, intercept
+
+
+def _verify_beneish_linearity(coefficients: dict[str, float], intercept: float) -> None:
+    """The coefficient recovery above only proves the two points it sampled
+    per index lie on a line — it can't by itself rule out beneish_m()
+    having some non-linear term (a cap, a cross-index interaction) that
+    those particular sample points happened not to trigger. This holds the
+    recovered affine formula to three fresh Inputs combinations that were
+    never part of the derivation — each changes several underlying fields
+    at once (the third changes the *previous*-period fields, which no
+    single-field perturbation above ever touched), landing on index
+    combinations off every derivation sample's axis — and asserts the
+    formula's prediction matches the real beneish_m() output to float
+    precision. If beneish_m() ever stops being a pure affine function of
+    its 8 indices, this fails even though the coefficients above might
+    still individually look plausible."""
+    verification_points = [
+        {  # (1) several latest-period fields shifted together
+            "latest": {
+                "accounts_receivable": 250.0, "revenue": 1100.0, "cost_of_goods_sold": 750.0,
+                "current_assets": 420.0, "net_ppe": 580.0, "total_assets": 1600.0,
+                "depreciation_amortization": 120.0, "sga_expense": 140.0,
+                "current_liabilities": 320.0, "long_term_debt": 380.0,
+                "net_income": 90.0, "operating_cash_flow": 130.0,
+            },
+            "previous": _beneish_baseline()[1],
+        },
+        {  # (2) a different combination, several fields shifted the other way
+            "latest": {
+                "accounts_receivable": 150.0, "revenue": 900.0, "cost_of_goods_sold": 650.0,
+                "current_assets": 350.0, "net_ppe": 650.0, "total_assets": 1400.0,
+                "depreciation_amortization": 90.0, "sga_expense": 170.0,
+                "current_liabilities": 280.0, "long_term_debt": 450.0,
+                "net_income": 60.0, "operating_cash_flow": 80.0,
+            },
+            "previous": _beneish_baseline()[1],
+        },
+        {  # (3) the *previous* period moves instead — no derivation
+            # perturbation above ever varies anything but the latest period.
+            "latest": _beneish_baseline()[0],
+            "previous": {
+                "accounts_receivable": 180.0, "revenue": 950.0, "cost_of_goods_sold": 680.0,
+                "current_assets": 380.0, "net_ppe": 590.0, "total_assets": 1450.0,
+                "depreciation_amortization": 95.0, "sga_expense": 145.0,
+                "current_liabilities": 290.0, "long_term_debt": 420.0,
+            },
+        },
+    ]
+
+    for n, point in enumerate(verification_points, start=1):
+        result = beneish_mod.beneish_m(Inputs(latest=point["latest"], previous=point["previous"]))
+        indices, m_score = result["indices"], result["m_score"]
+        assert m_score is not None, f"linearity check point {n}: fewer than 6 of 8 indices available"
+        predicted = intercept + sum(coefficients[k] * indices[k] for k in coefficients)
+        assert abs(predicted - m_score) < 1e-6, (
+            f"linearity check point {n} failed: recovered formula predicts {predicted!r}, "
+            f"real beneish_m() returned {m_score!r} — beneish_m() is no longer a pure affine "
+            "function of its 8 indices, or the coefficient recovery above is wrong."
+        )
 
 
 def _flag_boundary(lo_val: float, hi_val: float, lo_flag: str, hi_flag: str) -> float:
