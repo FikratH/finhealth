@@ -482,7 +482,9 @@
       "scoreNa": "N/A",
       "actions": "Actions",
       "open": "Open",
-      "delete": "Delete"
+      "openAria": "Open analysis: {industry}, {date}",
+      "delete": "Delete",
+      "deleteAria": "Delete analysis: {industry}, {date}"
     },
     "deleteDialog": {
       "title": "Delete this analysis?",

@@ -482,7 +482,9 @@
       "scoreNa": "Н/Д",
       "actions": "Действия",
       "open": "Открыть",
-      "delete": "Удалить"
+      "openAria": "Открыть анализ: {industry}, {date}",
+      "delete": "Удалить",
+      "deleteAria": "Удалить анализ: {industry}, {date}"
     },
     "deleteDialog": {
       "title": "Удалить анализ?",

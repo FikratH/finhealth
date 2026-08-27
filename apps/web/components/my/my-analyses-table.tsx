@@ -54,53 +54,70 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
           </tr>
         </thead>
         <tbody>
-          {analyses.map((row) => (
-            <tr key={row.analysis_id} className="border-b border-line last:border-b-0">
-              <td className="px-3 py-2 font-mono tabular-nums text-ink">
-                {formatDate(row.created_at, locale)}
-              </td>
-              <td className="px-3 py-2">
-                <SpecimenChip>{row.industry_name}</SpecimenChip>
-              </td>
-              <td className="px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <MetricNumber
-                    value={row.overall_score}
-                    locale={locale}
-                    decimals={0}
-                    naLabel={t("scoreNa")}
-                  />
-                  <StatusPill status={verdictTone(row.overall_score)} label={row.health_label} />
-                </div>
-              </td>
-              <td className="px-3 py-2">
-                <div className="flex items-center justify-end gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/results/${row.analysis_id}`}>{t("open")}</Link>
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button type="button" variant="ghost" size="sm">
-                        {t("delete")}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{tDialog("title")}</AlertDialogTitle>
-                        <AlertDialogDescription>{tDialog("body")}</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{tDialog("cancel")}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(row.analysis_id)}>
-                          {tDialog("confirm")}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {analyses.map((row) => {
+            const date = formatDate(row.created_at, locale);
+            // Row context for the two per-row actions' accessible names —
+            // "Открыть"/"Удалить" alone is ambiguous once there's more
+            // than one row (same pattern as ratio-row.tsx's
+            // sourceFootnoteAria: aria-label carries the context the
+            // visible label can't).
+            const ariaContext = { industry: row.industry_name, date };
+            return (
+              <tr key={row.analysis_id} className="border-b border-line last:border-b-0">
+                <td className="px-3 py-2 font-mono tabular-nums text-ink">{date}</td>
+                <td className="px-3 py-2">
+                  <SpecimenChip>{row.industry_name}</SpecimenChip>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <MetricNumber
+                      value={row.overall_score}
+                      locale={locale}
+                      decimals={0}
+                      naLabel={t("scoreNa")}
+                    />
+                    <StatusPill status={verdictTone(row.overall_score)} label={row.health_label} />
+                  </div>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        href={`/results/${row.analysis_id}`}
+                        aria-label={t("openAria", ariaContext)}
+                      >
+                        {t("open")}
+                      </Link>
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={t("deleteAria", ariaContext)}
+                        >
+                          {t("delete")}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{tDialog("title")}</AlertDialogTitle>
+                          <AlertDialogDescription>{tDialog("body")}</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{tDialog("cancel")}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(row.analysis_id)}>
+                            {tDialog("confirm")}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

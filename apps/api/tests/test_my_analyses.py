@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 
 from app import storage
 from app.main import app
@@ -39,6 +40,18 @@ def _seed(analysis_id, user_id, created_at="2026-08-27T00:00:00Z",
         "overall_score": overall_score,
         "health_label": health_label,
     }, user_id=user_id)
+
+
+def _seed_corrupt(analysis_id, user_id, created_at="2026-08-27T00:00:00Z"):
+    """Bypasses save_analysis (which always json.dumps a valid dict) to
+    plant a row whose `payload` column isn't parseable JSON at all —
+    simulates on-disk corruption, a partial write, or a future schema
+    migration gone wrong."""
+    engine = storage.get_engine()
+    with engine.begin() as conn:
+        conn.execute(delete(storage.analyses).where(storage.analyses.c.id == analysis_id))
+        conn.execute(storage.analyses.insert().values(
+            id=analysis_id, created_at=created_at, payload="{not valid json", user_id=user_id))
 
 
 # --------------------------------- auth gate --------------------------------
@@ -141,6 +154,18 @@ def test_projection_includes_null_overall_score(monkeypatch):
     row = next(r for r in resp.json()["analyses"] if r["analysis_id"] == "null-score")
     assert row["overall_score"] is None
     assert row["health_label"] == "Недостаточно данных для оценки"
+
+
+def test_list_skips_a_row_with_corrupt_payload_instead_of_500ing(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    _seed("good1", "user-a", created_at="2026-08-27T00:00:00Z")
+    _seed_corrupt("corrupt1", "user-a", created_at="2026-08-27T01:00:00Z")
+    _seed("good2", "user-a", created_at="2026-08-27T02:00:00Z")
+
+    resp = client.get("/api/my/analyses", headers=_auth("user-a"))
+    assert resp.status_code == 200, resp.text
+    ids = {row["analysis_id"] for row in resp.json()["analyses"]}
+    assert ids == {"good1", "good2"}
 
 
 # ----------------------------------- order/limit -------------------------------

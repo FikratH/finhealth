@@ -22,6 +22,16 @@ const fixtures: MyAnalysisSummary[] = [
   },
 ];
 
+// Mirrors next-intl's own {placeholder} interpolation for the two
+// per-row aria-label templates, so tests can compute the exact expected
+// accessible name for a given row instead of hardcoding it twice.
+function ariaName(template: string, industry: string, date: string) {
+  return template.replace("{industry}", industry).replace("{date}", date);
+}
+
+const ROW1_ARIA = { industry: "Производство", date: "27.08.2026" };
+const ROW2_ARIA = { industry: "Розница", date: "01.08.2026" };
+
 function renderTable(analyses: MyAnalysisSummary[] = fixtures, onDelete = vi.fn()) {
   render(
     <NextIntlClientProvider locale="ru" messages={ruMessages}>
@@ -39,10 +49,18 @@ describe("MyAnalysesTable", () => {
     expect(screen.getByText("01.08.2026")).toBeInTheDocument();
     expect(screen.getByText("Производство")).toBeInTheDocument();
     expect(screen.getByText("Розница")).toBeInTheDocument();
+    // The visible "Открыть" label is unchanged even though the accessible
+    // name (below) is a fuller, row-specific string.
+    expect(screen.getAllByText(ruMessages.My.table.open)).toHaveLength(2);
 
-    const openLinks = screen.getAllByRole("link", { name: ruMessages.My.table.open });
-    expect(openLinks[0]).toHaveAttribute("href", "/results/an_1");
-    expect(openLinks[1]).toHaveAttribute("href", "/results/an_2");
+    const link1 = screen.getByRole("link", {
+      name: ariaName(ruMessages.My.table.openAria, ROW1_ARIA.industry, ROW1_ARIA.date),
+    });
+    const link2 = screen.getByRole("link", {
+      name: ariaName(ruMessages.My.table.openAria, ROW2_ARIA.industry, ROW2_ARIA.date),
+    });
+    expect(link1).toHaveAttribute("href", "/results/an_1");
+    expect(link2).toHaveAttribute("href", "/results/an_2");
   });
 
   it("renders the health label via StatusPill, including the null-score row", () => {
@@ -54,11 +72,36 @@ describe("MyAnalysesTable", () => {
     expect(screen.getByText(ruMessages.My.table.scoreNa)).toBeInTheDocument();
   });
 
+  it("gives each row's open link and delete button a contextual accessible name (industry + date), not the bare, ambiguous 'Открыть'/'Удалить'", () => {
+    renderTable();
+
+    // A bare-name query now matches nothing — both actions' accessible
+    // names are the row-specific aria-label, proving the override took.
+    expect(screen.queryByRole("link", { name: ruMessages.My.table.open })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: ruMessages.My.table.delete }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.table.deleteAria, ROW1_ARIA.industry, ROW1_ARIA.date),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.table.deleteAria, ROW2_ARIA.industry, ROW2_ARIA.date),
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("opening the delete dialog and confirming calls onDelete with the row's id", () => {
     const { onDelete } = renderTable();
 
-    const deleteButtons = screen.getAllByRole("button", { name: ruMessages.My.table.delete });
-    fireEvent.click(deleteButtons[0]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.table.deleteAria, ROW1_ARIA.industry, ROW1_ARIA.date),
+      }),
+    );
 
     expect(screen.getByText(ruMessages.My.deleteDialog.title)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.deleteDialog.confirm }));
@@ -69,7 +112,11 @@ describe("MyAnalysesTable", () => {
   it("cancelling the dialog never calls onDelete", () => {
     const { onDelete } = renderTable();
 
-    fireEvent.click(screen.getAllByRole("button", { name: ruMessages.My.table.delete })[0]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ariaName(ruMessages.My.table.deleteAria, ROW1_ARIA.industry, ROW1_ARIA.date),
+      }),
+    );
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.deleteDialog.cancel }));
 
     expect(onDelete).not.toHaveBeenCalled();

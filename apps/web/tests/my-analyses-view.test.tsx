@@ -91,7 +91,13 @@ describe("MyAnalysesView", () => {
     renderView();
 
     await screen.findByText("Производство");
-    fireEvent.click(screen.getAllByRole("button", { name: ruMessages.My.table.delete })[0]);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: ruMessages.My.table.deleteAria
+          .replace("{industry}", "Производство")
+          .replace("{date}", "27.08.2026"),
+      }),
+    );
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.deleteDialog.confirm }));
 
     expect(deleteMyAnalysis).toHaveBeenCalledWith("an_1");
@@ -100,6 +106,48 @@ describe("MyAnalysesView", () => {
     });
     // The other row is untouched.
     expect(screen.getByText("Розница")).toBeInTheDocument();
+  });
+
+  it("switching to a different signed-in user without a remount resets state — the previous user's rows never render under the new identity", async () => {
+    useSession.mockReturnValue({ data: { user: { id: "user-a" } }, isPending: false });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ analyses: fixtures });
+    const { rerender } = renderView();
+
+    await screen.findByText("Производство");
+
+    const otherUserFixture: MyAnalysisSummary[] = [
+      {
+        analysis_id: "an_9",
+        created_at: "2026-08-20T00:00:00Z",
+        industry_name: "Строительство",
+        overall_score: 55,
+        health_label: "Удовлетворительное состояние",
+      },
+    ];
+    let resolveSecondFetch!: (value: { analyses: MyAnalysisSummary[] }) => void;
+    vi.mocked(getMyAnalyses).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSecondFetch = resolve;
+        }),
+    );
+    // A different user id, no unmount of MyAnalysesView itself — this is
+    // exactly the scenario an internal setState reset can't guarantee but
+    // a key change can.
+    useSession.mockReturnValue({ data: { user: { id: "user-b" } }, isPending: false });
+    rerender(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyAnalysesView locale="ru" />
+      </NextIntlClientProvider>,
+    );
+
+    // Reset to loading immediately — user-a's row is gone before user-b's
+    // fetch has even resolved, not lingering until it does.
+    expect(screen.queryByText("Производство")).not.toBeInTheDocument();
+    expect(screen.getByText(ruMessages.My.loading)).toBeInTheDocument();
+
+    resolveSecondFetch({ analyses: otherUserFixture });
+    expect(await screen.findByText("Строительство")).toBeInTheDocument();
   });
 
   it("a 401 mid-view (expired session) on load falls back to the signed-out prompt", async () => {

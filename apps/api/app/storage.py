@@ -19,6 +19,7 @@ migrations have already been applied (the production path).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import threading
@@ -29,6 +30,8 @@ from typing import Optional
 
 from sqlalchemy import Column, Index, MetaData, Table, Text, create_engine, delete, event, inspect, select
 from sqlalchemy.engine import Engine
+
+log = logging.getLogger("finhealth.storage")
 
 DB_PATH = os.environ.get("FINHEALTH_DB", str(Path(__file__).resolve().parent.parent / "app.db"))
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "finhealth_uploads"
@@ -198,7 +201,13 @@ def list_analyses_for_user(user_id: str, limit: int = 50) -> list[dict]:
     """Projection source for GET /api/my/analyses: newest first, capped at
     `limit`. Returns the raw (id, created_at, payload-as-dict) rows — the
     caller (main.py) projects out just the summary fields it needs, so this
-    stays a plain scoped fetch rather than encoding response shape here."""
+    stays a plain scoped fetch rather than encoding response shape here.
+
+    A row whose payload isn't valid JSON is skipped rather than raised —
+    one corrupt row must degrade to "absent from the list," not 500 the
+    whole history page for every other (good) row. Logged by id only,
+    never the payload contents (financial values never hit the logs, same
+    discipline as main.py's own logging)."""
     engine = get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
@@ -207,10 +216,15 @@ def list_analyses_for_user(user_id: str, limit: int = 50) -> list[dict]:
             .order_by(analyses.c.created_at.desc())
             .limit(limit)
         ).fetchall()
-    return [
-        {"id": row.id, "created_at": row.created_at, "payload": json.loads(row.payload)}
-        for row in rows
-    ]
+    results = []
+    for row in rows:
+        try:
+            payload = json.loads(row.payload)
+        except json.JSONDecodeError:
+            log.warning("skipping analysis with corrupt payload id=%s", row.id)
+            continue
+        results.append({"id": row.id, "created_at": row.created_at, "payload": payload})
+    return results
 
 
 def delete_analysis_for_user(analysis_id: str, user_id: str) -> bool:
