@@ -20,9 +20,14 @@ describe("MOTION", () => {
 
 describe("usePrefersReducedMotion", () => {
   it("reports false before the media query has been read (SSR-safe default)", () => {
-    // jsdom's window.matchMedia is unimplemented by default in this
-    // project's setup — the hook must not throw when it's missing, and
-    // must fall back to the "motion allowed" default.
+    // tests/setup.ts stubs window.matchMedia to matches: false by default
+    // (jsdom implements no matchMedia of its own at all — needed so that
+    // merely registering gsap's ScrollTrigger, which reads matchMedia
+    // unconditionally, doesn't throw in every test file that touches it).
+    // This test exercises the hook's normal read of that default, not a
+    // "matchMedia is missing" fallback path — getPrefersReducedMotion's own
+    // typeof-guarded fallback is what still protects against an
+    // environment with no matchMedia at all (e.g. true SSR).
     const { result } = renderHook(() => usePrefersReducedMotion());
     expect(result.current).toBe(false);
   });

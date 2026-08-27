@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -72,15 +73,109 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   // first frame, never a blank nav waiting for the first scroll.
   const [activeId, setActiveId] = useState<string | null>("score");
 
+  // The single source both the RevealSection JSX below and the mini-nav's
+  // items derive from — a section named here, once, either exists in both
+  // places or neither; there is no second list to fall out of sync with.
+  // `id`/`navLabel` are only set on sections worth a mini-nav anchor
+  // (warnings, missing-metrics, footnotes, and the disclaimer still get a
+  // scroll reveal — they just don't get an anchor or a DOM id).
+  const sections: {
+    key: string;
+    id?: string;
+    navLabel?: string;
+    className?: string;
+    show: boolean;
+    content: ReactNode;
+  }[] = [
+    {
+      key: "categories",
+      id: "categories",
+      navLabel: tCategories("heading"),
+      show: true,
+      content: <CategoryScores categories={analysis.category_scores} locale={locale} />,
+    },
+    {
+      key: "ratios",
+      id: "ratios",
+      navLabel: tRatios("heading"),
+      className: "space-y-6",
+      show: true,
+      content: (
+        <>
+          <SectionHeading>{tRatios("heading")}</SectionHeading>
+          {analysis.category_scores.map((category) => (
+            <RatioSection
+              key={category.category}
+              category={category}
+              ratios={analysis.ratios.filter((ratio) => ratio.category === category.category)}
+              locale={locale}
+              footnoteIndex={footnoteIndex}
+            />
+          ))}
+        </>
+      ),
+    },
+    {
+      key: "risk-radar",
+      id: "risk-radar",
+      navLabel: tRiskRadar("heading"),
+      show: Boolean(analysis.risk_radar),
+      content: analysis.risk_radar ? (
+        <RiskRadar riskRadar={analysis.risk_radar} locale={locale} />
+      ) : null,
+    },
+    {
+      key: "strengths-risks",
+      id: "strengths-risks",
+      navLabel: tNav("strengthsRisks"),
+      show: hasStrengthsOrRisks,
+      content: <StrengthsRisks strengths={analysis.strengths} risks={analysis.risks} />,
+    },
+    {
+      key: "recommendations",
+      id: "recommendations",
+      navLabel: tRecommendations("heading"),
+      show: hasRecommendations,
+      content: (
+        <Recommendations recommendations={analysis.recommendations} locale={locale} />
+      ),
+    },
+    {
+      key: "warnings",
+      show: analysis.warnings.length > 0,
+      content: <WarningsAccordion warnings={analysis.warnings} />,
+    },
+    {
+      key: "missing-metrics",
+      // The insufficient-data state's guidance panel (in ScoreHeader)
+      // already lists these same missing_metrics — skip the duplicate.
+      show: analysis.overall_score !== null && analysis.missing_metrics.length > 0,
+      content: <MissingMetricsHint missingMetrics={analysis.missing_metrics} />,
+    },
+    {
+      key: "footnotes",
+      show: footnoteIndex.size > 0,
+      content: <Footnotes sources={footnoteIndex} />,
+    },
+    {
+      key: "disclaimer",
+      show: true,
+      content: (
+        <section className="border-2 border-ink p-6">
+          <h2 className="font-display text-xl text-ink">{tDisclaimer("heading")}</h2>
+          <p className="mt-2 text-sm text-ink-muted">{analysis.disclaimer}</p>
+        </section>
+      ),
+    },
+  ];
+
+  const visibleSections = sections.filter((section) => section.show);
+
   const navItems: MiniNavItem[] = [
     { id: "score", label: tNav("score") },
-    { id: "categories", label: tCategories("heading") },
-    { id: "ratios", label: tRatios("heading") },
-    ...(analysis.risk_radar ? [{ id: "risk-radar", label: tRiskRadar("heading") }] : []),
-    ...(hasStrengthsOrRisks ? [{ id: "strengths-risks", label: tNav("strengthsRisks") }] : []),
-    ...(hasRecommendations
-      ? [{ id: "recommendations", label: tRecommendations("heading") }]
-      : []),
+    ...visibleSections
+      .filter((section) => section.id && section.navLabel)
+      .map((section) => ({ id: section.id!, label: section.navLabel! })),
   ];
 
   useGSAP(
@@ -145,11 +240,11 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       // trigger-once (it never reverses on scroll-back) without killing
       // the trigger, so onEnterBack can keep tracking nav state for the
       // rest of the session.
-      const sections = gsap.utils.toArray<HTMLElement>("[data-reveal-section]", root);
-      sections.forEach((section) => {
-        const rule = section.querySelector<HTMLElement>("[data-reveal-rule]");
-        const content = section.querySelector<HTMLElement>("[data-reveal-content]");
-        const flags = section.querySelectorAll<HTMLElement>("[data-normband-flag]");
+      const sectionElements = gsap.utils.toArray<HTMLElement>("[data-reveal-section]", root);
+      sectionElements.forEach((sectionEl) => {
+        const rule = sectionEl.querySelector<HTMLElement>("[data-reveal-rule]");
+        const content = sectionEl.querySelector<HTMLElement>("[data-reveal-content]");
+        const flags = sectionEl.querySelectorAll<HTMLElement>("[data-normband-flag]");
         if (!content) return;
 
         gsap.set(content, { opacity: 0, y: 12 });
@@ -158,15 +253,15 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
 
         const tl = gsap.timeline({
           scrollTrigger: {
-            trigger: section,
+            trigger: sectionEl,
             start: SECTION_REVEAL_START,
             toggleActions: "play none none none",
             // Sections without a mini-nav id (warnings, missing-metrics,
             // footnotes, the disclaimer) still reveal — they just never
             // touch nav state, so scrolling past them can't blank out the
             // last real anchor the reader passed.
-            onEnter: () => section.id && setActiveId(section.id),
-            onEnterBack: () => section.id && setActiveId(section.id),
+            onEnter: () => sectionEl.id && setActiveId(sectionEl.id),
+            onEnterBack: () => sectionEl.id && setActiveId(sectionEl.id),
           },
         });
         if (rule) tl.to(rule, { scaleX: 1, duration: MOTION.reveal, ease: MOTION.ease }, 0);
@@ -194,67 +289,11 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
 
         <ScoreHeader analysis={analysis} locale={locale} id="score" />
 
-        <RevealSection id="categories">
-          <CategoryScores categories={analysis.category_scores} locale={locale} />
-        </RevealSection>
-
-        <RevealSection id="ratios" className="space-y-6">
-          <SectionHeading>{tRatios("heading")}</SectionHeading>
-          {analysis.category_scores.map((category) => (
-            <RatioSection
-              key={category.category}
-              category={category}
-              ratios={analysis.ratios.filter((ratio) => ratio.category === category.category)}
-              locale={locale}
-              footnoteIndex={footnoteIndex}
-            />
-          ))}
-        </RevealSection>
-
-        {analysis.risk_radar && (
-          <RevealSection id="risk-radar">
-            <RiskRadar riskRadar={analysis.risk_radar} locale={locale} />
+        {visibleSections.map((section) => (
+          <RevealSection key={section.key} id={section.id} className={section.className}>
+            {section.content}
           </RevealSection>
-        )}
-
-        {hasStrengthsOrRisks && (
-          <RevealSection id="strengths-risks">
-            <StrengthsRisks strengths={analysis.strengths} risks={analysis.risks} />
-          </RevealSection>
-        )}
-
-        {hasRecommendations && (
-          <RevealSection id="recommendations">
-            <Recommendations recommendations={analysis.recommendations} locale={locale} />
-          </RevealSection>
-        )}
-
-        {analysis.warnings.length > 0 && (
-          <RevealSection>
-            <WarningsAccordion warnings={analysis.warnings} />
-          </RevealSection>
-        )}
-
-        {/* The insufficient-data state's guidance panel (in ScoreHeader)
-         * already lists these same missing_metrics — skip the duplicate. */}
-        {analysis.overall_score !== null && analysis.missing_metrics.length > 0 && (
-          <RevealSection>
-            <MissingMetricsHint missingMetrics={analysis.missing_metrics} />
-          </RevealSection>
-        )}
-
-        {footnoteIndex.size > 0 && (
-          <RevealSection>
-            <Footnotes sources={footnoteIndex} />
-          </RevealSection>
-        )}
-
-        <RevealSection>
-          <section className="border-2 border-ink p-6">
-            <h2 className="font-display text-xl text-ink">{tDisclaimer("heading")}</h2>
-            <p className="mt-2 text-sm text-ink-muted">{analysis.disclaimer}</p>
-          </section>
-        </RevealSection>
+        ))}
       </div>
     </div>
   );

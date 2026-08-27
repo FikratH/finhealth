@@ -44,6 +44,13 @@ describe("MiniNav", () => {
     }
   });
 
+  it("hides both the desktop rail and the mobile progress bar from print — chrome, not document content", () => {
+    renderNav("categories");
+
+    expect(getNav()).toHaveClass("print:hidden");
+    expect(screen.getByRole("progressbar")).toHaveClass("print:hidden");
+  });
+
   it("marks exactly the active item with aria-current, and none of the others", () => {
     renderNav("ratios");
 

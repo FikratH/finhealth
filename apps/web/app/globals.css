@@ -237,6 +237,24 @@
     cursor: default;
     pointer-events: none;
   }
+
+  /*
+   * The scroll cinema's per-section reveals (results-document.tsx) hide
+   * unscrolled content via inline styles set imperatively by GSAP
+   * (opacity/transform), never a render-time class — so there's no class
+   * to simply omit here. Print never scrolls the page, so without this
+   * override, printing or screensharing the document before scrolling
+   * past a section renders it blank: a real regression against this
+   * page's printed/screenshared document requirement. !important is
+   * required because it's overriding an inline style, the one case that
+   * legitimately needs it.
+   */
+  [data-reveal-content],
+  [data-reveal-rule],
+  [data-normband-flag] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* Grid-paper ground: faint millimeter grid for chart/score/data surfaces. */

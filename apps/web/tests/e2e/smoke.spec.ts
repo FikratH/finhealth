@@ -85,6 +85,16 @@ test("landing → analyze → verify → results → public share", async ({ pag
 
   await page.screenshot({ path: path.join(SDD_SCREENS_DIR, "results-top.png") });
 
+  // --- print safety: an unscrolled section must not print/screenshare
+  // blank. This is a real browser evaluating the actual @media print rule
+  // (jsdom can't — it doesn't apply CSS at all), against a section
+  // (categories) that's below the score header and hasn't been scrolled
+  // into view yet, so its data-reveal-content is still GSAP's opacity: 0
+  // pending-reveal state for on-screen purposes. --------------------------
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("#categories [data-reveal-content]")).toHaveCSS("opacity", "1");
+  await page.emulateMedia({ media: "screen" });
+
   // --- the scroll cinema: scroll to the bottom, the last mini-nav section
   // (Рекомендации) reveals, and the desktop rail highlights it ----------
   await page.setViewportSize({ width: 1440, height: 900 }); // clears the xl: breakpoint the desktop rail needs

@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { getLenis } from "@/components/motion-provider";
+import { MOTION } from "@/lib/motion";
 
 export interface MiniNavItem {
   id: string;
@@ -57,7 +58,7 @@ export function MiniNav({ items, activeId }: MiniNavProps) {
     <>
       <nav
         aria-label={t("railLabel")}
-        className="fixed top-1/2 right-6 z-40 hidden -translate-y-1/2 flex-col items-end gap-3 xl:flex"
+        className="fixed top-1/2 right-6 z-40 hidden -translate-y-1/2 flex-col items-end gap-3 print:hidden xl:flex"
       >
         {items.map((item) => {
           const isActive = item.id === activeId;
@@ -91,11 +92,15 @@ export function MiniNav({ items, activeId }: MiniNavProps) {
         aria-valuenow={Math.round(progress)}
         aria-valuemin={0}
         aria-valuemax={100}
-        className="fixed inset-x-0 top-0 z-40 h-0.5 bg-line xl:hidden"
+        className="fixed inset-x-0 top-0 z-40 h-0.5 bg-line print:hidden xl:hidden"
       >
         <div
-          className="h-full bg-accent transition-[width] duration-300 ease-out motion-reduce:transition-none"
-          style={{ width: `${progress}%` }}
+          className="h-full bg-accent transition-[width] ease-out motion-reduce:transition-none"
+          // The metronome covers this CSS transition too, not just GSAP
+          // tweens — duration comes from MOTION.base rather than a second,
+          // independently-chosen number living in a Tailwind duration-*
+          // class.
+          style={{ width: `${progress}%`, transitionDuration: `${MOTION.base * 1000}ms` }}
         />
       </div>
     </>
