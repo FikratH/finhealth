@@ -62,7 +62,7 @@ function PeriodCell({ metricName, periodLabel, entry, locale, onChange }: Period
         <SourcePopover
           source={entry?.source ?? ""}
           snippet={entry?.snippet ?? ""}
-          triggerLabel={`${t("metric")}: ${metricName}, ${periodLabel}`}
+          context={`${metricName}, ${periodLabel}`}
         />
       </div>
     </div>

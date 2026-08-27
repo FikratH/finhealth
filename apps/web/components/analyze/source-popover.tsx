@@ -11,15 +11,22 @@ export interface SourcePopoverProps {
   source: string;
   /** Raw fragment from the document, for provenance display. */
   snippet: string;
-  /** Accessible name for the trigger, e.g. «Источник: Выручка, текущий период». */
-  triggerLabel: string;
+  /** Distinguishing context appended to the trigger's accessible name,
+   * e.g. «Выручка, текущий период» — so multiple source buttons on the
+   * same page get distinct names. Deliberately NOT the whole label: WCAG
+   * 2.5.3 (Label in Name) requires the accessible name to start with the
+   * visible label, so this component builds the aria-label itself by
+   * prefixing its own translated trigger text, rather than trusting each
+   * caller to repeat "Источник"/"Source" correctly. */
+  context: string;
 }
 
 // Every extracted value traces back to a document location — this is the
 // product's provenance-first truth made interactive: click the source
 // marker, see the exact row/cell and the raw text it was read from.
-export function SourcePopover({ source, snippet, triggerLabel }: SourcePopoverProps) {
+export function SourcePopover({ source, snippet, context }: SourcePopoverProps) {
   const t = useTranslations("Analyze.verify.source");
+  const trigger = t("trigger");
 
   if (!source && !snippet) {
     return <span className="font-mono text-xs text-ink-muted">{t("noSource")}</span>;
@@ -30,10 +37,10 @@ export function SourcePopover({ source, snippet, triggerLabel }: SourcePopoverPr
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={triggerLabel}
+          aria-label={`${trigger}: ${context}`}
           className="border border-line px-1.5 py-0.5 font-mono text-xs text-ink-muted transition-colors hover:border-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {t("trigger")}
+          {trigger}
         </button>
       </PopoverTrigger>
       <PopoverContent>
