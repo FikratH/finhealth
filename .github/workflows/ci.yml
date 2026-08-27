@@ -17,15 +17,20 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: apps/api/requirements-dev.lock
+      # Proves requirements.lock — the runtime-only lock apps/api/Dockerfile
+      # actually builds the shipping image from — resolves and installs
+      # cleanly on its own, into a throwaway venv that's discarded right
+      # after. Nothing runs against it (that's what the dev-lock install
+      # below is for); this step exists only so a break in the artifact
+      # that ships is never proven solely by a local venv someone deleted.
+      - run: python -m venv /tmp/runtime-lock-check && /tmp/runtime-lock-check/bin/pip install -r requirements.lock && rm -rf /tmp/runtime-lock-check
       # Installs from the committed, fully-pinned dev lock (see
       # apps/api/README.md "Dependency locking" for how it's
       # generated/regenerated), not the loose requirements*.txt —
       # reproducible builds, not "whatever resolves today". The dev lock is
       # a superset of the runtime lock (requirements-dev.txt does `-r
-      # requirements.txt` + pytest/httpx/moto), so one install runs and
-      # tests the app; the runtime-only requirements.lock is what actually
-      # ships in the Docker image (apps/api/Dockerfile) and is never
-      # installed here.
+      # requirements.txt` + pytest/httpx/moto), so this one install runs
+      # and tests the app.
       - run: pip install -r requirements-dev.lock
       - run: python -m pytest tests -q
 

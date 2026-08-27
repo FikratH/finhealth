@@ -1,14 +1,17 @@
 # Local dev environment — the image builds its own venv from
-# requirements.lock (see Dockerfile).
+# requirements.lock (see Dockerfile). `**/` prefixes are required, not
+# decorative: Docker only matches a bare pattern like `__pycache__/` at the
+# build context root, so without it every nested `app/**/__pycache__`
+# (there are several, from local pytest runs) would still ship.
 .venv/
-__pycache__/
-*.pyc
+**/__pycache__/
+**/*.pyc
 .pytest_cache/
 
 # Local data the image never ships (SQLite files, local-disk vault
 # fallback) — see .gitignore for the same exclusions in source control.
 .data/
-*.db*
+**/*.db*
 
 # Test suite + test-only dependency files — requirements-dev.lock installs
 # pytest/httpx/moto, which never belong in the runtime image (that's the

@@ -13,10 +13,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements.lock ./
-# requirements.lock only — the fully-pinned, runtime-only lock (see
-# README.md "Dependency locking"). pytest/httpx/moto (requirements-dev.lock)
-# never enter the image; that's the point of the split.
+# requirements.lock only (not requirements.txt — nothing below reads it,
+# and copying it in too would needlessly bust this layer's cache on a
+# comment-only requirements.txt edit): the fully-pinned, runtime-only lock
+# (see README.md "Dependency locking"). pytest/httpx/moto
+# (requirements-dev.lock) never enter the image; that's the point of the
+# split.
+COPY requirements.lock ./
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.lock
