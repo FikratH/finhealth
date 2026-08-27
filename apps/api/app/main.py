@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, storage
+from . import auth, entitlements, storage
 from .schemas import (
     AnalysisRequest,
     ExtractRequest,
@@ -188,6 +188,17 @@ def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current
     payload = result.model_dump(mode="json")
     storage.save_analysis(result.analysis_id, result.created_at, payload, user_id=user_id)
     log.info("analysis saved id=%s industry=%s user_id=%s", result.analysis_id, req.industry, user_id)
+    if user_id is not None:
+        # Anonymous analyses are unmetered by design (no entitlements row to
+        # attribute usage to). Counting is best-effort: the analysis is
+        # already saved above, so a bookkeeping failure here must never
+        # turn a successful analysis into an error response (enforcement is
+        # off anyway — see app/entitlements.py).
+        try:
+            entitlements.get_or_create(user_id)
+            entitlements.increment_analyses(user_id)
+        except Exception:
+            log.warning("entitlements increment failed user_id=%s", user_id, exc_info=True)
     return payload
 
 
@@ -210,9 +221,13 @@ def delete_analysis(analysis_id: str):
 def my_analyses(user_id: str = Depends(auth.require_user)):
     """«Мои анализы» — the signed-in user's own analyses, newest first,
     capped at 50. Auth-gated (401 anonymous, via require_user); a summary
-    projection only, never the full stored payload."""
+    projection only, never the full stored payload. Also carries the
+    caller's plan (get_or_create is cheap and idempotent) so the frontend
+    can show a quiet plan chip without a second request."""
     rows = storage.list_analyses_for_user(user_id, limit=50)
+    plan = entitlements.get_or_create(user_id)["plan"]
     return {
+        "plan": plan,
         "analyses": [
             {
                 "analysis_id": row["id"],

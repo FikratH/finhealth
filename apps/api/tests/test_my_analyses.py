@@ -12,7 +12,7 @@ import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
-from app import storage
+from app import entitlements, storage
 from app.main import app
 
 client = TestClient(app)
@@ -189,3 +189,43 @@ def test_list_caps_at_50(monkeypatch):
     resp = client.get("/api/my/analyses", headers=_auth("user-a"))
     assert resp.status_code == 200, resp.text
     assert len(resp.json()["analyses"]) == 50
+
+
+# ------------------------------------ plan (P5.T5) -----------------------------
+
+def test_list_response_carries_plan_default_free(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    _seed("p-free", "user-a")
+
+    resp = client.get("/api/my/analyses", headers=_auth("user-a"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["plan"] == "free"
+
+
+def test_list_response_carries_plan_pro(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    _seed("p-pro", "user-pro")
+    entitlements.get_or_create("user-pro")
+    engine = storage.get_engine()
+    from sqlalchemy import update
+    with engine.begin() as conn:
+        conn.execute(
+            update(entitlements.entitlements)
+            .where(entitlements.entitlements.c.user_id == "user-pro")
+            .values(plan="pro")
+        )
+
+    resp = client.get("/api/my/analyses", headers=_auth("user-pro"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["plan"] == "pro"
+
+
+def test_list_response_carries_plan_even_with_no_analyses(monkeypatch):
+    """get_or_create on read: a signed-in user with zero saved analyses
+    still gets a plan back (an empty-but-valid entitlements row), not a
+    missing key."""
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+
+    resp = client.get("/api/my/analyses", headers=_auth("user-fresh"))
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"plan": "free", "analyses": []}

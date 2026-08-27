@@ -224,6 +224,10 @@ class MyAnalysisSummary(BaseModel):
 
 
 class MyAnalysesResponse(BaseModel):
+    # Additive (P5.T5): the caller's entitlement plan, so the frontend can
+    # show a quiet chip without a second request. Enforcement is off — this
+    # is display-only, see app/entitlements.py.
+    plan: str = "free"
     analyses: list[MyAnalysisSummary]
 
 
