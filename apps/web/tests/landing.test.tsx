@@ -56,7 +56,8 @@ describe("Landing page sections", () => {
         // logo (LogoReveal) outranks the earlier segment-rendered wordmark
         // concept — its accessible name is the <img>'s own alt text,
         // always Latin "Tonus", identical in both locales (design-
-        // direction: never «Тонус» in any locale).
+        // direction: the wordmark is Latin "Tonus" always, never the
+        // Cyrillic transliteration, in any locale).
         const wordmark = screen.getByTestId("hero-wordmark");
         expect(wordmark).toHaveAccessibleName("Tonus");
         expect(wordmark.tagName).toBe("A");

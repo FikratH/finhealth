@@ -35,7 +35,7 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
   const tDialog = useTranslations("My.deleteDialog");
 
   return (
-    <div className="overflow-x-auto border border-line">
+    <div className="overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-accent-surface text-left font-mono text-xs uppercase tracking-wide text-ink-muted">

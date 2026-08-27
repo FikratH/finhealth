@@ -41,12 +41,14 @@ export function MyAnalysesView({ locale }: MyAnalysesViewProps) {
   const handleSessionExpired = useCallback(() => setSessionExpired(true), []);
 
   if (isPending || !session || sessionExpired) {
-    // Designed absence, same grammar as results/[id]/not-found.tsx: a
-    // rule-framed composed block with a next action, never a bare
-    // "please sign in" line.
+    // Designed absence, same grammar as results/[id]/not-found.tsx and the
+    // upload dropzone's empty state: an unlit instrument bay (ghost-cell
+    // perforation texture, hairline bezel), never a bare "please sign in"
+    // line. Neutral tone — an unauthenticated visit isn't a failure, so
+    // this stays off the critical/attention LED colors entirely.
     return (
       <div className="mx-auto max-w-2xl px-6 py-20">
-        <div className="grid-paper border-2 border-ink p-10 text-center">
+        <div className="ghost-cell-texture border border-line bg-panel p-10 text-center">
           <h1 className="font-display text-3xl text-ink">{t("signedOut.heading")}</h1>
           <p className="mt-4 text-ink-muted">{t("signedOut.body")}</p>
           <Button asChild className="mt-6">
@@ -149,7 +151,9 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
       {state === "error" && <p className="text-sm text-critical">{t("loadError")}</p>}
 
       {state === "ready" && analyses.length === 0 && (
-        <div className="grid-paper border-2 border-ink p-10 text-center">
+        // Same unlit-bay idiom as the signed-out state above — no history
+        // yet is a designed absence, not an error.
+        <div className="ghost-cell-texture border border-line bg-panel p-10 text-center">
           <h2 className="font-display text-2xl text-ink">{t("empty.heading")}</h2>
           <p className="mt-4 text-ink-muted">{t("empty.body")}</p>
           <Button asChild className="mt-6">

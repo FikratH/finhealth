@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { SectionHeading } from "@/components/section-heading";
 import { RevealSection } from "@/components/results/reveal-section";
+import { OriginTicket } from "@/components/origin-ticket";
 import methodologyData from "@/lib/methodology-data.json";
 import { formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/format";
@@ -44,9 +45,12 @@ export function MethodologyDocument({ locale }: MethodologyDocumentProps) {
       <header className="space-y-4 border-b-2 border-ink pb-6">
         <h1 className="font-display text-3xl text-ink sm:text-4xl">{t("heading")}</h1>
         <p className="max-w-3xl text-ink-muted">{t("lede")}</p>
-        <p className="font-mono text-xs text-ink-muted">
-          {t("generatedNote", { sha: data.generated_from })}
-        </p>
+        {/* The document's own provenance marker, same origin-ticket idiom
+         * as every other "where did this come from" sticker in the world
+         * (visible seams raise) — a single chip at the document's own
+         * anchor, not repeated per-row through the dense reference tables
+         * below (Read mode: comprehension first). */}
+        <OriginTicket>{t("generatedNote", { sha: data.generated_from })}</OriginTicket>
       </header>
 
       {/* Формулы коэффициентов ------------------------------------------ */}

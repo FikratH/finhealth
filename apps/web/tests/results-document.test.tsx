@@ -535,12 +535,15 @@ describe("ResultsDocument", () => {
 
     const header = heading.closest("section") as HTMLElement;
     // No fabricated number: the score renders as ghost segment cells (never
-    // hidden, never faked as 0), and its accessible name falls back to the
-    // same metric-naming caption alone ("Общий балл") rather than any
-    // placeholder figure — the verdict itself is announced by the sr-only
-    // <h1> above, not repeated through the score's own name (review
-    // findings 9 and N2).
-    expect(within(header).getByRole("img", { name: "Общий балл" })).toBeInTheDocument();
+    // hidden, never faked as 0), and its accessible name composes the
+    // shared «Н/Д» absence token with the metric-naming caption ("Н/Д —
+    // Общий балл") — the absence itself is announced, not silently
+    // collapsed into the bare metric name (review finding N4) — while the
+    // verdict stays announced solely by the sr-only <h1> above, never
+    // repeated through the score's own name (review findings 9 and N2).
+    expect(
+      within(header).getByRole("img", { name: "Н/Д — Общий балл" }),
+    ).toBeInTheDocument();
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }

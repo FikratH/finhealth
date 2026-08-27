@@ -45,7 +45,7 @@ export function SigninForm({ googleEnabled }: SigninFormProps) {
   // success text bolted onto the same form).
   if (status === "sent") {
     return (
-      <div className="border border-line bg-paper p-6 sm:p-8" role="status">
+      <div className="border border-line bg-panel p-6 sm:p-8" role="status">
         <SpecimenChip tone="accent">{t("sentChip")}</SpecimenChip>
         <p className="mt-4 font-display text-xl text-ink">{t("sentTitle")}</p>
         <p className="mt-2 text-sm text-ink-muted">{t("sentDescription", { email })}</p>
@@ -64,7 +64,7 @@ export function SigninForm({ googleEnabled }: SigninFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="border border-line bg-paper p-6 sm:p-8">
+    <form onSubmit={handleSubmit} noValidate className="border border-line bg-panel p-6 sm:p-8">
       <label
         htmlFor={emailId}
         className="block font-mono text-xs uppercase tracking-wide text-ink-muted"
@@ -86,8 +86,13 @@ export function SigninForm({ googleEnabled }: SigninFormProps) {
         aria-invalid={Boolean(validationError)}
         aria-describedby={validationError ? emailErrorId : undefined}
         className={cn(
-          "mt-2 w-full border bg-paper px-3 py-2 font-mono text-sm text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-          validationError ? "border-critical" : "border-line focus-visible:border-accent",
+          // Celebrated-editability grammar, same discipline as ValueInput/
+          // DocumentControls' currency field: brand-teal border + a low-
+          // spread glow on focus, not the pale --accent-surface wash.
+          "mt-2 w-full border bg-panel px-3 py-2 font-mono text-sm text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+          validationError
+            ? "border-critical"
+            : "border-line focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)]",
         )}
       />
       {validationError && (

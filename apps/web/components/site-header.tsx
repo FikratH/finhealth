@@ -20,7 +20,11 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="border-b border-line bg-paper print:hidden">
+    // The console strip: a bezel surface (bg-panel), not flush page ground
+    // — every other persistent instrument chrome in this world (rails,
+    // module bezels, the origin-ticket bar) sits on the panel tone so it
+    // reads as a distinct console rather than blending into the body.
+    <header className="border-b border-line bg-panel print:hidden">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
         <Link
           href="/"

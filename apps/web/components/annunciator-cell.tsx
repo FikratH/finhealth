@@ -37,10 +37,22 @@ export interface AnnunciatorCellProps {
 // single most important reading on the page. Same glyph-plus-color
 // discipline as StatusPill (never color alone). The glow is a text-shadow
 // decoration on top of the AA-checked base color, not a substitute for it.
+//
+// role="img" (not "status"): every other read-only instrument reading in
+// this family — SegmentDisplay, ScoreDial, CalibrationScale — treats its
+// glyph-plus-text as one opaque "picture" named by aria-label, since the
+// visible content itself is aria-hidden. AnnunciatorCell used to reach for
+// role="status" instead, but nothing here ever mutates post-mount (its one
+// real call site, score-header.tsx, sets the verdict once at initial
+// render) — a live region that never changes is announced zero times, so
+// the "status" role bought nothing while risking a double-announce
+// alongside the sr-only <h1> that also names the verdict. role="img"
+// matches the family's own naming convention and drops the unused
+// live-region semantics.
 export function AnnunciatorCell({ status, label, description, className }: AnnunciatorCellProps) {
   return (
     <div
-      role="status"
+      role="img"
       aria-label={description ? `${label} — ${description}` : label}
       className={cn("border border-line bg-panel px-5 py-4", className)}
     >

@@ -3,9 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { AnnunciatorCell } from "@/components/annunciator-cell";
 
 describe("AnnunciatorCell", () => {
-  it("exposes the label as its accessible name via role=status", () => {
+  it("exposes the label as its accessible name via role=img", () => {
     render(<AnnunciatorCell status="good" label="Сильное состояние" />);
-    expect(screen.getByRole("status", { name: "Сильное состояние" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Сильное состояние" })).toBeInTheDocument();
   });
 
   it("combines label and description into the accessible name when both are given", () => {
@@ -13,7 +13,7 @@ describe("AnnunciatorCell", () => {
       <AnnunciatorCell status="critical" label="Критично" description="Требует внимания" />,
     );
     expect(
-      screen.getByRole("status", { name: "Критично — Требует внимания" }),
+      screen.getByRole("img", { name: "Критично — Требует внимания" }),
     ).toBeInTheDocument();
   });
 

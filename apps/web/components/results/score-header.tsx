@@ -40,7 +40,7 @@ const SCALE_KEY: Record<
 // as an AnnunciatorCell a beat later — "stamp moment → verdict lights,"
 // the same one-two rhythm the old arc-then-stamp opening had. The verdict
 // keeps a real <h1> (sr-only — AnnunciatorCell's own label text is
-// aria-hidden in favor of its role="status" aria-label, so the document
+// aria-hidden in favor of its role="img" aria-label, so the document
 // still needs one genuine heading landmark) wired to data-verdict-stamp,
 // the wrapper results-document.tsx's opening timeline fades/scales in.
 // The score's own `caption` names the READING ("Общий балл"/"Overall
@@ -52,6 +52,12 @@ const SCALE_KEY: Record<
 // duplication (review finding N2). When overall_score is null this is
 // also where the insufficient-data state composes its guidance — designed
 // absence (ghost segment cells), not a blank dial with nothing to act on.
+// The null-score accessible name (review finding N4): `caption` stays the
+// reading's own name ("Общий балл") unconditionally, and `naLabel` swaps
+// in Results.ratios' shared «Н/Д» token instead of reusing the caption
+// text for both slots — SegmentDisplay composes them as "Н/Д — Общий
+// балл", so the absence is announced, not silently collapsed into the
+// bare metric name.
 //
 // Print: SegmentDisplay's animated mask paints every bar as a
 // background-color, which every major print engine drops by default
@@ -65,6 +71,7 @@ const SCALE_KEY: Record<
 export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   const t = useTranslations("Results.header");
   const tScale = useTranslations("Analyze.verify.controls");
+  const tRatios = useTranslations("Results.ratios");
   const insufficientData = analysis.overall_score === null;
   const period = analysis.previous_period
     ? `${analysis.previous_period} → ${analysis.latest_period}`
@@ -80,8 +87,8 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
             digits={SCORE_DIGITS}
             locale={locale}
             className="text-6xl sm:text-7xl print:hidden"
-            caption={insufficientData ? undefined : t("scoreLabel")}
-            naLabel={insufficientData ? t("scoreLabel") : undefined}
+            caption={t("scoreLabel")}
+            naLabel={insufficientData ? tRatios("naLabel") : undefined}
           />
           <span
             aria-hidden="true"

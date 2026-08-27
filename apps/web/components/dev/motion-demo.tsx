@@ -93,8 +93,12 @@ export function MotionDemo({
             {beatLabels[key]} — {Math.round(duration * 1000)}ms
           </p>
           <div
+            // bg-brand, not bg-accent: the latter resolves to the pale
+            // --accent-surface wash, which reads as nearly invisible at
+            // 1px against the near-black ground — the accent trap this
+            // task's craft-floor pass is meant to catch.
             data-role="rule"
-            className="h-px w-full origin-left bg-accent"
+            className="h-px w-full origin-left bg-brand"
           />
           <div
             data-role="fade"

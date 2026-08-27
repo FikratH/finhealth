@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { SectionHeading } from "@/components/section-heading";
 import { MotionDemo } from "@/components/dev/motion-demo";
+import { BootGrammarDemo } from "@/components/dev/boot-grammar-demo";
 
 // Dev-only visual QA surface for the motion metronome — not linked from
 // product navigation; 404s outside dev, same discipline as /dev/tokens.
@@ -38,6 +39,18 @@ export default async function DevMotionPage({ params }: DevMotionPageProps) {
             base: t("baseCopy"),
             reveal: t("revealCopy"),
           }}
+          replayLabel={t("replayLabel")}
+          reducedNotice={t("reducedNotice")}
+        />
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading>{t("bootHeading")}</SectionHeading>
+        <BootGrammarDemo
+          stepLabel={t("stepLabel")}
+          stepCopy={t("stepCopy")}
+          sweepLabel={t("sweepLabel")}
+          sweepCopy={t("sweepCopy")}
           replayLabel={t("replayLabel")}
           reducedNotice={t("reducedNotice")}
         />

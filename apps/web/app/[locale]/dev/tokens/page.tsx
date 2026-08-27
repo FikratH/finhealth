@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { SectionHeading } from "@/components/section-heading";
 import { StatusPill } from "@/components/status-pill";
-import { ScoreDial } from "@/components/score-dial";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { MetricNumber } from "@/components/metric-number";
 import { SpecimenChip } from "@/components/specimen-chip";
@@ -237,16 +236,6 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
             <StatusPill status="attention" label={tStatus("attention")} />
             <StatusPill status="critical" label={tStatus("critical")} />
             <StatusPill status="na" label={tStatus("na")} />
-          </div>
-        </RegisterPreview>
-      </Section>
-
-      <Section title={t("scoreHeading")}>
-        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
-          <div className="flex flex-wrap gap-6">
-            <ScoreDial score={86.8} locale={loc} />
-            <ScoreDial score={41.2} locale={loc} />
-            <ScoreDial score={null} locale={loc} caption={t("scoreInsufficientData")} />
           </div>
         </RegisterPreview>
       </Section>

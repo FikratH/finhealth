@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/section-heading";
+import { OriginTicket } from "@/components/origin-ticket";
 import { ApiError, generateNarrative } from "@/lib/api";
 import type { AnalysisResult, NarrativeResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -111,9 +112,18 @@ export function AnalystNarrative({
         ))}
       </div>
       <p className="border-t border-line pt-4 text-xs text-ink-muted">{t("disclosure")}</p>
-      <p className="font-mono text-xs text-ink-muted">
-        {t("modelLabel")}: {narrative.model} · {t("generatedAtLabel")}: {narrative.generated_at}
-      </p>
+      {/* A textbook origin-ticket pair (design-direction's "visible seams"
+       * raise): the model and generation timestamp are this section's own
+       * provenance markers, the same idiom as the industry/period/currency
+       * tickets on the score header. */}
+      <div className="flex flex-wrap gap-2">
+        <OriginTicket>
+          {t("modelLabel")}: {narrative.model}
+        </OriginTicket>
+        <OriginTicket>
+          {t("generatedAtLabel")}: {narrative.generated_at}
+        </OriginTicket>
+      </div>
     </section>
   );
 }
