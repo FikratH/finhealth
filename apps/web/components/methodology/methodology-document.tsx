@@ -187,6 +187,7 @@ export function MethodologyDocument({ locale }: MethodologyDocumentProps) {
               {data.beneish.policy.example_insufficient_disclosure}
             </p>
           </div>
+          <h4 className="font-display text-sm text-ink">{tBeneish("thresholdsHeading")}</h4>
           <dl className="space-y-1 font-mono text-xs text-ink-muted">
             <div>
               {tBeneish("flagHigh")}: m &gt; {num(data.beneish.thresholds.high)}

@@ -89,6 +89,16 @@ describe("MethodologyDocument", () => {
         }
       });
 
+      it("labels the Beneish thresholds list with its own heading (fix-wave F5c — was an orphaned i18n key)", () => {
+        render(
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <MethodologyDocument locale={locale} />
+          </NextIntlClientProvider>,
+        );
+        const m = (messages as typeof ruMessages).Methodology.riskModels.beneish;
+        expect(screen.getByText(m.thresholdsHeading)).toBeInTheDocument();
+      });
+
       it("renders the closing Принципы block with all three honesty commitments", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>

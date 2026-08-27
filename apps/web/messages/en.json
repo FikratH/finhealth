@@ -405,7 +405,6 @@
     "scoring": {
       "heading": "Scoring",
       "healthBandsHeading": "Health-score bands",
-      "insufficientDataLabel": "Insufficient data",
       "categoryWeightingHeading": "Categories and weights",
       "categoryWeightingNote": "Each category's score is a weighted average of that category's ratios that have both an industry benchmark and data. The overall score is a weighted average across categories that have at least one computed ratio; the weight of a category with no data is redistributed among the rest rather than zeroing out the total.",
       "confidenceHeading": "Analysis confidence",
