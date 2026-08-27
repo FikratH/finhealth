@@ -87,20 +87,34 @@ def _recreate_extract_pool(broken_pool: concurrent.futures.ProcessPoolExecutor) 
     """Kill every worker process in `broken_pool` and replace the
     module-level pool with a fresh one. Safe to call from multiple threads
     after concurrent timeouts on the same pool: only the caller that still
-    sees `_extract_pool is broken_pool` performs the swap."""
+    sees `_extract_pool is broken_pool` performs the swap.
+
+    Construct-then-assign-then-teardown, in that order: the replacement
+    pool is built and published to `_extract_pool` *before* anything is
+    done to `broken_pool`. If constructing the replacement raises (e.g.
+    the OS is out of file descriptors/processes), `_extract_pool` is left
+    untouched — still pointing at `broken_pool`, unusable for the request
+    that just timed out but otherwise exactly as it was before this call —
+    rather than extraction being left permanently dead because the old
+    pool was already torn down before its replacement existed."""
     global _extract_pool
     with _pool_lock:
         if _extract_pool is not broken_pool:
             return  # another thread already recreated it
-        # `_processes` is None until the pool's first submit() has run (it
-        # lazily starts workers), so an idle or never-used pool must not
-        # blow up here — nothing to kill in that case.
+        fresh_pool = concurrent.futures.ProcessPoolExecutor(
+            max_workers=EXTRACT_POOL_WORKERS, mp_context=_MP_CONTEXT)
+        _extract_pool = fresh_pool
+        # `_processes` (pid -> Process) is `{}` from construction onward,
+        # populated as workers are lazily launched, and is only ever reset
+        # to None by `broken_pool.shutdown()` — which the lock + identity
+        # check above guarantee nothing has called on `broken_pool` yet at
+        # this point. The `or {}` is cheap insurance against that
+        # invariant breaking in some future refactor, not a real case
+        # this function expects to hit today.
         processes = getattr(broken_pool, "_processes", None) or {}
         for process in list(processes.values()):
             process.kill()
         broken_pool.shutdown(wait=False, cancel_futures=True)
-        _extract_pool = concurrent.futures.ProcessPoolExecutor(
-            max_workers=EXTRACT_POOL_WORKERS, mp_context=_MP_CONTEXT)
 
 
 app = FastAPI(title="FinHealth MVP", version="0.1.0")
@@ -181,8 +195,8 @@ def industry_benchmarks(industry_id: str):
                           "и помечены соответствующим образом."}
 
 
-@app.post("/api/upload", response_model=UploadedDocument)
-async def upload(file: UploadFile = File(...), _rl: None = Depends(rate_limit)):
+@app.post("/api/upload", response_model=UploadedDocument, dependencies=[Depends(rate_limit)])
+async def upload(file: UploadFile = File(...)):
     await run_in_threadpool(storage.cleanup_stale_uploads)
     chunks: list[bytes] = []
     size = 0
@@ -209,8 +223,8 @@ async def upload(file: UploadFile = File(...), _rl: None = Depends(rate_limit)):
         size_bytes=len(data), detected_kind=kind)
 
 
-@app.post("/api/extract", response_model=ExtractionResult)
-def extract(payload: ExtractRequest, _rl: None = Depends(rate_limit)):
+@app.post("/api/extract", response_model=ExtractionResult, dependencies=[Depends(rate_limit)])
+def extract(payload: ExtractRequest):
     upload_id = payload.upload_id
     stored = storage.read_upload(upload_id)
     if stored is None:
@@ -237,13 +251,24 @@ def extract(payload: ExtractRequest, _rl: None = Depends(rate_limit)):
         raise HTTPException(
             status_code=422,
             detail="Файл слишком сложен для разбора за отведённое время. Попробуйте Excel/CSV.")
-    except BrokenProcessPool:
-        # A worker died unexpectedly — e.g. it was killed out from under
-        # this request by another request's timeout, or it crashed
-        # (segfault, OOM-kill). Recreate defensively (a no-op if this
-        # already happened) and report the same "try again" 422 rather
-        # than a 500.
-        log.warning("extract pool broken id=%s kind=%s", upload_id, kind)
+    except (BrokenProcessPool, RuntimeError):
+        # Two distinct ways this specific `pool` instance can turn out to
+        # be unusable, both meaning "try again," not "the file is bad":
+        #   - BrokenProcessPool: a worker died unexpectedly — e.g. it was
+        #     killed out from under this request by another request's
+        #     timeout, or it crashed (segfault, OOM-kill).
+        #   - RuntimeError: `pool.submit()` raises this exact type
+        #     ("cannot schedule new futures after shutdown") if `pool` was
+        #     already shut down — by `_recreate_extract_pool` reacting to
+        #     another request's timeout — between this request's snapshot
+        #     of `_extract_pool` and its own submit() call.
+        # (A genuine RuntimeError raised by extraction logic itself, inside
+        # the worker process, would also land here rather than the generic
+        # handler below — considered acceptable: extraction code does not
+        # raise bare RuntimeError for real parse failures today.)
+        # Recreate defensively (a no-op if this already happened) and
+        # report the same "try again" 422 rather than a 500.
+        log.warning("extract pool unusable id=%s kind=%s", upload_id, kind)
         _recreate_extract_pool(pool)
         raise HTTPException(status_code=422,
                             detail="Не удалось извлечь данные из файла. Попробуйте ещё раз.")
@@ -260,9 +285,8 @@ def extract(payload: ExtractRequest, _rl: None = Depends(rate_limit)):
     return result
 
 
-@app.post("/api/analyze")
-def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id),
-           _rl: None = Depends(rate_limit)):
+@app.post("/api/analyze", dependencies=[Depends(rate_limit)])
+def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id)):
     try:
         result = run_analysis(req)
     except KeyError:
@@ -333,8 +357,9 @@ def delete_my_analysis(analysis_id: str, user_id: str = Depends(auth.require_use
     return {"deleted": analysis_id}
 
 
-@app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult)
-def generate_narrative(analysis_id: str, refresh: bool = False, _rl: None = Depends(rate_limit)):
+@app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult,
+         dependencies=[Depends(rate_limit)])
+def generate_narrative(analysis_id: str, refresh: bool = False):
     """Generates (or returns the cached) LLM narrative for an analysis.
     Optional and provider-agnostic: absent OPENAI_API_KEY is a 503, never a
     500 — the rest of the product is unaffected either way. `?refresh=1`

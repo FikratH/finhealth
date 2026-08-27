@@ -42,6 +42,18 @@ def test_limit_enforced_returns_429_with_standard_envelope(monkeypatch):
     }
 
 
+def test_429_includes_retry_after_header(monkeypatch):
+    monkeypatch.setattr(ratelimit, "RATE_LIMIT_PER_MINUTE", 1)
+    assert _upload().status_code == 200
+    resp = _upload()
+    assert resp.status_code == 429
+    # 1 token/minute exhausted just now: retry-after must be positive and
+    # at most a full window (60s) — not 0 (which would imply "retry
+    # immediately" while still rate-limited) and not absurdly large.
+    retry_after = int(resp.headers["retry-after"])
+    assert 0 < retry_after <= 60
+
+
 def test_bucket_refills_over_time(monkeypatch):
     monkeypatch.setattr(ratelimit, "RATE_LIMIT_PER_MINUTE", 1)
     assert _upload().status_code == 200
@@ -58,9 +70,30 @@ def test_different_ips_have_independent_buckets():
     # Unit-level: TestClient always reports the same client IP, so IP
     # isolation is exercised directly against the bucket function instead.
     now = time.monotonic()
-    assert ratelimit._consume("1.1.1.1", 1, now) is True
-    assert ratelimit._consume("1.1.1.1", 1, now) is False
-    assert ratelimit._consume("2.2.2.2", 1, now) is True
+    assert ratelimit._consume("1.1.1.1", 1, now)[0] is True
+    assert ratelimit._consume("1.1.1.1", 1, now)[0] is False
+    assert ratelimit._consume("2.2.2.2", 1, now)[0] is True
+
+
+def test_stale_buckets_are_swept_so_memory_does_not_grow_unbounded(monkeypatch):
+    """_buckets must not accumulate one entry per distinct IP forever — a
+    bucket untouched for over a minute is evicted (it's back at full
+    capacity by then anyway, so dropping it changes no observable
+    behavior). Forces a sweep on the very next call by setting the
+    amortization threshold to 1."""
+    monkeypatch.setattr(ratelimit, "_SWEEP_EVERY", 1)
+    monkeypatch.setattr(ratelimit, "_calls_since_sweep", 0)
+    now = time.monotonic()
+    ratelimit._buckets["stale-ip-1"] = (5.0, now - 120)
+    ratelimit._buckets["stale-ip-2"] = (5.0, now - 90)
+    ratelimit._buckets["recent-ip"] = (5.0, now - 10)
+
+    ratelimit._consume("fresh-ip", 5, now)
+
+    assert "stale-ip-1" not in ratelimit._buckets
+    assert "stale-ip-2" not in ratelimit._buckets
+    assert "recent-ip" in ratelimit._buckets  # under a minute old: kept
+    assert "fresh-ip" in ratelimit._buckets
 
 
 def test_rate_limit_wired_on_all_four_endpoints():

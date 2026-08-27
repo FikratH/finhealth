@@ -10,5 +10,6 @@ benchmarks and prioritized recommendations.
 
 ## Develop
 
-API: `cd apps/api && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/uvicorn app.main:app --reload --port 8000`
+API: `cd apps/api && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.lock && .venv/bin/uvicorn app.main:app --reload --port 8000`
+(see `apps/api/README.md` for the dependency-locking workflow — `requirements.lock` is what's installed from, `requirements.txt` is the loose source)
 Tests: `cd apps/api && .venv/bin/python -m pytest tests -q`
