@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -52,6 +53,10 @@ Index("ix_analyses_user_id", analyses.c.user_id)
 # Keyed by resolved URL so a DB_PATH change (test isolation) creates a fresh
 # engine instead of silently reusing one bound to a stale sqlite file.
 _engine_cache: dict[str, Engine] = {}
+# Guards the cache-miss path (create_engine + bootstrap) so two concurrent
+# first-requests can't both race alembic upgrade head against the same
+# fresh database.
+_engine_lock = threading.Lock()
 
 
 def database_url() -> str:
@@ -90,21 +95,31 @@ def get_engine() -> Engine:
     if engine is not None:
         return engine
 
-    # A different DB_PATH/DATABASE_URL means a previous engine (if any) is
-    # stale — dispose it so pooled connections/file handles don't leak.
-    for stale in _engine_cache.values():
-        stale.dispose()
-    _engine_cache.clear()
+    with _engine_lock:
+        # Re-check inside the lock: another thread may have already built
+        # (and bootstrapped) the engine for this URL while we were waiting
+        # for it — without this, two concurrent first-requests both miss
+        # the cache, both create_engine, and both race alembic upgrade
+        # head's has_table check against the same fresh database.
+        engine = _engine_cache.get(url)
+        if engine is not None:
+            return engine
 
-    engine = create_engine(url, future=True)
-    if engine.url.get_backend_name() == "sqlite":
-        db_file = engine.url.database
-        if db_file and db_file != ":memory:":
-            Path(db_file).parent.mkdir(parents=True, exist_ok=True)
-        _configure_sqlite(engine)
-    _bootstrap_schema(engine)
-    _engine_cache[url] = engine
-    return engine
+        # A different DB_PATH/DATABASE_URL means a previous engine (if any)
+        # is stale — dispose it so pooled connections/file handles don't leak.
+        for stale in _engine_cache.values():
+            stale.dispose()
+        _engine_cache.clear()
+
+        engine = create_engine(url, future=True)
+        if engine.url.get_backend_name() == "sqlite":
+            db_file = engine.url.database
+            if db_file and db_file != ":memory:":
+                Path(db_file).parent.mkdir(parents=True, exist_ok=True)
+            _configure_sqlite(engine)
+        _bootstrap_schema(engine)
+        _engine_cache[url] = engine
+        return engine
 
 
 # --------------------------- uploads (ephemeral) ---------------------------

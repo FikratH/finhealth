@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import threading
 
 from sqlalchemy import inspect, select
 
@@ -38,6 +39,36 @@ def test_bootstrap_is_idempotent_and_trusts_existing_schema(tmp_path, monkeypatc
 
     assert first is second
     assert storage.get_analysis("a1") == {"ok": True}
+
+
+def test_concurrent_first_requests_bootstrap_exactly_once(tmp_path, monkeypatch):
+    """Two threads calling get_engine() for the same brand-new URL at once
+    must not race alembic upgrade head's has_table TOCTOU: exactly one
+    engine gets built and cached, no exception, schema present."""
+    monkeypatch.setattr(storage, "DB_PATH", str(tmp_path / "concurrent.db"))
+
+    barrier = threading.Barrier(2)
+    results: list[object] = []
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            barrier.wait(timeout=5)
+            results.append(storage.get_engine())
+        except BaseException as exc:  # noqa: BLE001 - captured for the assert below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, errors
+    assert len(results) == 2
+    assert results[0] is results[1]  # same engine instance, not two racing builds
+    assert len(storage._engine_cache) == 1
+    assert inspect(results[0]).has_table("analyses")
 
 
 def test_sqlite_engine_uses_wal(tmp_path, monkeypatch):
