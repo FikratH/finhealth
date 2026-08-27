@@ -4,12 +4,18 @@ import {
   analyze,
   deleteAnalysis,
   extract,
+  generateNarrative,
   getAnalysis,
   getIndustries,
   getIndustryBenchmarks,
   uploadFile,
 } from "@/lib/api";
-import type { AnalysisRequest, AnalysisResult, ExtractionResult } from "@/lib/api-types";
+import type {
+  AnalysisRequest,
+  AnalysisResult,
+  ExtractionResult,
+  NarrativeResult,
+} from "@/lib/api-types";
 
 // Trimmed inline fixtures — cut down from
 // apps/api/demo/expected_analysis_example.json to the minimum that still
@@ -241,6 +247,22 @@ describe("lib/api", () => {
       });
     });
 
+    it("unwraps a {detail:{code,message}} body (the narrative endpoint's shape) into ApiError.message, not the fallback key", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(503, {
+          detail: {
+            code: "narrative_unavailable",
+            message: "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен.",
+          },
+        }),
+      );
+
+      await expect(generateNarrative("an_demo123")).rejects.toMatchObject({
+        status: 503,
+        message: "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен.",
+      });
+    });
+
     it("maps a malformed 2xx body into ApiError instead of throwing a raw SyntaxError", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(invalidJsonResponse(200));
 
@@ -367,6 +389,34 @@ describe("lib/api", () => {
 
       const result = await deleteAnalysis("an_demo123");
       expect(result).toEqual({ deleted: "an_demo123" });
+    });
+
+    it("posts to the narrative endpoint with no query string, and returns the NarrativeResult shape", async () => {
+      const narrative: NarrativeResult = {
+        text_ru: "Состояние стабильное.",
+        text_en: "The state is stable.",
+        model: "gpt-5-mini",
+        generated_at: "2026-08-27T12:00:00+00:00",
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, narrative));
+
+      const result = await generateNarrative("an_demo123");
+
+      expect(result).toEqual(narrative);
+      const [path, init] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/analysis/an_demo123/narrative");
+      expect(init?.method).toBe("POST");
+    });
+
+    it("appends ?refresh=1 when refresh is requested, and omits it otherwise", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, {
+          text_ru: "x", text_en: "y", model: "gpt-5-mini", generated_at: "2026-08-27T12:00:00Z",
+        }),
+      );
+      await generateNarrative("an_demo123", { refresh: true });
+      const [path] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/analysis/an_demo123/narrative?refresh=1");
     });
   });
 

@@ -594,8 +594,11 @@ describe("ResultsDocument — the scroll cinema", () => {
       "#risk-radar",
       "#strengths-risks",
       "#recommendations",
+      "#narrative",
     ]);
-    expect(within(getNav()).getByRole("link", { name: /Заключение/ })).toBeInTheDocument();
+    expect(
+      within(getNav()).getByRole("link", { name: ruMessages.Results.nav.score }),
+    ).toBeInTheDocument();
     expect(
       within(getNav()).getByRole("link", { name: ruMessages.Results.riskRadar.heading }),
     ).toBeInTheDocument();
@@ -612,10 +615,17 @@ describe("ResultsDocument — the scroll cinema", () => {
     renderDocument(noExtrasFixture);
 
     const links = within(getNav()).getAllByRole("link");
+    // "#narrative" still appears here even though this fixture has no
+    // extras: unlike the other conditional sections, AnalystNarrative's
+    // visibility is a client-side interaction state (idle → generate →
+    // prose, or 503 → hidden), not something derived from the analysis
+    // payload's own fields — see analyst-narrative.test.tsx for its own
+    // show/hide behavior.
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "#score",
       "#categories",
       "#ratios",
+      "#narrative",
     ]);
   });
 

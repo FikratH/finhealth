@@ -14,6 +14,7 @@ import { RiskRadar } from "./risk-radar";
 import { WhatIfSimulator } from "./what-if-simulator";
 import { StrengthsRisks } from "./strengths-risks";
 import { Recommendations } from "./recommendations";
+import { AnalystNarrative } from "./analyst-narrative";
 import { WarningsAccordion } from "./warnings-accordion";
 import { MissingMetricsHint } from "./missing-metrics-hint";
 import { Footnotes } from "./footnotes";
@@ -65,6 +66,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const tRiskRadar = useTranslations("Results.riskRadar");
   const tWhatIf = useTranslations("Results.whatIf");
   const tRecommendations = useTranslations("Results.recommendations");
+  const tNarrative = useTranslations("Results.narrative");
   const footnoteIndex = buildFootnoteIndex(analysis.ratios);
 
   const scope = useRef<HTMLDivElement>(null);
@@ -75,6 +77,12 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   // screen at load) — "always-lit" means something is current from the
   // first frame, never a blank nav waiting for the first scroll.
   const [activeId, setActiveId] = useState<string | null>("score");
+
+  // Mirrors AnalystNarrative's own hidden state one level up so its
+  // section entry below (RevealSection's hairline rule + mini-nav anchor)
+  // disappears along with it once a 503 confirms no LLM key is configured
+  // — a designed-absence 503 leaves nothing behind, not even empty chrome.
+  const [narrativeAvailable, setNarrativeAvailable] = useState(true);
 
   // The single source both the RevealSection JSX below and the mini-nav's
   // items derive from — a section named here, once, either exists in both
@@ -158,6 +166,19 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       show: hasRecommendations,
       content: (
         <Recommendations recommendations={analysis.recommendations} locale={locale} />
+      ),
+    },
+    {
+      key: "narrative",
+      id: "narrative",
+      navLabel: tNarrative("heading"),
+      show: narrativeAvailable,
+      content: (
+        <AnalystNarrative
+          analysis={analysis}
+          locale={locale}
+          onUnavailable={() => setNarrativeAvailable(false)}
+        />
       ),
     },
     {

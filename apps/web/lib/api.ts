@@ -18,6 +18,7 @@ import type {
   ExtractionResult,
   IndustriesResponse,
   IndustryBenchmarksResponse,
+  NarrativeResult,
   UploadedDocument,
 } from "./api-types";
 
@@ -54,7 +55,11 @@ export function fallbackKey(status: number): string {
   return STATUS_FALLBACK_KEYS[status] ?? "errors.unknown";
 }
 
-/** Reads `{detail: string}` off an error response body, if present. */
+/** Reads a usable message off an error response body, if present. Most
+ * endpoints send `{detail: "<RU string>"}`; the narrative endpoint
+ * (POST /api/analysis/{id}/narrative) sends `{detail: {code, message}}`
+ * instead so callers can branch on `code` — this also unwraps that shape's
+ * `message` so `ApiError.message` carries a usable RU string either way. */
 export async function readDetail(response: Response): Promise<string | undefined> {
   try {
     const body: unknown = await response.json();
@@ -62,6 +67,12 @@ export async function readDetail(response: Response): Promise<string | undefined
       const detail = (body as { detail: unknown }).detail;
       if (typeof detail === "string" && detail.length > 0) {
         return detail;
+      }
+      if (detail && typeof detail === "object" && "message" in detail) {
+        const message = (detail as { message: unknown }).message;
+        if (typeof message === "string" && message.length > 0) {
+          return message;
+        }
       }
     }
   } catch {
@@ -194,6 +205,23 @@ export function deleteAnalysis(id: string): Promise<DeleteAnalysisResponse> {
   return request<DeleteAnalysisResponse>(
     `/api/analysis/${encodeURIComponent(id)}`,
     { method: "DELETE" },
+    DEFAULT_TIMEOUT_MS,
+  );
+}
+
+/** POST /api/analysis/{id}/narrative — 404 unknown id, 503
+ * ({code:"narrative_unavailable"}) when no LLM key is configured
+ * server-side, 502 ({code:"narrative_failed"}) on any provider/parse
+ * failure. Idempotent: a second call without `refresh` returns the cached
+ * narrative rather than calling the LLM again. */
+export function generateNarrative(
+  id: string,
+  options: { refresh?: boolean } = {},
+): Promise<NarrativeResult> {
+  const query = options.refresh ? "?refresh=1" : "";
+  return request<NarrativeResult>(
+    `/api/analysis/${encodeURIComponent(id)}/narrative${query}`,
+    { method: "POST" },
     DEFAULT_TIMEOUT_MS,
   );
 }

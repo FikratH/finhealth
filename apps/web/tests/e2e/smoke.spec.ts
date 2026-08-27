@@ -103,7 +103,10 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // (Рекомендации) reveals, and the desktop rail highlights it ----------
   await page.setViewportSize({ width: 1440, height: 900 }); // clears the xl: breakpoint the desktop rail needs
   const nav = page.getByRole("navigation", { name: "Навигация по разделам отчёта" });
-  await expect(nav.getByRole("link", { name: "Заключение" })).toHaveAttribute(
+  // exact: true — Plan 4 Task 5 added a second nav link, "Заключение
+  // аналитика" (the LLM narrative section), whose name otherwise substring-
+  // matches this same query.
+  await expect(nav.getByRole("link", { name: "Заключение", exact: true })).toHaveAttribute(
     "aria-current",
     "true",
   ); // always-lit: something is current before any scroll happens

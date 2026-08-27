@@ -319,6 +319,14 @@
       "tradeoffsLabel": "Компромиссы",
       "benchmarkHintLabel": "Ориентир"
     },
+    "narrative": {
+      "heading": "Заключение аналитика",
+      "generateButton": "Сформировать пояснение",
+      "generating": "Формируем пояснение…",
+      "disclosure": "Сгенерировано ИИ на основе рассчитанных показателей — не является рекомендацией",
+      "modelLabel": "Модель",
+      "generatedAtLabel": "Сформировано"
+    },
     "warnings": {
       "summary": "Предупреждения ({count})"
     },

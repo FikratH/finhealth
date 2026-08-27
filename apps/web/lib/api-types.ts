@@ -298,6 +298,11 @@ export interface AnalysisResult {
    * document line it came from; no match means the input is derived
    * (an average, a subtotal, an alias) rather than read directly. */
   source_values?: ExtractedValue[];
+  /** Present only once `POST /api/analysis/{id}/narrative` has succeeded at
+   * least once — absent on every analysis that hasn't asked for it (or
+   * whose request came back 503/502). The app is fully functional without
+   * it; see `NarrativeResult` below. */
+  narrative?: NarrativeResult;
   disclaimer: string;
 }
 
@@ -307,4 +312,20 @@ export interface AnalysisResult {
 
 export interface DeleteAnalysisResponse {
   deleted: string;
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/analysis/{id}/narrative
+// ---------------------------------------------------------------------------
+
+/** The LLM narrative layer's output — prose AROUND the already-computed
+ * numbers above, never a source of numbers itself (see
+ * apps/api/app/services/narrative.py's prompt contract). Optional and
+ * provider-agnostic: `POST /api/analysis/{id}/narrative` returns 503 when
+ * no key is configured server-side, 502 on any provider/parse failure. */
+export interface NarrativeResult {
+  text_ru: string;
+  text_en: string;
+  model: string;
+  generated_at: string;
 }
