@@ -4,7 +4,12 @@ import { StatusPill } from "@/components/status-pill";
 import { NormBand } from "@/components/norm-band";
 import { SpecimenChip } from "@/components/specimen-chip";
 import { ConfidenceMeter } from "@/components/confidence-meter";
-import { traceRatioInputs, truncateSnippet, type RatioInputTrace } from "@/lib/results";
+import {
+  classifyProvenance,
+  traceRatioInputs,
+  truncateSnippet,
+  type RatioInputTrace,
+} from "@/lib/results";
 import { metricDisplayName } from "@/lib/metric-names";
 import type { ExtractedValue, RatioResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -22,15 +27,25 @@ export interface RatioRowProps {
   sourceValues?: ExtractedValue[];
 }
 
-// One traced input: either a document-sourced value (original wording,
-// location, raw excerpt, confidence) or a derived/computed figure (an
-// average, a subtotal, an alias) that was never read directly — the two
-// read as distinctly different claims and must not look alike.
+// One traced input, in one of three honest states — a document-sourced
+// value (original wording, location, raw excerpt, confidence), a derived
+// figure (an average, a subtotal, an alias) that was never read directly,
+// or a dictionary metric extraction.py looked for and never found (a
+// null-value stub — never a fabricated 0% reading). The three must not
+// look alike: only "sourced" carries a confidence signal at all.
 function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Locale }) {
   const t = useTranslations("Results.ratios");
-  const displayName = metricDisplayName(trace.key, locale);
+  // Prefer the matched source's own `metric` field over the raw
+  // `ratio.inputs` key: for an aliased passthrough like "ebit" (see
+  // INPUT_KEY_ALIASES), the match is real but the input key itself isn't a
+  // METRIC_NAMES entry — the row must display under the metric's real
+  // identity (e.g. "operating_income" → «Операционная прибыль (EBIT)»),
+  // not the raw alias. Falls back to the input key itself when there's no
+  // match at all (the derived case).
+  const displayName = metricDisplayName(trace.source?.metric ?? trace.key, locale);
+  const status = classifyProvenance(trace);
 
-  if (!trace.source) {
+  if (status === "derived") {
     return (
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-ink-muted">{displayName}</span>
@@ -39,7 +54,17 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
     );
   }
 
-  const { source } = trace;
+  if (status === "not_found") {
+    return (
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-ink-muted">{displayName}</span>
+        <SpecimenChip>{t("provenanceNotFound")}</SpecimenChip>
+      </div>
+    );
+  }
+
+  // status === "sourced" — trace.source is non-null with a real value here.
+  const source = trace.source as ExtractedValue;
   const snippet = truncateSnippet(source.snippet);
 
   return (

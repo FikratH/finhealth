@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { RatioRow } from "@/components/results/ratio-row";
 import ruMessages from "@/messages/ru.json";
-import type { RatioResult } from "@/lib/api-types";
+import type { ExtractedValue, RatioResult } from "@/lib/api-types";
 
 // Real demo figures: a higher-is-better ratio whose value sits ABOVE the
 // "good" band on the "higher" side — the API still scores this "good"
@@ -60,5 +60,138 @@ describe("RatioRow", () => {
     // "attention" symbol is also "▲", so the glyph alone is ambiguous here.
     renderRatioRow({ ...receivablesTurnover, status: "attention" });
     expect(screen.getByText(ruMessages.Results.ratios.aboveLabel)).toBeInTheDocument();
+  });
+});
+
+describe("RatioRow — provenance trace fixes (review fix round 1)", () => {
+  it("resolves the 'ebit' input to its real operating_income citation, not a fabricated computed-value label", () => {
+    // Real demo figures (apps/api/demo/expected_analysis_example.json).
+    // ratios.py's _interest_coverage keys operating_income's own value as
+    // "ebit" (matching the formula's own notation) — a pure passthrough,
+    // not a computed figure, so it must trace back to the real citation
+    // rather than reading as "Расчётное значение".
+    const interestCoverage: RatioResult = {
+      key: "interest_coverage",
+      name: "Interest Coverage",
+      category: "leverage",
+      formula: "EBIT / interest_expense",
+      inputs: { ebit: 356400000, interest_expense: 148200000 },
+      substitution:
+        "EBIT / interest_expense  →  ebit = 356 400 000 ; interest_expense = 148 200 000",
+      value: 2.4048582995951415,
+      unit: "x",
+      status: "critical",
+      score: 46.3,
+      benchmark: {
+        ratio: "interest_coverage",
+        weight: 1.5,
+        direction: "higher",
+        good: [4.9068, 10.3909],
+        acceptable: [2.5977, 13.8546],
+        note: "Покрытие процентов критично для капиталоёмкого бизнеса.",
+        source: "Damodaran (NYU Stern), Jan 2026",
+      },
+      explanation:
+        "Значение 2.40. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 4.9068–10.3909. Вывод: существенно вне отраслевого ориентира. Покрытие процентов критично для капиталоёмкого бизнеса.",
+      applicable: true,
+      warnings: [],
+    };
+    const operatingIncome: ExtractedValue = {
+      metric: "operating_income",
+      original_label: "Прибыль от операционной деятельности",
+      value: 356400000,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 20",
+      confidence: 95,
+      snippet: "Прибыль от операционной деятельности | 356 400 | 298 700",
+      manually_edited: false,
+    };
+    const interestExpense: ExtractedValue = {
+      metric: "interest_expense",
+      original_label: "Проценты к уплате",
+      value: 148200000,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 21",
+      confidence: 95,
+      snippet: "Проценты к уплате | (148 200) | (139 700)",
+      manually_edited: false,
+    };
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow
+          ratio={interestCoverage}
+          locale="ru"
+          sourceValues={[operatingIncome, interestExpense]}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText(ruMessages.Results.ratios.provenanceHeading)).toBeInTheDocument();
+    // metricDisplayName("ebit", "ru") has no METRIC_NAMES entry — this
+    // proves the row displays under operating_income's real identity, not
+    // the raw "ebit" alias key.
+    expect(screen.getByText("Операционная прибыль (EBIT)")).toBeInTheDocument();
+    expect(screen.getByText("«Прибыль от операционной деятельности»")).toBeInTheDocument();
+    expect(screen.getByText("CSV, строка 20")).toBeInTheDocument();
+    // Both inputs are real, sourced citations — neither reads as a
+    // fabricated "computed value".
+    expect(
+      screen.queryByText(ruMessages.Results.ratios.provenanceDerived),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders 'not found in document' — never a fabricated 0% confidence meter — for a null-value source_values stub", () => {
+    // Minimal synthetic ratio (only `inputs` matters for this test); the
+    // source_values entry is verbatim the real stub shape
+    // extraction.py produces for a dictionary metric it never located in
+    // the document (apps/api/demo/expected_analysis_example.json's own
+    // "retained_earnings" entry: value null, source "", confidence 0).
+    // api-types' own contract: null means N/A, never 0 — this must not
+    // render as a live (if low-confidence) reading.
+    const ratioWithUnfoundInput: RatioResult = {
+      key: "altman_z_x2",
+      name: "Test fixture ratio",
+      category: "leverage",
+      formula: "",
+      inputs: { retained_earnings: null },
+      substitution: "",
+      value: null,
+      unit: "x",
+      status: "na",
+      score: null,
+      benchmark: null,
+      explanation: "",
+      applicable: true,
+      warnings: [],
+    };
+    const retainedEarningsStub: ExtractedValue = {
+      metric: "retained_earnings",
+      original_label: "",
+      value: null,
+      currency: "KZT",
+      scale: "thousands",
+      period: "2024",
+      source: "",
+      confidence: 0,
+      snippet: "",
+      manually_edited: false,
+    };
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow
+          ratio={ratioWithUnfoundInput}
+          locale="ru"
+          sourceValues={[retainedEarningsStub]}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText(ruMessages.Results.ratios.provenanceNotFound)).toBeInTheDocument();
+    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(ruMessages.Results.ratios.provenanceDerived),
+    ).not.toBeInTheDocument();
   });
 });

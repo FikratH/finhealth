@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFootnoteIndex,
+  classifyProvenance,
   sortRecommendationsByPriority,
   traceRatioInputs,
   truncateSnippet,
@@ -129,13 +130,28 @@ describe("traceRatioInputs", () => {
     ]);
   });
 
-  it("leaves a derived key (no matching metric) with a null source", () => {
-    // working_capital, ebit, average_total_assets etc. are computed, never
-    // read directly from the document — they never appear as a
-    // source_values[].metric.
+  it("leaves a derived key (no matching metric, no alias) with a null source", () => {
+    // working_capital, average_total_assets, equity_or_market_cap etc. are
+    // computed or conditionally-sourced, never read directly from the
+    // document — they never appear as a source_values[].metric and have no
+    // static alias to one.
     const r = ratio({ inputs: { working_capital: 50 } });
     const traces = traceRatioInputs(r, [sourceValue({ metric: "revenue" })]);
     expect(traces).toEqual([{ key: "working_capital", value: 50, source: null }]);
+  });
+
+  it("resolves the 'ebit' alias to the operating_income source_values entry", () => {
+    // ratios.py's _interest_coverage and altman_z both key
+    // operating_income's own value as "ebit" (matching the formula's X1/X3
+    // notation) — a pure passthrough, not a computed figure, so it must
+    // trace back to the real citation rather than reading as fabricated.
+    const r = ratio({ inputs: { ebit: 356400000, interest_expense: 148200000 } });
+    const operatingIncome = sourceValue({ metric: "operating_income", value: 356400000 });
+    const traces = traceRatioInputs(r, [operatingIncome]);
+    expect(traces).toEqual([
+      { key: "ebit", value: 356400000, source: operatingIncome },
+      { key: "interest_expense", value: 148200000, source: null },
+    ]);
   });
 
   it("preserves ratio.inputs' own key order", () => {
@@ -146,6 +162,28 @@ describe("traceRatioInputs", () => {
 
   it("returns an empty array for a ratio with no inputs", () => {
     expect(traceRatioInputs(ratio({ inputs: {} }), [sourceValue({})])).toEqual([]);
+  });
+});
+
+describe("classifyProvenance", () => {
+  it("classifies a real, non-null source value as 'sourced'", () => {
+    const source = sourceValue({ metric: "revenue", value: 100 });
+    expect(classifyProvenance({ key: "revenue", value: 100, source })).toBe("sourced");
+  });
+
+  it("classifies a matched source_values entry whose value is null as 'not_found', not 'sourced'", () => {
+    // extraction.py's stub for a dictionary metric it never located in the
+    // document: {value: null, source: "", confidence: 0}. api-types' own
+    // contract says null means N/A and must never be treated as 0 — this
+    // must not read as a real (if low-confidence) reading.
+    const stub = sourceValue({ metric: "eps", value: null, confidence: 0 });
+    expect(classifyProvenance({ key: "eps", value: null, source: stub })).toBe("not_found");
+  });
+
+  it("classifies no matching source_values entry at all as 'derived'", () => {
+    expect(classifyProvenance({ key: "working_capital", value: 50, source: null })).toBe(
+      "derived",
+    );
   });
 });
 

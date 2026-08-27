@@ -257,7 +257,8 @@
       "provenanceSnippetLabel": "Фрагмент",
       "provenanceConfidenceLabel": "Уверенность извлечения: {metric}",
       "provenanceManuallyEdited": "Изменено вручную",
-      "provenanceDerived": "Расчётное значение"
+      "provenanceDerived": "Расчётное значение",
+      "provenanceNotFound": "Не найдено в документе"
     },
     "riskRadar": {
       "heading": "Риск-радар",

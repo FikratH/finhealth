@@ -257,7 +257,8 @@
       "provenanceSnippetLabel": "Excerpt",
       "provenanceConfidenceLabel": "Extraction confidence: {metric}",
       "provenanceManuallyEdited": "Manually edited",
-      "provenanceDerived": "Computed value"
+      "provenanceDerived": "Computed value",
+      "provenanceNotFound": "Not found in document"
     },
     "riskRadar": {
       "heading": "Risk radar",
