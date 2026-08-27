@@ -6,7 +6,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { ThemeProvider } from "@/components/theme-provider";
-import { MotionProvider } from "@/components/motion-provider";
+import { MotionProvider } from "@/components/motion-provider-lazy";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { DirectionContract } from "@/components/direction-contract";
@@ -20,10 +20,18 @@ const inter = Inter({
   display: "swap",
 });
 
+// Print-only since the Monitor redesign (globals.css's @theme inline pins
+// --font-display to Inter on screen; only the @media print block pins it
+// back to STIX) — no screen route ever renders text in this face anymore,
+// so it no longer earns a <link rel="preload"> on every route's initial
+// response. `preload: false` drops that eager fetch; the @font-face itself
+// still exists and loads on demand the moment a print stylesheet actually
+// needs it (print preview / Ctrl+P on the results document).
 const stixTwoText = STIX_Two_Text({
   subsets: ["latin", "cyrillic"],
   variable: "--font-stix-two-text",
   display: "swap",
+  preload: false,
 });
 
 const ptMono = PT_Mono({
