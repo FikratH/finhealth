@@ -17,8 +17,15 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import storage
-from .schemas import AnalysisRequest, ExtractRequest, ExtractionResult, UploadedDocument
+from .schemas import (
+    AnalysisRequest,
+    ExtractRequest,
+    ExtractionResult,
+    NarrativeResult,
+    UploadedDocument,
+)
 from .services import extraction
+from .services import narrative as narrative_service
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
 
@@ -196,3 +203,37 @@ def delete_analysis(analysis_id: str):
     if not storage.delete_analysis(analysis_id):
         raise HTTPException(status_code=404, detail="Анализ не найден.")
     return {"deleted": analysis_id}
+
+
+@app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult)
+def generate_narrative(analysis_id: str, refresh: bool = False):
+    """Generates (or returns the cached) LLM narrative for an analysis.
+    Optional and provider-agnostic: absent OPENAI_API_KEY is a 503, never a
+    500 — the rest of the product is unaffected either way. `?refresh=1`
+    bypasses the cache and regenerates."""
+    payload = storage.get_analysis(analysis_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Анализ не найден.")
+
+    cached = payload.get("narrative")
+    if cached and not refresh:
+        return cached
+
+    try:
+        result = narrative_service.generate_narrative(payload)
+    except narrative_service.NarrativeUnavailable:
+        raise HTTPException(status_code=503, detail={
+            "code": "narrative_unavailable",
+            "message": "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен.",
+        })
+    except Exception:
+        log.exception("narrative generation failed id=%s", analysis_id)
+        raise HTTPException(status_code=502, detail={
+            "code": "narrative_failed",
+            "message": "Не удалось сформировать пояснение. Попробуйте ещё раз позже.",
+        })
+
+    payload["narrative"] = result
+    storage.save_analysis(analysis_id, payload["created_at"], payload)
+    log.info("narrative generated id=%s model=%s", analysis_id, result["model"])
+    return result

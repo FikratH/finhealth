@@ -213,6 +213,13 @@ class AnalysisResult(BaseModel):
     )
 
 
+class NarrativeResult(BaseModel):
+    text_ru: str
+    text_en: str
+    model: str
+    generated_at: str
+
+
 def health_label(score: Optional[float]) -> str:
     if score is None:
         return "Недостаточно данных для оценки"
