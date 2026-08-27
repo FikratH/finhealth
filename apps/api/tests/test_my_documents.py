@@ -1,22 +1,36 @@
-"""GET /api/my/documents + DELETE /api/my/documents/{id} (P5.T7): the
-document-vault counterpart to test_my_analyses.py — same require_user gate,
-same ownership-scoped 404-never-403 idiom, exercised directly against
-app.services.vault (not through upload/extract — see test_retain.py for the
-end-to-end retain flow) so the endpoint contract is tested independently of
-how a document got into the vault.
+"""GET /api/my/documents + DELETE /api/my/documents/{id} (P5.T7) +
+GET /api/my/documents/{id}/download (P6.T5): the document-vault counterpart
+to test_my_analyses.py — same require_user gate, same ownership-scoped
+404-never-403 idiom, exercised directly against app.services.vault (not
+through upload/extract — see test_retain.py for the end-to-end retain flow)
+so the endpoint contract is tested independently of how a document got into
+the vault.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 
+from app import ratelimit
 from app.main import app
 from app.services import vault
 
 client = TestClient(app)
 TEST_SECRET = "test-only-secret-do-not-use-in-prod"
+
+
+@pytest.fixture(autouse=True)
+def _reset_ratelimit_buckets(monkeypatch):
+    # Same reasoning as tests/test_ratelimit.py's fixture of the same name:
+    # TestClient always presents as the same "testclient" host, so without
+    # a fresh bucket per test, rate-limit state would leak between tests —
+    # including into every ownership/projection test above that has nothing
+    # to do with rate limiting (RATE_LIMIT_PER_MINUTE is 0/off by default,
+    # but the bucket dict itself is still shared module state).
+    monkeypatch.setattr(ratelimit, "_buckets", {})
 
 
 def _token(sub: str) -> str:
@@ -48,6 +62,14 @@ def test_delete_requires_auth(monkeypatch):
     monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
     resp = client.delete("/api/my/documents/whatever")
     assert resp.status_code == 401
+    assert resp.json()["detail"] == {"code": "auth_required", "message": "Требуется вход в систему."}
+
+
+def test_download_requires_auth(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    resp = client.get("/api/my/documents/whatever/download")
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == {"code": "auth_required", "message": "Требуется вход в систему."}
     assert resp.json()["detail"] == {"code": "auth_required", "message": "Требуется вход в систему."}
 
 
@@ -101,6 +123,54 @@ def test_delete_is_idempotent_via_the_endpoint(monkeypatch):
     assert first.status_code == 200
     second = client.delete("/api/my/documents/d1", headers=_auth("user-a"))
     assert second.status_code == 404  # already gone — never a 500
+
+
+# ------------------------- GET .../{id}/download (P6.T5) --------------------
+
+def test_download_round_trips_the_retained_bytes(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    original = b"revenue;1000\ncogs;600\n"
+    _seed("d1", "user-a", data=original, kind="csv", filename="Баланс.csv")
+
+    resp = client.get("/api/my/documents/d1/download", headers=_auth("user-a"))
+    assert resp.status_code == 200, resp.text
+    assert resp.content == original  # exact bytes round-trip, nothing re-encoded in transit
+    assert resp.headers["content-type"].startswith("text/csv")
+    disposition = resp.headers["content-disposition"]
+    assert disposition.startswith("attachment;")
+    assert "filename*=UTF-8''%D0%91%D0%B0%D0%BB%D0%B0%D0%BD%D1%81.csv" in disposition
+    assert 'filename="' in disposition  # ASCII fallback param is always present alongside filename*=
+
+
+@pytest.mark.parametrize("kind,content_type", [
+    ("pdf", "application/pdf"),
+    ("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    ("xls", "application/vnd.ms-excel"),
+    ("csv", "text/csv"),
+])
+def test_download_content_type_matches_kind(monkeypatch, kind, content_type):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    _seed("d1", "user-a", data=b"data", kind=kind, filename=f"file.{kind}")
+
+    resp = client.get("/api/my/documents/d1/download", headers=_auth("user-a"))
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"].startswith(content_type)
+
+
+def test_cannot_download_another_users_document(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    _seed("b-owned", "user-b")
+
+    resp = client.get("/api/my/documents/b-owned/download", headers=_auth("user-a"))
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Документ не найден."
+
+
+def test_download_nonexistent_document_is_404(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    resp = client.get("/api/my/documents/does-not-exist/download", headers=_auth("user-a"))
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Документ не найден."
 
 
 # ---------------------------------- projection --------------------------------
@@ -171,6 +241,9 @@ class _BrokenVault:
     def delete(self, doc_id, user_id):
         raise vault.VaultBackendError("simulated R2 outage")
 
+    def get(self, doc_id, user_id):
+        raise vault.VaultBackendError("simulated R2 outage")
+
 
 def test_list_degrades_to_empty_on_vault_backend_error(monkeypatch):
     monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
@@ -188,3 +261,60 @@ def test_delete_returns_503_on_vault_backend_error(monkeypatch):
     resp = client.delete("/api/my/documents/d1", headers=_auth("user-a"))
     assert resp.status_code == 503, resp.text
     assert resp.json()["detail"]["code"] == "vault_unavailable"
+
+
+def test_download_returns_503_on_vault_backend_error(monkeypatch):
+    # Same reasoning as DELETE above: a download must never misinform —
+    # silently 404'ing ("not found") or serving nothing dressed up as a
+    # 200 would both be worse than an honest "vault temporarily
+    # unavailable, try again."
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(vault, "get_vault", lambda: _BrokenVault())
+
+    resp = client.get("/api/my/documents/d1/download", headers=_auth("user-a"))
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["detail"]["code"] == "vault_unavailable"
+
+
+# ------------------------------ rate limiting (P6.T5) ------------------------
+# All three /api/my/documents... routes (list, delete, download) now carry
+# Depends(rate_limit) — a carried Phase-5 finding (F5): they were the only
+# per-request-work routes NOT wired to the limiter. Off by default
+# (RATE_LIMIT_PER_MINUTE=0), so every ownership/projection test above is
+# unaffected; only the tests below opt in.
+
+def test_list_is_rate_limited(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(ratelimit, "RATE_LIMIT_PER_MINUTE", 1)
+
+    assert client.get("/api/my/documents", headers=_auth("user-a")).status_code == 200
+    resp = client.get("/api/my/documents", headers=_auth("user-a"))
+    assert resp.status_code == 429
+    assert resp.json()["detail"] == {
+        "code": "rate_limited",
+        "message": "Слишком много запросов. Попробуйте позже.",
+    }
+
+
+def test_delete_is_rate_limited(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(ratelimit, "RATE_LIMIT_PER_MINUTE", 1)
+    _seed("d1", "user-a")
+
+    # The bucket is per-IP, not per-route (same as upload/extract) — one
+    # call on any of the three routes consumes the shared token.
+    assert client.get("/api/my/documents", headers=_auth("user-a")).status_code == 200
+    resp = client.delete("/api/my/documents/d1", headers=_auth("user-a"))
+    assert resp.status_code == 429
+    assert resp.json()["detail"]["code"] == "rate_limited"
+
+
+def test_download_is_rate_limited(monkeypatch):
+    monkeypatch.setenv("AUTH_JWT_SECRET", TEST_SECRET)
+    monkeypatch.setattr(ratelimit, "RATE_LIMIT_PER_MINUTE", 1)
+    _seed("d1", "user-a")
+
+    assert client.get("/api/my/documents", headers=_auth("user-a")).status_code == 200
+    resp = client.get("/api/my/documents/d1/download", headers=_auth("user-a"))
+    assert resp.status_code == 429
+    assert resp.json()["detail"]["code"] == "rate_limited"

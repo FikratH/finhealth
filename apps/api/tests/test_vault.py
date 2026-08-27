@@ -412,6 +412,56 @@ def test_r2_list_for_user_raises_vault_backend_error_on_endpoint_connection_erro
 
 
 # --------------------------------------------------------------------------
+# R2Vault.get: a connection death WHILE STREAMING THE BODY — after the
+# initial get_object call already succeeded — must also translate to
+# VaultBackendError, not a raw botocore exception (P6.T5 review, parked
+# Info: resp["Body"].read() previously sat outside the ClientError/
+# BotoCoreError translation both _FailingS3Client and
+# _ConnectionFailingS3Client above exercise only at the get_object() call
+# itself, never at the body read one step later — the exact gap a real
+# mid-download R2 outage would hit, and the one this download endpoint
+# depends on landing in a 503, not a raw 500).
+# --------------------------------------------------------------------------
+
+class _MidStreamFailingBody:
+    """Stands in for a botocore StreamingBody whose connection dies WHILE
+    `.read()` is in flight — the metadata fetch and the initial
+    `get_object()` call for the data object both already succeeded; only
+    the actual byte transfer fails."""
+
+    def read(self):
+        from botocore.exceptions import EndpointConnectionError
+        raise EndpointConnectionError(endpoint_url="https://example.test")
+
+
+class _MidStreamFailingS3Client:
+    """get_object() always succeeds and returns a real, readable Body for
+    the small JSON metadata sidecar; the DATA object's Body raises on
+    read() instead — isolating the failure to exactly the `.read()` this
+    test targets, not the request that opens the stream."""
+
+    def get_object(self, Bucket, Key):
+        import json
+        from io import BytesIO
+        if Key.endswith(".meta.json"):
+            payload = json.dumps({
+                "doc_id": "doc1", "user_id": "user-a", "kind": "csv",
+                "filename": "f.csv", "size_bytes": 4,
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }).encode("utf-8")
+            return {"Body": BytesIO(payload)}
+        return {"Body": _MidStreamFailingBody()}
+
+
+def test_r2_get_raises_vault_backend_error_when_body_read_fails_mid_stream():
+    store = R2Vault(bucket="b", endpoint_url="https://example.test",
+                    access_key_id="k", secret_access_key="s")
+    store._client = _MidStreamFailingS3Client()
+    with pytest.raises(VaultBackendError):
+        store.get("doc1", "user-a")
+
+
+# --------------------------------------------------------------------------
 # LocalDiskVault.delete: a genuine OSError (not "already gone") also
 # becomes VaultBackendError, matching R2Vault's posture.
 # --------------------------------------------------------------------------

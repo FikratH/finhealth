@@ -305,7 +305,21 @@ class R2Vault:
         resp = self._get_object_or_none(self._data_key(user_id, doc_id, doc.kind))
         if resp is None:
             return None
-        return resp["Body"].read(), doc
+        # Unlike _read_meta's small JSON sidecar read, this is the full
+        # document body — the one `.read()` a real download actually waits
+        # on. `_get_object_or_none` above only guards the request that
+        # opens the stream; a connection death *while streaming the body*
+        # (an R2 outage mid-transfer, not just at connect time) raises here,
+        # not there, and needs the same ClientError/BotoCoreError ->
+        # VaultBackendError translation so it still lands in the caller's
+        # 503 envelope instead of a raw 500 (app/routers/my.py's download
+        # endpoint).
+        from botocore.exceptions import BotoCoreError, ClientError
+        try:
+            data = resp["Body"].read()
+        except (ClientError, BotoCoreError) as e:
+            raise VaultBackendError(str(e)) from e
+        return data, doc
 
     def delete(self, doc_id: str, user_id: str) -> bool:
         from botocore.exceptions import BotoCoreError, ClientError
