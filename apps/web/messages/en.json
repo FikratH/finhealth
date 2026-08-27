@@ -40,20 +40,18 @@
       "lede": "Upload your statements and verify the numbers — Tonus reads your company's health as objectively as bloodwork reads a person's: a score, the key ratios, and the actions to prioritize.",
       "cta": "Check my company"
     },
-    "reportFragment": {
+    "demo": {
       "industry": "Manufacturing",
       "period": "2024",
       "currency": "KZT",
       "demoLabel": "Demo data",
       "ratioName": "Net Profit Margin",
-      "normLabel": "norm",
-      "aboveLabel": "above range",
-      "belowLabel": "below range",
-      "naLabel": "N/A",
+      "calibrationLabel": "Net margin against the industry norm",
       "sourceLabel": "Source:"
     },
     "howItWorks": {
       "heading": "How it works",
+      "stepLabel": "Step",
       "stepOneTitle": "Upload",
       "stepOneBody": "Upload your statements as PDF, XLSX, or CSV — Tonus extracts the figures automatically.",
       "stepTwoTitle": "Verify",

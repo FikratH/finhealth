@@ -11,8 +11,8 @@ import { igniteSequence } from "@/lib/motion";
 // current character simply render in the permanent ghost color rather
 // than being omitted. Standard segment lettering: a=top, b=top-right,
 // c=bottom-right, d=bottom, e=bottom-left, f=top-left, g=middle.
-const SEGMENTS = ["a", "b", "c", "d", "e", "f", "g"] as const;
-type SegmentKey = (typeof SEGMENTS)[number];
+export const SEGMENTS = ["a", "b", "c", "d", "e", "f", "g"] as const;
+export type SegmentKey = (typeof SEGMENTS)[number];
 
 const CHAR_SEGMENTS: Record<string, readonly SegmentKey[]> = {
   "0": ["a", "b", "c", "d", "e", "f"],
@@ -87,12 +87,20 @@ function cellsToPlainString(cells: Cell[]): string {
   return cells.map((c) => (c.hasDot ? `${c.char}.` : c.char)).join("");
 }
 
-function SegmentGlyph({ cell }: { cell: Cell }) {
-  const onSegments = cell.isGhostPad ? [] : (CHAR_SEGMENTS[cell.char] ?? []);
-  const dpActive = cell.hasDot && !cell.isGhostPad;
-
+/**
+ * The seven bars of one cell, rendered from an explicit "which segments are
+ * on" set — the shared primitive both this file's numeric `Cell` glyphs and
+ * wordmark-ignite.tsx's letter glyphs draw through, so the truth table is
+ * the only thing that differs between "a digit" and "a letter." Every bar
+ * always renders (ghost when not part of the current character, lit teal
+ * via `[data-lit="true"]` when it is) — "unlit segments are designed too."
+ * `data-segment-on` marks exactly the bars a caller's `igniteSequence` call
+ * should cascade through; bars outside `onSegments` stay permanently ghost
+ * and are never targeted.
+ */
+export function SegmentBars({ onSegments }: { onSegments: readonly SegmentKey[] }) {
   return (
-    <span className="segment-cell" data-segment-char={cell.char}>
+    <>
       {SEGMENTS.map((seg) => {
         const on = onSegments.includes(seg);
         return (
@@ -104,6 +112,17 @@ function SegmentGlyph({ cell }: { cell: Cell }) {
           />
         );
       })}
+    </>
+  );
+}
+
+function SegmentGlyph({ cell }: { cell: Cell }) {
+  const onSegments = cell.isGhostPad ? [] : (CHAR_SEGMENTS[cell.char] ?? []);
+  const dpActive = cell.hasDot && !cell.isGhostPad;
+
+  return (
+    <span className="segment-cell" data-segment-char={cell.char}>
+      <SegmentBars onSegments={onSegments} />
       {cell.hasDot && (
         <span
           data-segment="dp"

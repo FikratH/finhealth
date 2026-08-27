@@ -12,14 +12,18 @@ const LOCALES = [
   {
     locale: "ru" as const,
     messages: ruMessages,
-    netMarginText: "4,58%",
+    // No "%" — the SegmentDisplay figure's own accessible name comes from
+    // formatNumber(value, { locale, decimals }) without a unit (the "%"
+    // renders separately as InstrumentModule's small unit text, per the
+    // direction's "figure in segments, unit small").
+    netMarginText: "4,58",
     analyzeHref: "/analyze",
     homeHref: "/",
   },
   {
     locale: "en" as const,
     messages: enMessages,
-    netMarginText: "4.58%",
+    netMarginText: "4.58",
     // routing.ts uses localePrefix "as-needed" with ru as the default
     // locale, so only the non-default locale's links carry a prefix.
     analyzeHref: "/en/analyze",
@@ -41,17 +45,20 @@ describe("Landing page sections", () => {
         expect(headings[0]).toHaveTextContent(messages.Landing.hero.h1);
       });
 
-      it("renders the wordmark as the hero band's own header-row link, per the FIRST VIEWPORT contract", () => {
+      it("renders the igniting wordmark as the hero's own brand-mark link, per the FIRST VIEWPORT contract", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>
             <LandingHero />
           </NextIntlClientProvider>,
         );
-        // SiteHeader renders nothing on "/" (see site-header.test.tsx),
-        // so this band-top link is the page's ONLY wordmark — it links
-        // home like any other header wordmark, same as SiteHeader's.
+        // SiteHeader renders nothing on "/" (see site-header.test.tsx), so
+        // this is the page's ONLY wordmark. It's a segment-mask ignition
+        // (WordmarkIgnite), not a text node, so its accessible name comes
+        // from the inner role="img"'s aria-label — always Latin "Tonus",
+        // identical in both locales (design-direction: never «Тонус» in
+        // any locale).
         const wordmark = screen.getByTestId("hero-wordmark");
-        expect(wordmark).toHaveTextContent(messages.Header.wordmark);
+        expect(wordmark).toHaveAccessibleName("Tonus");
         expect(wordmark.tagName).toBe("A");
         expect(wordmark).toHaveAttribute("href", homeHref);
       });
@@ -74,12 +81,17 @@ describe("Landing page sections", () => {
             <LandingHero />
           </NextIntlClientProvider>,
         );
-        // Appears twice by design: once as the large MetricNumber result,
-        // once restated in NormBand's small-print value+range+flag line.
-        expect(screen.getAllByText(netMarginText)).toHaveLength(2);
+        // The SegmentDisplay figure draws the value as segment-mask bars,
+        // not a text node — its accessible name (value + caption) is the
+        // only place the formatted figure appears as queryable text.
+        expect(
+          screen.getByRole("img", {
+            name: `${netMarginText} — ${messages.Landing.demo.ratioName}`,
+          }),
+        ).toBeInTheDocument();
         // labeled as demo data, per PRODUCT.md's no-invented-claims rule.
         expect(
-          screen.getByText(messages.Landing.reportFragment.demoLabel),
+          screen.getByText(messages.Landing.demo.demoLabel),
         ).toBeInTheDocument();
       });
 

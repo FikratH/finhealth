@@ -9,25 +9,37 @@ const POINT_KEYS = [
   "pointBenchmarks",
 ] as const;
 
-// The заключение voice applied to positioning itself: read as an excerpt
-// from the report's own "методика" section (serif-set, rule-framed), with
-// the benchmark claim carrying a footnote — not a marketing bullet list.
+// A systems-status panel: each methodology claim is its own annunciator
+// line — a small lit LED (same glow recipe as StatusPill's "good" dot) plus
+// the claim text — inside one bezel. One bezel, not four identical cards:
+// nesting a bordered card per claim would be the "same-size cards" scaffold
+// the craft floor bans; a single panel with internal rows is the systems-
+// status idiom the quality-bar reference itself uses.
 export function Trust() {
   const t = useTranslations("Landing.trust");
 
   return (
     <section className="mx-auto max-w-5xl px-6 py-16">
       <SectionHeading>{t("heading")}</SectionHeading>
-      <div className="mt-8 max-w-3xl space-y-4 border-l border-line pl-6 font-display text-lg leading-relaxed text-ink">
+      <ul className="mt-8 max-w-3xl divide-y divide-line border border-line bg-panel">
         {POINT_KEYS.map((key) => (
-          <p key={key}>{t(key)}</p>
+          <li key={key} className="flex items-start gap-3 px-5 py-4">
+            <span
+              aria-hidden="true"
+              className="mt-2 size-2 shrink-0 rounded-full bg-good shadow-[0_0_4px_1px_var(--good)]"
+            />
+            <p className="text-ink">{t(key)}</p>
+          </li>
         ))}
-      </div>
+      </ul>
       <p className="mt-4 max-w-3xl font-mono text-xs text-ink-muted">
         {t("footnote")}
       </p>
       <p className="mt-4 max-w-3xl font-mono text-sm">
-        <Link href="/methodology" className="text-brand underline">
+        <Link
+          href="/methodology"
+          className="text-brand underline decoration-brand/50 underline-offset-4 hover:decoration-brand"
+        >
           {t("methodologyLinkLabel")}
         </Link>
       </p>

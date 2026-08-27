@@ -306,33 +306,6 @@
 }
 
 /*
- * Landing hero entrance — the page's one authored motion moment ("one
- * metronome": a single orchestrated entrance, not scattered per-element
- * hovers). Content has no opacity/transform outside this media query, so it
- * is fully visible without JS or before the animation would run; motion is
- * additive, never load-bearing for content to appear.
- */
-@media (prefers-reduced-motion: no-preference) {
-  .hero-enter {
-    animation: hero-rise 220ms ease-out both;
-  }
-  .hero-enter-2 {
-    animation-delay: 90ms;
-  }
-}
-
-@keyframes hero-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/*
  * Print: the results document ("лабораторное заключение") is meant to be
  * printed and screenshared, so its <details> disclosures (ratio detail,
  * warnings accordion) render expanded rather than leaving the substitution
@@ -528,4 +501,17 @@
 }
 .segment-ghost {
   background-color: var(--ghost);
+}
+
+/*
+ * scanlineSweep's (lib/motion.ts) content-hiding contract: the attribute is
+ * only ever set imperatively at effect time (never render-time), so a
+ * no-JS visitor, a crawler, or a reduced-motion reader — none of whom ever
+ * get this attribute — always sees the content. No transition property:
+ * removing the attribute pops the content in instantly, matching the boot
+ * grammar's "every change is an instant segment swap" (the *line* sweeping
+ * over it is the one genuine tween; the content it reveals is not).
+ */
+[data-scanline-content][data-scanline-hidden="true"] {
+  opacity: 0;
 }

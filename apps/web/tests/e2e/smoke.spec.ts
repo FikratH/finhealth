@@ -186,6 +186,38 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await mobileContext.close();
 });
 
+test("landing under prefers-reduced-motion: the wordmark boots instantly (no animation to wait out), and the offer/demo/CTA are all immediately visible", async ({
+  browser,
+}) => {
+  // Playwright's reducedMotion context option emulates prefers-reduced-motion:
+  // reduce end-to-end — the same media feature igniteSequence's own
+  // getPrefersReducedMotion() reads before ever building a gsap.timeline.
+  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const page = await context.newPage();
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Финансовая диагностика вашей компании",
+  );
+
+  // Reduced motion: igniteSequence sets every one of the wordmark's "on"
+  // segments to data-lit="true" synchronously at effect time — asserted
+  // immediately, not polled, since there's no animation step to wait out.
+  // A segment outside the letter's own shape (e.g. "a" for lowercase "n")
+  // has no data-segment-on attribute at all and stays permanently ghost —
+  // "designed absence," not a bug — so this only checks the segments that
+  // ARE meant to light.
+  const wordmark = page.getByTestId("hero-wordmark");
+  await expect(wordmark).toBeVisible();
+  await expect(wordmark.locator('[data-segment-on][data-lit="false"]')).toHaveCount(0);
+  await expect(wordmark.locator('[data-segment-on][data-lit="true"]').first()).toBeAttached();
+
+  await expect(page.getByRole("link", { name: "Проверить компанию" })).toBeVisible();
+  await expect(page.getByText("ДЕМО-ДАННЫЕ")).toBeVisible();
+
+  await context.close();
+});
+
 test("results page under prefers-reduced-motion: every section is already visible, no scroll required, and the mini-nav still works via native anchors", async ({
   browser,
 }) => {
