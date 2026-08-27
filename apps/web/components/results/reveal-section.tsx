@@ -8,6 +8,13 @@ export interface RevealSectionProps {
   id?: string;
   children: ReactNode;
   className?: string;
+  /** Hides the whole section — hairline rule included — on print. For
+   * content that's already `print:hidden` on-screen-only-relevant content
+   * like the what-if simulator, or the narrative section while it's still
+   * just a button: without this, that inner `print:hidden` only hides the
+   * content, leaving this wrapper's own hairline rule to print above
+   * nothing, an orphaned rule with no section beneath it. */
+  printHidden?: boolean;
 }
 
 // One scroll-revealed block of the diagnosis document — a plain anchor +
@@ -21,9 +28,13 @@ export interface RevealSectionProps {
 // state is set imperatively via gsap.set() at effect time, never a
 // render-time class, so no-JS visitors, crawlers, and reduced-motion
 // readers always see the finished document without any scroll dependency.
-export function RevealSection({ id, children, className }: RevealSectionProps) {
+export function RevealSection({ id, children, className, printHidden }: RevealSectionProps) {
   return (
-    <div id={id} data-reveal-section className="scroll-mt-24">
+    <div
+      id={id}
+      data-reveal-section
+      className={cn("scroll-mt-24", printHidden && "print:hidden")}
+    >
       <div aria-hidden="true" data-reveal-rule className="mb-6 h-px w-full origin-left bg-line" />
       <div data-reveal-content className={cn(className)}>
         {children}

@@ -239,3 +239,75 @@ test("results page under prefers-reduced-motion: every section is already visibl
 
   await context.close();
 });
+
+test("narrative 503 (no LLM key configured): the section collapses entirely, and the document's downstream sections — including the disclaimer — still reveal on scroll (fix-wave F1)", async ({
+  browser,
+}) => {
+  test.skip(!resultsUrl, "requires resultsUrl from the preceding flow test");
+
+  // Real motion (no reducedMotion override) — this is exactly the
+  // regression F1 fixes: results-document.tsx's useGSAP effect used to
+  // build every section's ScrollTrigger once and never re-run, so the
+  // narrative section collapsing out of the document (this 503) left
+  // every ScrollTrigger below it computed against the old, taller layout.
+  // Reduced motion never builds a ScrollTrigger at all, so it can't
+  // exercise this bug.
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await context.newPage();
+
+  // Intercepted at the browser network layer — never reaches the real API
+  // — the same {code, message} 503 shape apps/api/app/main.py raises when
+  // no LLM key is configured server-side (lib/api.ts's readDetail unwraps
+  // `detail.message`).
+  await page.route("**/api/analysis/*/narrative*", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        detail: {
+          code: "narrative_unavailable",
+          message: "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен.",
+        },
+      }),
+    }),
+  );
+
+  await page.goto(resultsUrl);
+  await page.getByRole("button", { name: "Сформировать пояснение" }).click();
+
+  // Designed-absence collapse: the whole section — heading and mini-nav
+  // anchor alike — disappears, not just the button. Full label, not
+  // exact:true "Заключение": the score section's own nav link is also
+  // labeled "Заключение" (the same word for "verdict"/"conclusion") and
+  // would otherwise match too — see the main flow test's identical note.
+  await expect(page.getByRole("heading", { name: "Заключение аналитика" })).not.toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Навигация по разделам отчёта" });
+  await expect(nav.getByRole("link", { name: "Заключение аналитика" })).not.toBeVisible();
+
+  // Scroll to the very bottom — the disclaimer is the document's last
+  // section. Same real-wheel-input pattern as the main flow test's own
+  // cinema check (Lenis intercepts wheel/touch, so a scripted jump
+  // wouldn't exercise the same ScrollTrigger callbacks). Unlike that
+  // test's mid-document target, this doesn't poll-and-break early: Lenis
+  // clamps at the max scroll distance, so firing every wheel event
+  // unconditionally overshoots harmlessly and reliably lands at the
+  // bottom — breaking early on isVisible() (bounding-box only, not
+  // opacity) risked stopping the moment the section's top edge merely
+  // entered the viewport, before its ScrollTrigger's "top 75%" threshold
+  // was actually crossed.
+  await page.mouse.move(720, 450);
+  const disclaimerHeading = page.getByRole("heading", { name: "Дисклеймер" });
+  for (let i = 0; i < 60; i++) {
+    await page.mouse.wheel(0, 800);
+  }
+  await expect(disclaimerHeading).toBeVisible();
+  // isVisible() only checks display/visibility, not computed opacity — the
+  // actual regression (F1) was a section stuck at GSAP's pending-reveal
+  // opacity: 0 because its ScrollTrigger's onEnter never fired. Check the
+  // element GSAP actually animates, not the heading inside it (which would
+  // always read back "1" regardless).
+  const disclaimerContent = page.locator("[data-reveal-content]").filter({ has: disclaimerHeading });
+  await expect(disclaimerContent).toHaveCSS("opacity", "1");
+
+  await context.close();
+});

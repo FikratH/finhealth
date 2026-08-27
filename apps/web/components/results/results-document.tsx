@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import gsap from "gsap";
@@ -67,11 +67,26 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const tWhatIf = useTranslations("Results.whatIf");
   const tRecommendations = useTranslations("Results.recommendations");
   const tNarrative = useTranslations("Results.narrative");
-  const footnoteIndex = buildFootnoteIndex(analysis.ratios);
+  // Memoized, not recomputed every render: both scan the full ratios list
+  // (buildFootnoteIndex) or re-run the TS simulator engine
+  // (simulationMatchesBaseline) — real work this component has no reason
+  // to redo on renders that don't touch `analysis` (e.g. the narrative
+  // state changes below).
+  const footnoteIndex = useMemo(() => buildFootnoteIndex(analysis.ratios), [analysis.ratios]);
+  const whatIfMatchesBaseline = useMemo(
+    () => simulationMatchesBaseline(analysis),
+    [analysis],
+  );
 
   const scope = useRef<HTMLDivElement>(null);
   const hasStrengthsOrRisks = analysis.strengths.length > 0 || analysis.risks.length > 0;
   const hasRecommendations = analysis.recommendations.length > 0;
+
+  // The заключение opening (score arc draw + verdict stamp) is a load
+  // moment, not a per-effect-run one — this survives across the useGSAP
+  // re-syncs `narrativeAvailable`/`narrativeHasContent` trigger below (see
+  // that hook's own comment) so a narrative state change never replays it.
+  const hasPlayedOpeningRef = useRef(false);
 
   // Seeded to the document's own top (the заключение is always what's on
   // screen at load) — "always-lit" means something is current from the
@@ -83,6 +98,17 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   // disappears along with it once a 503 confirms no LLM key is configured
   // — a designed-absence 503 leaves nothing behind, not even empty chrome.
   const [narrativeAvailable, setNarrativeAvailable] = useState(true);
+
+  // Whether the narrative section is currently more than a bare button —
+  // seeded from the payload's own cached narrative, flipped once by
+  // AnalystNarrative's onGenerated after a successful client-side
+  // generate. Drives this section's print visibility (a button-only
+  // narrative prints nothing, same as the what-if simulator) and, via the
+  // useGSAP dependency array below, forces a scroll-cinema re-sync when the
+  // document's height actually changes.
+  const [narrativeHasContent, setNarrativeHasContent] = useState(
+    Boolean(analysis.narrative),
+  );
 
   // The single source both the RevealSection JSX below and the mini-nav's
   // items derive from — a section named here, once, either exists in both
@@ -97,6 +123,9 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
     className?: string;
     show: boolean;
     content: ReactNode;
+    /** See RevealSection's own prop doc — hides the section's hairline
+     * rule on print too, not just its (already print:hidden) content. */
+    printHidden?: boolean;
   }[] = [
     {
       key: "categories",
@@ -149,8 +178,13 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
       // and the guard that keeps a stale/inconsistent payload from
       // presenting a "changed ratios" list that was never comparing like
       // with like.
-      show: (analysis.source_values?.length ?? 0) > 0 && simulationMatchesBaseline(analysis),
+      show: (analysis.source_values?.length ?? 0) > 0 && whatIfMatchesBaseline,
       content: <WhatIfSimulator analysis={analysis} locale={locale} />,
+      // WhatIfSimulator's own <section> is unconditionally print:hidden
+      // (a live slider readout means nothing on paper) — without this, its
+      // RevealSection wrapper would still print a hairline rule over
+      // nothing.
+      printHidden: true,
     },
     {
       key: "strengths-risks",
@@ -178,8 +212,14 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
           analysis={analysis}
           locale={locale}
           onUnavailable={() => setNarrativeAvailable(false)}
+          onGenerated={() => setNarrativeHasContent(true)}
         />
       ),
+      // print:hidden while this is still just a button (AnalystNarrative's
+      // own idle-state <section> is already print:hidden — this keeps its
+      // RevealSection wrapper's hairline rule from printing above nothing
+      // too); once real prose exists, the section prints like any other.
+      printHidden: !narrativeHasContent,
     },
     {
       key: "warnings",
@@ -235,41 +275,57 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
 
       // (1) The заключение opening — on load, not scroll: the score arc
       // draws, then the verdict stamp "applies" (scale 1.06→1 + opacity,
-      // no bounce), once.
+      // no bounce), once per mount. `dependencies` below re-syncs this
+      // whole effect (revert + re-run) whenever the narrative section's
+      // availability or content changes, so this branch guards against
+      // *replaying* that load-only animation on those later runs —
+      // `hasPlayedOpeningRef` only flips once, and every re-run past the
+      // first jumps the arc/stamp straight to their finished state instead
+      // of animating from 0/scale 1.06 again.
       const arc = root.querySelector<SVGCircleElement>("[data-score-arc]");
       const stamp = root.querySelector<HTMLElement>("[data-verdict-stamp]");
-      const openingTl = gsap.timeline();
 
-      if (arc) {
-        // ScoreDial always renders its *final* dasharray (data-filled is
-        // that same target, in the same pathLength=100 units) — a plain
-        // numeric proxy tweened via onUpdate draws it from 0, rather than
-        // relying on GSAP to interpolate the two-number dasharray string
-        // directly.
-        const target = Number(arc.dataset.filled ?? "0");
-        const proxy = { filled: 0 };
-        openingTl.fromTo(
-          proxy,
-          { filled: 0 },
-          {
-            filled: target,
-            duration: MOTION.reveal,
-            ease: MOTION.ease,
-            onUpdate: () => {
-              arc.setAttribute("stroke-dasharray", `${proxy.filled} ${100 - proxy.filled}`);
+      if (!hasPlayedOpeningRef.current) {
+        hasPlayedOpeningRef.current = true;
+        const openingTl = gsap.timeline();
+
+        if (arc) {
+          // ScoreDial always renders its *final* dasharray (data-filled is
+          // that same target, in the same pathLength=100 units) — a plain
+          // numeric proxy tweened via onUpdate draws it from 0, rather than
+          // relying on GSAP to interpolate the two-number dasharray string
+          // directly.
+          const target = Number(arc.dataset.filled ?? "0");
+          const proxy = { filled: 0 };
+          openingTl.fromTo(
+            proxy,
+            { filled: 0 },
+            {
+              filled: target,
+              duration: MOTION.reveal,
+              ease: MOTION.ease,
+              onUpdate: () => {
+                arc.setAttribute("stroke-dasharray", `${proxy.filled} ${100 - proxy.filled}`);
+              },
             },
-          },
-          0,
-        );
-      }
+            0,
+          );
+        }
 
-      if (stamp) {
-        openingTl.fromTo(
-          stamp,
-          { scale: 1.06, opacity: 0 },
-          { scale: 1, opacity: 1, duration: MOTION.base, ease: MOTION.ease },
-          arc ? ">" : 0,
-        );
+        if (stamp) {
+          openingTl.fromTo(
+            stamp,
+            { scale: 1.06, opacity: 0 },
+            { scale: 1, opacity: 1, duration: MOTION.base, ease: MOTION.ease },
+            arc ? ">" : 0,
+          );
+        }
+      } else {
+        if (arc) {
+          const target = Number(arc.dataset.filled ?? "0");
+          arc.setAttribute("stroke-dasharray", `${target} ${100 - target}`);
+        }
+        if (stamp) gsap.set(stamp, { scale: 1, opacity: 1 });
       }
 
       // (2) + (3) + (4): exactly one ScrollTrigger per section — the
@@ -315,8 +371,27 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
           );
         }
       });
+
+      // Web fonts (STIX Two Text, PT Mono) can finish loading after this
+      // effect has already measured every trigger's position against the
+      // fallback stack's metrics — refresh once they're actually ready so
+      // a font-driven reflow can't leave a trigger's start point stale.
+      // Optional-chained: jsdom has no FontFaceSet at all (document.fonts
+      // is undefined there), and this is a pure enhancement either way.
+      document.fonts?.ready.then(() => ScrollTrigger.refresh());
     },
-    { scope },
+    {
+      scope,
+      // Re-syncs (revert + re-run) whenever the narrative section's own
+      // presence or size changes — a 503 removes it entirely, a
+      // successful generate grows it — either of which shifts every
+      // section below it and would otherwise leave those sections'
+      // ScrollTriggers computed against the old layout (F1, fix-wave
+      // round 4): a doc-end section's onEnter could then never fire
+      // because the trigger still expects the pre-change scroll position.
+      dependencies: [narrativeAvailable, narrativeHasContent],
+      revertOnUpdate: true,
+    },
   );
 
   return (
@@ -331,7 +406,12 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         <ScoreHeader analysis={analysis} locale={locale} id="score" />
 
         {visibleSections.map((section) => (
-          <RevealSection key={section.key} id={section.id} className={section.className}>
+          <RevealSection
+            key={section.key}
+            id={section.id}
+            className={section.className}
+            printHidden={section.printHidden}
+          >
             {section.content}
           </RevealSection>
         ))}

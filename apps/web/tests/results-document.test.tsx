@@ -1,10 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ResultsDocument } from "@/components/results/results-document";
 import ruMessages from "@/messages/ru.json";
 import type { AnalysisResult, ExtractedValue } from "@/lib/api-types";
+
+// Only the "narrative-driven scroll-cinema re-sync" describe block below
+// clicks the generate button — every other test in this file never touches
+// @/lib/api at all, so mocking it here is harmless to the rest of the
+// suite. ApiError is used for its own `instanceof` branch inside
+// AnalystNarrative, so importOriginal keeps the real class.
+vi.mock("@/lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api")>();
+  return { ...actual, generateNarrative: vi.fn() };
+});
+
+import { ApiError, generateNarrative } from "@/lib/api";
 
 // The scroll cinema (Task 2) runs real GSAP/ScrollTrigger against whatever
 // window.matchMedia reports. This file's existing tests are about
@@ -680,5 +693,80 @@ describe("ResultsDocument — the scroll cinema", () => {
     expect(
       screen.getByRole("heading", { name: ruMessages.Results.disclaimer.heading }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("ResultsDocument — narrative-driven scroll-cinema re-sync (fix-wave F1)", () => {
+  afterEach(() => {
+    vi.mocked(generateNarrative).mockReset();
+  });
+
+  // jsdom has no layout engine, so this can't assert *where* a
+  // ScrollTrigger fires (that's the e2e test's job — smoke.spec.ts).
+  // What's feasible and load-bearing here: before the fix, the useGSAP
+  // effect that builds one ScrollTrigger per [data-reveal-section] never
+  // re-ran when the narrative section's own presence changed (no
+  // `dependencies`/`revertOnUpdate`), so ScrollTrigger.getAll() kept
+  // reporting triggers bound to stale/removed DOM nodes instead of the
+  // live section list. Asserting the trigger count always matches the
+  // live DOM count is a direct check on that mechanism.
+  it("reverts and rebuilds ScrollTriggers to match the live DOM when the narrative section collapses on a 503 — never left stale from the pre-collapse layout", async () => {
+    mockMatchMedia(false); // motion enabled — reduced motion never builds a ScrollTrigger at all
+    vi.mocked(generateNarrative).mockRejectedValueOnce(
+      new ApiError(503, "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен."),
+    );
+    renderDocument(analysisFixture);
+
+    const beforeCount = document.querySelectorAll("[data-reveal-section]").length;
+    expect(ScrollTrigger.getAll().length).toBe(beforeCount);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: ruMessages.Results.narrative.heading }),
+      ).not.toBeInTheDocument();
+    });
+
+    const afterCount = document.querySelectorAll("[data-reveal-section]").length;
+    expect(afterCount).toBe(beforeCount - 1);
+    // The regression this guards: without the re-sync, this would still
+    // read `beforeCount` (a leftover trigger for the now-removed
+    // narrative section) instead of matching the new, smaller DOM.
+    expect(ScrollTrigger.getAll().length).toBe(afterCount);
+
+    // The doc-end section the finding calls out by name — still present,
+    // still reveal-wrapped, not stranded behind the stale trigger set.
+    expect(
+      screen.getByRole("heading", { name: ruMessages.Results.disclaimer.heading }),
+    ).toBeInTheDocument();
+  });
+
+  it("re-syncs again (without leaking triggers) when a successful generate grows the narrative section", async () => {
+    mockMatchMedia(false);
+    vi.mocked(generateNarrative).mockResolvedValueOnce({
+      text_ru: "Компания в устойчивом состоянии.",
+      text_en: "The company is in a stable state.",
+      model: "gpt-5-mini",
+      generated_at: "2026-08-27T12:00:00+00:00",
+    });
+    renderDocument(analysisFixture);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Компания в устойчивом состоянии.")).toBeInTheDocument();
+    });
+
+    // The narrative section is still present (grown, not removed) — the
+    // trigger count must still match the live DOM, not double-count a
+    // leftover trigger from the pre-generate render.
+    expect(ScrollTrigger.getAll().length).toBe(
+      document.querySelectorAll("[data-reveal-section]").length,
+    );
   });
 });
