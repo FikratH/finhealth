@@ -92,7 +92,7 @@ A near-black instrument ground lit by one structural LED (teal) and a true-LED s
 - **Ink** (`#E6EDF0`): primary text and structural borders (`border-2 border-ink` on the score-header panel).
 - **Ink Muted** (`#7C8A92`): secondary text, muted labels, `CalibrationScale`'s tick marks and bound labels.
 - **Line** (`#1E242A`): the 1px hairline for every bezel edge, divider, and unlit track.
-- **Ghost** (`rgba(25, 194, 176, 0.1)`): the "unlit segment" tone — every `SegmentDisplay` bar and `LedBar` cell not currently lit, and the ghost-cell-texture dot grid for empty instrument bays (upload dropzone, empty value slot). Teal-family, not gray: absence still reads as this instrument's own ink, just off.
+- **Ghost** (`rgba(25, 194, 176, 0.1)`): the "unlit segment" tone — every `SegmentDisplay` bar and `LedBar` cell not currently lit, and the ghost-cell-texture dot grid for empty instrument bays (upload dropzone, empty value slot, the `/my` signed-out gate, empty analyses/documents lists, results-not-found). Teal-family, not gray: absence still reads as this instrument's own ink, just off.
 - **Grid** (`rgba(25, 194, 176, 0.05)`): the sub-5%-opacity ink for the `.grid-paper` millimeter-grid utility.
 - **Scrim** (`rgba(10, 12, 14, 0.6)`): the modal-overlay dimmer. Register-invariant by design — unlike Paper/Ink, which flip meaning between registers, a scrim's job is identical in both, so it is pinned to the monitor register's own near-black rather than swapping with the active theme.
 
@@ -128,6 +128,8 @@ Brand, Ink, and the full status triad each clear WCAG AA's 4.5:1 text-contrast t
 ### Named Rules
 **The Wordmark Rule.** "Tonus" is set in Latin always — never «Тонус» in any locale (founder mandate, i18n strings updated accordingly) — and always as the founder's pulse-line PNG lockup (`public/brand/logo-teal.png` on the monitor register, `logo-black.png` on paper), never re-typeset. A `SegmentDisplay`/DSEG7 mask carries numeric figures only; it never renders the wordmark itself.
 
+**The Never-a-Silent-Zero Rule.** A real, non-zero magnitude never rounds down to a displayed `0`. `my-documents-table.tsx`'s file-size column checks `bytesToMB(size_bytes) < 0.1` — the smallest value `decimals: 1` can distinguish from true zero — and swaps in an explicit bound, «<0,1 МБ», rather than a rounded `0,0 МБ` that reads as an empty file. The same law that keeps a `null` from ever rendering as `0` (designed absence) extends to a real, present, merely-small value.
+
 ## Layout
 
 Content measure is unchanged from before the redesign: `max-w-5xl` + `mx-auto` + `px-6` remains the one recurring container width across every route-level surface (`SiteHeader`, `SiteFooter`, the hero's utility row and content block, `results-document`, the analyze flow, methodology). The redesign changed ground and material, not text measure. The landing hero keeps the "commit at region scale" exception, but the region itself changed: its outer `<section>` is `bg-paper` (the near-black instrument ground), full-bleed, not the old teal `bg-brand` band — teal is no longer spent as a background wash anywhere, consistent with the Full-Saturation rule moving teal to line-art and glow rather than area fills. Hero content still splits `md:grid-cols-2`: left column headline/CTA, right column one `DemoInstrument` — explicitly not wrapped in a second outer bezel ("`InstrumentModule` already is the one bezel; nesting a second frame is the 'nested cards' anti-pattern the craft floor bans"). The one-document continuity raise carries forward unchanged: upload → verify → diagnosis is one continuous document, not disconnected pages.
@@ -160,6 +162,9 @@ Square-cornered rectangles are the instrument's default form: `InstrumentModule`
 - **Focus:** `focus-visible:ring-3 focus-visible:ring-ring/50`; active press is a 1px `translate-y-px` nudge — except the landing hero's CTA.
 - **The landing CTA — a literal physical button:** `border-2 border-brand bg-panel px-8 py-3.5 font-mono uppercase` with a lit-LED glow (`shadow-[0_0_16px_2px_color-mix(in_oklch,var(--accent)_40%,transparent)]`) that visibly dims on `:active` (down to `0_0_8px_1px`, roughly half the spread) — "being pressed" is entirely a glow-intensity change, never a translate or inset-shadow trick.
 
+### Origin Tickets
+`components/origin-ticket.tsx` — the evolved specimen-chip idiom: `border bg-panel px-2 py-0.5 font-mono text-xs uppercase tracking-wide`, no radius. Tones: `neutral` (`border-line text-ink-muted`, the default), `accent` (`border-brand text-brand`), `attention` (`border-attention text-attention`). Use: industry/period/currency/scale/«ДЕМО-ДАННЫЕ» metadata, the provenance-traced accent ticket (`ratio-row.tsx`, «Прослежено») wired to a source trace disclosure via a persistent `border-l-2 border-brand/40` connector rule — "visible seams": the wire to the source is always visible, never hidden entirely inside a popover — the account plan chip (`my-analyses-view.tsx`, «Тариф: FREE»/«Тариф: PRO», display-only, no endpoint enforces the limit yet), and each document's file-kind chip (`CSV`/`PDF`, `my-documents-table.tsx`). The plan and file-kind chips use the default `neutral` tone.
+
 ### Instrument Modules
 `components/instrument-module.tsx` — the metric-tile grammar: `border border-line bg-panel px-4 py-3`, label top-left (`font-mono text-xs uppercase tracking-wide text-ink-muted`), figure in segments, unit small (`font-mono text-sm text-ink-muted`). One bezel per module — never nested inside a second bezel.
 
@@ -184,6 +189,24 @@ Square-cornered rectangles are the instrument's default form: `InstrumentModule`
 - **Error/Invalid:** `border-critical`.
 - **`SelectContent`/`PopoverContent`/`AlertDialogContent`:** bezel grammar throughout (`border border-line bg-panel`, no radius, no shadow); `PopoverContent` additionally carries `.elevated-surface` unconditionally.
 - **Scrim:** `AlertDialogOverlay` uses `bg-scrim`, not `bg-ink/40` — the old class was a leftover from the paper-only world where `--ink` was always dark; post-inversion it would paint a translucent *white* haze over the dark monitor ground instead of dimming it.
+
+### Tables (the History-as-Document Idiom)
+`components/my/my-analyses-table.tsx` and `my-documents-table.tsx` render account history the way the rest of the app renders everything else — as a document, not a data-grid widget: `border-b border-line` hairline rows inside one `border border-line bg-panel` wrapper, `font-mono text-xs uppercase tracking-wide text-ink-muted` column headers, `OriginTicket`s for industry/file-kind, `MetricNumber`/`StatusPill` for the score cell.
+
+**`.table-scroll-x`** (`app/globals.css:595-613`) is the world's sanctioned wide-table affordance at narrow viewports: a palette-themed scrollbar (`scrollbar-color: var(--line) var(--panel)`, matching WebKit thumb/track) plus a scroll-position-aware edge fade — two `background-attachment: local` panel-colored gradients that scroll with the content to mask clipped cells, layered under two `background-attachment: scroll` teal-tinted gradients (`color-mix(in oklch, var(--accent) 35%, transparent)`) that stay fixed to the viewport edge as a persistent "more content this way" glow. The glow, not a gray drop-shadow, is deliberate — the same "signal via LED-ink, never a blurred shadow implying depth" device as `.elevated-surface`.
+
+### Named Rules (Tables)
+**The Relative-Containing-Block Rule.** A scroll-clipped wrapper (`overflow-x-auto`) that contains an absolutely-positioned descendant — most often a `sr-only` accessible-name span with no other positioned ancestor — must also carry `position: relative` itself. `overflow-x-auto` alone does not establish a CSS positioning context; without an explicit `relative` on the clipping element, the descendant computes its static position from its unscrolled location inside the full-width table and escapes the clip entirely, silently inflating `document.documentElement.scrollWidth` (measured: 548px of invisible overflow at a 390px viewport, from two 1×1 escaped spans, with zero visible symptom). Both table components carry `relative table-scroll-x overflow-x-auto` together for this reason, pinned by a tripwire unit test asserting the `relative` class survives plus an e2e test that samples real `scrollWidth` at runtime.
+
+### Instrument Switch (Toggle)
+The opt-in retention control (`upload-step.tsx`'s `retainOffered` checkbox, and `DocumentControls`' `audited` toggle) shares one grammar: a visually-hidden native `<input type="checkbox" className="peer sr-only">` drives a decorative bezelled track (`border border-line bg-panel`, `h-4 w-8`) and an LED thumb (`peer-checked:translate-x-4 peer-checked:bg-brand peer-checked:shadow-[0_0_4px_1px_var(--accent)]`) via the CSS `peer` pattern — real checkbox behavior and screen-reader semantics stay on the actual control while the visible focus ring (`peer-focus-visible:border-ring`) lands on its decorative sibling, never the invisible input itself. The retention switch specifically is double-gated — rendered only when the visitor is signed in *and* the server's `/api/health` capability signal reports `vaultEnabled` — and defaults off either way, matching the product's privacy-by-default posture.
+
+### Auth & Signed-Out States
+`signin-form.tsx` uses the same bezel field grammar as every other editable instrument (`border-line bg-panel`, `focus-visible:border-brand` plus the low-spread teal glow — never `border-accent`) for its email input, and wraps both its idle and "sent" states in an identical `border border-line bg-panel p-6 sm:p-8` panel — the sent confirmation is a composed document-grammar panel, not a toast: an `OriginTicket tone="accent"` chip, a display headline, and a "resend" outline button replace the form outright.
+
+The `/my` route's signed-out and session-expired states share one gate (`my-analyses-view.tsx`): an unlit instrument bay — `ghost-cell-texture border border-line bg-panel` — with a heading, body copy, and a sign-in CTA. Neutral tone throughout, deliberately off the critical/attention LEDs: being unauthenticated isn't a failure state. The same `ghost-cell-texture` bezel covers every other "nothing here yet" surface in the app — one texture, one meaning, reused rather than each screen inventing its own empty state.
+
+**Current-location grammar** (`AccountMenu`, `components/account-menu.tsx`): the header's "Мои анализы"/"Войти" links mark whichever one matches the current route with `aria-current="page"` plus `StepIndicator`'s exact current-step class (`text-brand [text-shadow:0_0_0.3em_var(--accent)]`), reused verbatim rather than inventing a second "you are here" language.
 
 ### Boot Grammar & Scroll Cinema (Motion System)
 `lib/motion.ts`'s `MOTION` object is the one metronome: `fast: 0.15`, `base: 0.2`, `reveal: 0.6`, plus two tokens new to this world — `step: 0.06` (the boot grammar's inter-segment/inter-digit cascade spacing) and `sweep: 0.45` (a scanline's own crossing duration) — one ease family throughout (`power2.out`). Three primitives:
@@ -210,6 +233,10 @@ Reduced motion collapses all three to their instantly-final state synchronously,
 - **Do** restore GSAP-tracked attribute state that must survive a `revertOnUpdate` resync via a plain, untracked `setAttribute` call, never `gsap.set()` (The Untracked-Restore Rule).
 - **Do** keep every instrument module to exactly one bezel — nesting a second frame around an already-bezeled component is the "nested cards" anti-pattern the craft floor bans.
 - **Do** set "Tonus" in Latin script via the founder's pulse-line PNG lockup, in every locale — never «Тонус», never a re-typeset wordmark.
+- **Do** give any `overflow-x-auto` wrapper that contains an absolutely-positioned descendant (e.g. a `sr-only` span) its own `relative` positioning context — `overflow-x-auto` alone does not establish one (The Relative-Containing-Block Rule).
+- **Do** render a real, non-zero magnitude that rounds under display precision as an explicit bound (e.g. «<0,1 МБ»), never a rounded `0` that reads as empty (The Never-a-Silent-Zero Rule).
+- **Do** gate an optional capability-dependent control (the retain-document switch) on both the auth state and the server's own capability signal — never auth alone, or a signed-in visitor on an unsupported deployment can trigger a failure the UI implied would work.
+- **Do** reuse `StepIndicator`'s current-state glow class verbatim for any other "you are here" marker (`AccountMenu`'s nav links) rather than inventing a second current-location language.
 
 ### Don't:
 - **Don't** add a `box-shadow`/`shadow-*` for resting or hover elevation — `.elevated-surface`'s teal glow is the sole active-state exception, and it signals "lit," not generic depth.
@@ -219,3 +246,4 @@ Reduced motion collapses all three to their instantly-final state synchronously,
 - **Don't** reintroduce the retired lab-report grammar (serif display type, the rotated double-border ink stamp, reference-interval bracket notation) into the monitor screen register — it survives only in the paper theme and the forced print register.
 - **Don't** render the wordmark inside a `SegmentDisplay`/DSEG7 segment mask — segment masks carry numeric figures only.
 - **Don't** use `bg-ink/40` (or any other foreground/surface token) for a modal overlay — `bg-scrim` is the one register-invariant overlay token; foreground/surface tokens flip meaning between the monitor and paper registers and will paint the wrong tone in at least one of them.
+- **Don't** assume `overflow-x-auto` alone clips an absolutely-positioned descendant — without an explicit `position` on the same element, the descendant escapes the clip and silently inflates page scroll width.

@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.db
+*.db-shm
+*.db-wal
 # local-disk document vault (apps/api/app/services/vault.py, P5.T7) —
 # dev-only fallback storage, never committed
 apps/api/.data/
