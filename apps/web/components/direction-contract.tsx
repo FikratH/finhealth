@@ -16,7 +16,7 @@ FIRST VIEWPORT (landing): full-width teal header band with wordmark «Тонус
 left column — one-line offer + primary action «Проверить компанию»; right —
 a life-size fragment of a real (demo-labeled) report showing a metric with
 its норма-band and flag. No screenshots-in-browser-frames, no logo walls.
-FORM: Laboratory results document, #1 of the pinned brief; seed: pinned-by-founder.
+FORM: Laboratory results document, #1 of grounded list; seed f356f7c9; confirmed by founder in attended round (pick).
 FINISH: unreviewed and undocumented is unfinished; this build ends with the
 finish review, the verdict, DESIGN.md, and every shipping raster carrying
 its provenance.
