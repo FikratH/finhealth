@@ -61,7 +61,15 @@ export function HowItWorks() {
       <SectionHeading>{t("heading")}</SectionHeading>
       <ol ref={scope} className="mt-8 grid gap-6 md:grid-cols-3">
         {STEPS.map((step, index) => (
-          <li key={step} data-scanline-row className="relative">
+          <li key={step} data-scanline-row className="relative overflow-hidden">
+            {/* scanlineSweep translates this full-width line by ±100% of
+             * its OWN width (xPercent) to sweep fully off-screen on each
+             * side — a transformed box, which contributes to scrollable
+             * overflow regardless of its parent's visual bounds unless
+             * that parent clips it. overflow-hidden on this li (not just
+             * a visual nicety) is what stops the rightmost column's sweep
+             * from transiently widening document.documentElement.scrollWidth
+             * mid-animation. */}
             <span
               data-scanline
               aria-hidden="true"

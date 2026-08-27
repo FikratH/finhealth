@@ -44,6 +44,38 @@ test("landing → analyze → verify → results → public share", async ({ pag
   const cta = page.getByRole("link", { name: "Проверить компанию" });
   await expect(cta).toBeVisible();
   await page.screenshot({ path: path.join(SDD_SCREENS_DIR, "landing.png") });
+
+  // --- how-it-works: the scanline sweep must never widen the document's
+  // scrollable overflow, even transiently. Its line is a full-width
+  // element translated ±100% of its own width off-screen on each side
+  // (how-it-works.tsx) — a transformed box only stays out of the page's
+  // scrollable-overflow calculation if its row clips it (overflow-hidden).
+  // Samples scrollWidth vs clientWidth every animation frame for ~600ms
+  // (MOTION.sweep is 450ms; margin for the trigger-once ScrollTrigger's
+  // own activation lag), started concurrently with the scroll that brings
+  // the section into view — a post-hoc single check couldn't catch a
+  // mid-animation flash that resolves within one sweep.
+  const noOverflowPromise = page.evaluate(() => {
+    let sawOverflow = false;
+    const start = performance.now();
+    return new Promise<boolean>((resolve) => {
+      function sample() {
+        if (document.documentElement.scrollWidth > document.documentElement.clientWidth) {
+          sawOverflow = true;
+        }
+        if (performance.now() - start < 600) {
+          requestAnimationFrame(sample);
+        } else {
+          resolve(sawOverflow);
+        }
+      }
+      requestAnimationFrame(sample);
+    });
+  });
+  await page.mouse.move(720, 450);
+  await page.mouse.wheel(0, 1000); // clears the hero; how-it-works crosses its ScrollTrigger's "top 80%" activation
+  expect(await noOverflowPromise).toBe(false);
+
   await cta.click();
 
   // --- /analyze: upload step -------------------------------------------

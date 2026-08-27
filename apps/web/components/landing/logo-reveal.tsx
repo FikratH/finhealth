@@ -63,7 +63,12 @@ export function LogoReveal({ className }: LogoRevealProps) {
   );
 
   return (
-    <span ref={scope} className={cn("relative inline-block", className)}>
+    // overflow-hidden: the scanline animates to left:100%, which sits its
+    // own 1px width just past this box's right edge — negligible on its
+    // own, but clipped here anyway (same fix as how-it-works.tsx's sweep
+    // rows) so this element never contributes anything to the document's
+    // scrollable overflow during the wipe, regardless of exact geometry.
+    <span ref={scope} className={cn("relative inline-block overflow-hidden", className)}>
       <span data-logo-mask className="block h-full" style={{ clipPath: "inset(0 0% 0 0)" }}>
         <img
           src="/brand/logo-teal.png"
