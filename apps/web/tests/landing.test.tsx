@@ -14,6 +14,7 @@ const LOCALES = [
     messages: ruMessages,
     netMarginText: "4,58%",
     analyzeHref: "/analyze",
+    homeHref: "/",
   },
   {
     locale: "en" as const,
@@ -22,11 +23,12 @@ const LOCALES = [
     // routing.ts uses localePrefix "as-needed" with ru as the default
     // locale, so only the non-default locale's links carry a prefix.
     analyzeHref: "/en/analyze",
+    homeHref: "/en",
   },
 ];
 
 describe("Landing page sections", () => {
-  for (const { locale, messages, netMarginText, analyzeHref } of LOCALES) {
+  for (const { locale, messages, netMarginText, analyzeHref, homeHref } of LOCALES) {
     describe(`locale=${locale}`, () => {
       it("renders exactly one h1: the hero offer", () => {
         render(
@@ -39,19 +41,19 @@ describe("Landing page sections", () => {
         expect(headings[0]).toHaveTextContent(messages.Landing.hero.h1);
       });
 
-      it("renders the wordmark inside the hero's teal band, per the FIRST VIEWPORT contract", () => {
+      it("renders the wordmark as the hero band's own header-row link, per the FIRST VIEWPORT contract", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>
             <LandingHero />
           </NextIntlClientProvider>,
         );
-        // Scoped by test-id: SiteHeader (global chrome, not rendered in
-        // this isolated component test) shows the same wordmark text on
-        // every route, so a plain text query would be ambiguous once this
-        // renders inside the full page tree.
-        expect(screen.getByTestId("hero-wordmark")).toHaveTextContent(
-          messages.Header.wordmark,
-        );
+        // SiteHeader renders nothing on "/" (see site-header.test.tsx),
+        // so this band-top link is the page's ONLY wordmark — it links
+        // home like any other header wordmark, same as SiteHeader's.
+        const wordmark = screen.getByTestId("hero-wordmark");
+        expect(wordmark).toHaveTextContent(messages.Header.wordmark);
+        expect(wordmark.tagName).toBe("A");
+        expect(wordmark).toHaveAttribute("href", homeHref);
       });
 
       it("exposes the primary action as a link to /analyze", () => {

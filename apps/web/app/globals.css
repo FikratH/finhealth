@@ -19,7 +19,10 @@
   --grid: rgba(14, 117, 105, 0.06);
   --accent: #0e7569;
   --good: #177e4d;
-  --attention: #a8681c;
+  /* #A8681C measured ~4.32:1 on --paper (#FBFAF7) — below the 4.5:1 AA
+   * threshold for normal text. #96601A measures ~5.05:1. Dark theme's
+   * --attention is unaffected (measured against dark --paper separately). */
+  --attention: #96601a;
   --critical: #b23b2e;
 
   --radius: 0.5rem;

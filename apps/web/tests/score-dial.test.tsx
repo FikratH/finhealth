@@ -24,6 +24,18 @@ describe("ScoreDial", () => {
     expect(container.querySelectorAll("circle")).toHaveLength(2);
   });
 
+  it("combines the score and caption into a descriptive accessible name when both are given", () => {
+    render(<ScoreDial score={86.8} locale="ru" caption="Сильное состояние" />);
+    expect(
+      screen.getByRole("img", { name: "86,8 — Сильное состояние" }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the bare formatted score as the accessible name when no caption is given", () => {
+    render(<ScoreDial score={86.8} locale="ru" />);
+    expect(screen.getByRole("img", { name: "86,8" })).toBeInTheDocument();
+  });
+
   it("sets pathLength=100 on every arc circle, so dasharray reads as plain percentages against the 270° gauge rather than the true SVG circumference", () => {
     const { container } = render(<ScoreDial score={86.8} locale="ru" />);
     const circles = container.querySelectorAll("circle");

@@ -3,6 +3,7 @@ import { ScoreDial } from "@/components/score-dial";
 import { SpecimenChip } from "@/components/specimen-chip";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ConfidenceDisclosure } from "./confidence-disclosure";
+import { cn } from "@/lib/utils";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -10,6 +11,25 @@ export interface ScoreHeaderProps {
   analysis: AnalysisResult;
   locale: Locale;
 }
+
+// Ink color for the verdict stamp — mirrors apps/api's health_label
+// tiering (schemas.py: <45 weak/critical, <65 satisfactory/attention,
+// else good/strong) collapsed onto the status triad. Insufficient data
+// isn't a verdict at all, so it stamps neutral ink rather than borrowing
+// a status color that would imply a real result.
+function verdictTone(score: number | null): "good" | "attention" | "critical" | "na" {
+  if (score === null) return "na";
+  if (score < 45) return "critical";
+  if (score < 65) return "attention";
+  return "good";
+}
+
+const STAMP_TONE_CLASS: Record<ReturnType<typeof verdictTone>, string> = {
+  good: "border-good text-good",
+  attention: "border-attention text-attention",
+  critical: "border-critical text-critical",
+  na: "border-ink text-ink",
+};
 
 const SCALE_KEY: Record<
   string,
@@ -39,9 +59,23 @@ export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
   return (
     <section className="grid-paper border-2 border-ink p-6 sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <ScoreDial score={analysis.overall_score} locale={locale} size={180} />
+        <ScoreDial
+          score={analysis.overall_score}
+          locale={locale}
+          size={180}
+          caption={analysis.health_label}
+        />
         <div className="flex-1 space-y-4">
-          <h1 className="font-display text-3xl text-ink sm:text-4xl">
+          {/* The stamped conclusion: an honest-ink seal, not simulated
+           * rubber — a bordered, uppercase, letter-spaced label in a flat
+           * status ink, tilted slightly like a hand-applied stamp. No
+           * texture, no gradient, no shadow. */}
+          <h1
+            className={cn(
+              "inline-block -rotate-[1.5deg] border-4 border-double px-5 py-2 text-center font-display text-xl uppercase tracking-[0.2em] sm:text-2xl",
+              STAMP_TONE_CLASS[verdictTone(analysis.overall_score)],
+            )}
+          >
             {analysis.health_label}
           </h1>
           <div className="flex flex-wrap gap-2">

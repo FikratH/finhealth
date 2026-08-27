@@ -43,8 +43,15 @@ export function ScoreDial({
   const clamped = hasScore ? Math.min(100, Math.max(0, score)) : 0;
   const filled = drawn ? (clamped / 100) * ARC_LENGTH : 0;
   const valueDasharray = `${filled} ${100 - filled}`;
+  // Give the dial an accessible name that describes what the number means,
+  // not just the bare figure — combine it with the verdict caption
+  // (health_label) when the caller has one, same as it already anchors the
+  // insufficient-data announcement below.
+  const formattedScore = formatNumber(score, { locale, decimals: 1 });
   const ariaLabel = hasScore
-    ? formatNumber(score, { locale, decimals: 1 })
+    ? caption
+      ? `${formattedScore} — ${caption}`
+      : formattedScore
     : (caption ?? formatNumber(null));
 
   return (
