@@ -210,11 +210,29 @@
  * script, so it works with zero JS.
  */
 @media print {
+  /* Modern Chromium renders a <details>'s children inside the
+   * ::details-content pseudo-element and sets content-visibility: hidden
+   * on it while closed — the child-selector rule below never overrides
+   * that (it targets the light-DOM children, not the pseudo-element), so
+   * without this the printed page shows every closed accordion empty. */
+  details:not([open])::details-content {
+    content-visibility: visible !important;
+    display: block !important;
+  }
+  /* Older engines (Firefox, Safari) don't render ::details-content — they
+   * hide a closed <details>'s children directly, so this is what forces
+   * the content open for them. */
   details:not([open]) > *:not(summary) {
     display: block !important;
   }
+  /* Fallback: keep the summary visible instead of `display: none` — since
+   * forcing the content open above doesn't flip the element's [open]
+   * state, hiding the summary would drop the toggle's own label text for
+   * no benefit. Print has no interaction, so style it inert rather than
+   * hide it. */
   details > summary {
-    display: none;
+    cursor: default;
+    pointer-events: none;
   }
 }
 
