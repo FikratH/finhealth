@@ -213,6 +213,20 @@ class AnalysisResult(BaseModel):
     )
 
 
+class MyAnalysisSummary(BaseModel):
+    """One row of GET /api/my/analyses — a projection, never the full
+    AnalysisResult payload."""
+    analysis_id: str
+    created_at: str
+    industry_name: str
+    overall_score: Optional[float]
+    health_label: str
+
+
+class MyAnalysesResponse(BaseModel):
+    analyses: list[MyAnalysisSummary]
+
+
 class NarrativeResult(BaseModel):
     text_ru: str
     text_en: str

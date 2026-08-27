@@ -21,6 +21,7 @@ from .schemas import (
     AnalysisRequest,
     ExtractRequest,
     ExtractionResult,
+    MyAnalysesResponse,
     NarrativeResult,
     UploadedDocument,
 )
@@ -201,6 +202,36 @@ def get_analysis(analysis_id: str):
 @app.delete("/api/analysis/{analysis_id}")
 def delete_analysis(analysis_id: str):
     if not storage.delete_analysis(analysis_id):
+        raise HTTPException(status_code=404, detail="Анализ не найден.")
+    return {"deleted": analysis_id}
+
+
+@app.get("/api/my/analyses", response_model=MyAnalysesResponse)
+def my_analyses(user_id: str = Depends(auth.require_user)):
+    """«Мои анализы» — the signed-in user's own analyses, newest first,
+    capped at 50. Auth-gated (401 anonymous, via require_user); a summary
+    projection only, never the full stored payload."""
+    rows = storage.list_analyses_for_user(user_id, limit=50)
+    return {
+        "analyses": [
+            {
+                "analysis_id": row["id"],
+                "created_at": row["created_at"],
+                "industry_name": row["payload"].get("industry_name", ""),
+                "overall_score": row["payload"].get("overall_score"),
+                "health_label": row["payload"].get("health_label", ""),
+            }
+            for row in rows
+        ]
+    }
+
+
+@app.delete("/api/my/analyses/{analysis_id}")
+def delete_my_analysis(analysis_id: str, user_id: str = Depends(auth.require_user)):
+    """Ownership-checked delete: an id that doesn't exist and an id that
+    belongs to a different user both 404 identically — never a 403, so the
+    response can't be used to probe for other users' analysis ids."""
+    if not storage.delete_analysis_for_user(analysis_id, user_id):
         raise HTTPException(status_code=404, detail="Анализ не найден.")
     return {"deleted": analysis_id}
 

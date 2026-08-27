@@ -192,3 +192,38 @@ def delete_analysis(analysis_id: str) -> bool:
     with engine.begin() as conn:
         result = conn.execute(delete(analyses).where(analyses.c.id == analysis_id))
     return result.rowcount > 0
+
+
+def list_analyses_for_user(user_id: str, limit: int = 50) -> list[dict]:
+    """Projection source for GET /api/my/analyses: newest first, capped at
+    `limit`. Returns the raw (id, created_at, payload-as-dict) rows — the
+    caller (main.py) projects out just the summary fields it needs, so this
+    stays a plain scoped fetch rather than encoding response shape here."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(analyses.c.id, analyses.c.created_at, analyses.c.payload)
+            .where(analyses.c.user_id == user_id)
+            .order_by(analyses.c.created_at.desc())
+            .limit(limit)
+        ).fetchall()
+    return [
+        {"id": row.id, "created_at": row.created_at, "payload": json.loads(row.payload)}
+        for row in rows
+    ]
+
+
+def delete_analysis_for_user(analysis_id: str, user_id: str) -> bool:
+    """Ownership-checked delete for DELETE /api/my/analyses/{id}: one
+    conditional statement rather than fetch-then-check, so "doesn't exist"
+    and "exists but belongs to someone else" collapse into the same
+    zero-rows-affected result — the caller (main.py) maps both to a bare
+    404 rather than ever being in a position to leak which case it was.
+    A NULL user_id (anonymous row) never matches any user_id comparison,
+    so anonymous rows are correctly undeletable through this path too."""
+    engine = get_engine()
+    with engine.begin() as conn:
+        result = conn.execute(
+            delete(analyses).where(analyses.c.id == analysis_id, analyses.c.user_id == user_id)
+        )
+    return result.rowcount > 0
