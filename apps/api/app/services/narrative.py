@@ -19,6 +19,17 @@ from openai import OpenAI
 
 DEFAULT_MODEL = "gpt-5-mini"
 
+# `OPENAI_BASE_URL` makes the provider operator-configurable — a
+# misbehaving or malicious endpoint could return arbitrarily large text.
+# That text is persisted permanently into the stored analysis payload and
+# rendered unbounded on the results page, so it's capped per language.
+# Generous for the prompt's own 2-3 paragraph ask (~2500 chars is a normal
+# response); a response that ignores that instruction and blows past this
+# cap is treated as a FAILED response, not truncated — truncating would
+# silently store a corrupted, mid-sentence text instead of surfacing the
+# problem.
+MAX_TEXT_LENGTH = 8000
+
 
 class NarrativeUnavailable(Exception):
     """Raised when OPENAI_API_KEY isn't configured. The caller maps this to
@@ -56,7 +67,8 @@ SYSTEM_PROMPT = (
     "{\"ru\": \"...\", \"en\": \"...\"} без каких-либо иных полей, "
     "комментариев или текста вне JSON. Каждый из двух текстов — 2-3 "
     "абзаца: (1) текущее состояние компании, (2) главные риски, "
-    "(3) приоритетные действия."
+    "(3) приоритетные действия. Будь лаконичен: не более ~2500 знаков "
+    "на язык."
 )
 
 
@@ -166,6 +178,15 @@ def generate_narrative(analysis: dict, locale_hint: str = "ru") -> dict:
         text_en = parsed["en"]
         if not isinstance(text_ru, str) or not isinstance(text_en, str):
             raise ValueError("ru/en must be strings")
+        # Oversized text is treated as a malformed response, not truncated
+        # and stored: a response that ignores the length instruction can't
+        # be trusted to have followed the rest of the contract either, and
+        # silent truncation would persist a corrupted, mid-sentence text.
+        if len(text_ru) > MAX_TEXT_LENGTH or len(text_en) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"response exceeds {MAX_TEXT_LENGTH} chars per language "
+                f"(ru={len(text_ru)}, en={len(text_en)})"
+            )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         raise NarrativeError(f"malformed LLM response: {e}") from e
 

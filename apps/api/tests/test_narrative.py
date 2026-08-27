@@ -1,6 +1,7 @@
 """Tests for the LLM narrative layer (Plan 4 / Task 5). No real network
 calls: the openai client is monkeypatched with a fake that records what it
 was called with and returns a scripted response."""
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -15,11 +16,13 @@ client = TestClient(app)
 VALID_JSON_CONTENT = '{"ru": "Состояние стабильное.", "en": "The state is stable."}'
 
 
-def _fake_openai(captured_calls, content=VALID_JSON_CONTENT, error=None):
+def _fake_openai(captured_calls, content=VALID_JSON_CONTENT, error=None, captured_init=None):
     """Returns a fake replacement for narrative.OpenAI. `captured_calls`
     collects every kwargs dict passed to chat.completions.create(), so
     tests can assert on the exact prompt sent. `error`, if given, is raised
-    instead of returning a response (simulates a provider/network failure)."""
+    instead of returning a response (simulates a provider/network failure).
+    `captured_init`, if given, collects the kwargs OpenAI(...) itself was
+    constructed with (api_key, base_url), so tests can assert on those too."""
 
     class FakeCompletions:
         def create(self, **kwargs):
@@ -36,6 +39,8 @@ def _fake_openai(captured_calls, content=VALID_JSON_CONTENT, error=None):
 
     class FakeClient:
         def __init__(self, *args, **kwargs):
+            if captured_init is not None:
+                captured_init.append(kwargs)
             self.chat = FakeChat()
 
     return FakeClient
@@ -224,3 +229,71 @@ def test_502_on_malformed_llm_response(monkeypatch):
     resp = client.post("/api/analysis/an_malformed/narrative")
     assert resp.status_code == 502
     assert resp.json()["detail"]["code"] == "narrative_failed"
+
+
+def test_502_on_oversized_response_and_nothing_is_persisted(monkeypatch):
+    """A misbehaving/malicious provider (OPENAI_BASE_URL makes the provider
+    operator-configurable) that ignores the length instruction and returns
+    an oversized text must be rejected outright — not truncated and
+    stored — since the stored payload is unbounded and permanent."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    calls = []
+    oversized = '{"ru": "%s", "en": "short"}' % ("я" * (narrative_service.MAX_TEXT_LENGTH + 1))
+    monkeypatch.setattr(narrative_service, "OpenAI", _fake_openai(calls, content=oversized))
+    _seed_analysis("an_oversized")
+
+    resp = client.post("/api/analysis/an_oversized/narrative")
+    assert resp.status_code == 502
+    assert resp.json()["detail"]["code"] == "narrative_failed"
+
+    # Nothing persisted: the stored payload still has no narrative key at all.
+    got = client.get("/api/analysis/an_oversized").json()
+    assert "narrative" not in got
+
+
+def test_response_right_at_the_cap_is_accepted_not_off_by_one(monkeypatch):
+    """The normal-length path must stay unaffected by the new guard —
+    exercised right at the boundary (exactly MAX_TEXT_LENGTH chars) rather
+    than only with a short fixture string, to pin the boundary itself."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    calls = []
+    at_cap = "я" * narrative_service.MAX_TEXT_LENGTH
+    content = json.dumps({"ru": at_cap, "en": "short"})
+    monkeypatch.setattr(narrative_service, "OpenAI", _fake_openai(calls, content=content))
+    _seed_analysis("an_at_cap")
+
+    resp = client.post("/api/analysis/an_at_cap/narrative")
+    assert resp.status_code == 200, resp.text
+    assert len(resp.json()["text_ru"]) == narrative_service.MAX_TEXT_LENGTH
+
+
+def test_base_url_is_passed_through_to_the_openai_client_when_configured(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://my-provider.example.com/v1")
+    calls = []
+    init_calls = []
+    monkeypatch.setattr(
+        narrative_service, "OpenAI", _fake_openai(calls, captured_init=init_calls)
+    )
+    _seed_analysis("an_base_url")
+
+    resp = client.post("/api/analysis/an_base_url/narrative")
+    assert resp.status_code == 200, resp.text
+    assert len(init_calls) == 1
+    assert init_calls[0]["base_url"] == "https://my-provider.example.com/v1"
+    assert init_calls[0]["api_key"] == "sk-test"
+
+
+def test_base_url_defaults_to_none_when_not_configured(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    calls = []
+    init_calls = []
+    monkeypatch.setattr(
+        narrative_service, "OpenAI", _fake_openai(calls, captured_init=init_calls)
+    )
+    _seed_analysis("an_no_base_url")
+
+    resp = client.post("/api/analysis/an_no_base_url/narrative")
+    assert resp.status_code == 200, resp.text
+    assert init_calls[0]["base_url"] is None
