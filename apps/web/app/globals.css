@@ -377,8 +377,7 @@
    * property, regardless of the other rule's higher selector specificity.
    */
   [data-scanline-content],
-  [data-reveal-rule],
-  [data-calibration-flag] {
+  [data-reveal-rule] {
     opacity: 1 !important;
     transform: none !important;
   }

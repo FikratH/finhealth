@@ -414,12 +414,11 @@ describe("ResultsDocument", () => {
   it("renders the overall score and verdict, RU-formatted", () => {
     renderDocument(analysisFixture);
     // The score renders as a SegmentDisplay (a CSS clip-path mask, not a
-    // text node) — its accessible name is the RU-formatted value combined
-    // with the verdict caption, the same contract segment-display.test.tsx
-    // covers directly.
-    expect(
-      screen.getByRole("img", { name: "85,1 — Сильное состояние" }),
-    ).toBeInTheDocument();
+    // text node) — its accessible name is its bare RU-formatted value.
+    // No `caption`: the verdict is already announced by the sr-only <h1>
+    // and by AnnunciatorCell's own role="status" live region below, so the
+    // score's own name doesn't repeat it a third time (review finding 9).
+    expect(screen.getByRole("img", { name: "85,1" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Сильное состояние" }),
     ).toBeInTheDocument();
@@ -535,12 +534,10 @@ describe("ResultsDocument", () => {
     const header = heading.closest("section") as HTMLElement;
     // No fabricated number: the score renders as ghost segment cells (never
     // hidden, never faked as 0), and its accessible name falls back to the
-    // health_label alone rather than any placeholder figure — the same
-    // contract score-header.tsx wires through SegmentDisplay's naLabel/
-    // caption props.
-    expect(
-      within(header).getByRole("img", { name: nullScoreFixture.health_label }),
-    ).toBeInTheDocument();
+    // same "—" placeholder formatNumber(null) uses everywhere else — the
+    // verdict itself is announced by the sr-only <h1> above, not repeated
+    // through the score's own name (review finding 9).
+    expect(within(header).getByRole("img", { name: "—" })).toBeInTheDocument();
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }
@@ -845,6 +842,19 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
     );
     expect(mountHidden.length).toBeGreaterThan(0);
 
+    // Spied across the resync itself (not just checked at the end) — the
+    // regression this guards is transient: pre-round-3, every section's
+    // re-created reveal state on a re-sync reverted to the hidden
+    // "pending reveal" value and was then immediately re-animated back up
+    // by ScrollTrigger's own "fire immediately if already past start"
+    // behavior. That sequence still ends with nothing hidden (the same
+    // end-state an end-state-only assertion would accept), so only a
+    // transient check across the resync — never a single
+    // data-scanline-hidden="true" setAttribute call — actually catches a
+    // regression back to that behavior.
+    const setAttributeSpy = vi.spyOn(Element.prototype, "setAttribute");
+    const removeAttributeSpy = vi.spyOn(Element.prototype, "removeAttribute");
+
     fireEvent.click(
       screen.getByRole("button", { name: ruMessages.Results.narrative.generateButton }),
     );
@@ -854,15 +864,24 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
       ).not.toBeInTheDocument();
     });
 
-    // The regression this guards: pre-round-3, every section's
-    // re-created reveal state on a re-sync reverted to the hidden
-    // "pending reveal" value — even for a section already on screen,
-    // which ScrollTrigger's own "fire immediately if already past start"
-    // behavior would then re-animate back up, a visible hide-then-
-    // reappear flicker with no user-facing cause. Post-fix, the resync's
-    // instant-settle branch never re-hides an already-revealed section —
-    // every scanline-content element ends the resync already visible
-    // (data-scanline-hidden removed, never re-added).
+    const hideCallsDuringResync = setAttributeSpy.mock.calls.filter(
+      ([attr, value]) => attr === "data-scanline-hidden" && value === "true",
+    );
+    expect(hideCallsDuringResync).toHaveLength(0);
+
+    // Positive proof the instant-settle branch actually ran (not just
+    // "nothing bad happened") — it explicitly clears data-scanline-hidden
+    // on every already-revealed section during the resync.
+    const settleCallsDuringResync = removeAttributeSpy.mock.calls.filter(
+      ([attr]) => attr === "data-scanline-hidden",
+    );
+    expect(settleCallsDuringResync.length).toBeGreaterThan(0);
+
+    setAttributeSpy.mockRestore();
+    removeAttributeSpy.mockRestore();
+
+    // End-state sanity, kept alongside the transient checks above: every
+    // scanline-content element ends the resync already visible.
     const stillHidden = document.querySelectorAll(
       '[data-scanline-content][data-scanline-hidden="true"]',
     );

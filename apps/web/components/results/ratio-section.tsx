@@ -29,7 +29,7 @@ export function RatioSection({
   return (
     <div className="space-y-1">
       <SectionHeading level={3}>{category.label}</SectionHeading>
-      <div>
+      <div className="space-y-3">
         {ratios.map((ratio) => (
           <RatioRow
             key={ratio.key}

@@ -358,21 +358,36 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         // (correctly, per "even above-the-fold content ignites in" — but
         // against the wrong, leftover scroll position), stealing "score"'s
         // always-lit nav default before the reader has scrolled this
-        // document at all. Skipped when the URL carries its own hash (a
-        // direct deep link to a section) — that anchor's scroll intent
-        // wins instead.
-        if (!window.location.hash && window.scrollY > 0) {
+        // document at all. Narrowly scoped to exactly that case: skipped
+        // when the URL carries its own hash (a direct deep link wins
+        // instead), and skipped on a reload or a back/forward navigation
+        // — both restore a scroll position *deliberately* (the share-link
+        // reader who reloads mid-scroll, or navigates back into this
+        // page, should land exactly where they were), so this reset must
+        // never fight that restoration.
+        const navEntry = performance.getEntriesByType("navigation")[0] as
+          | PerformanceNavigationTiming
+          | undefined;
+        const isRestoredNavigation =
+          navEntry?.type === "reload" || navEntry?.type === "back_forward";
+        if (!window.location.hash && !isRestoredNavigation && window.scrollY > 0) {
           window.scrollTo(0, 0);
         }
 
-        if (scoreDisplay) igniteSequence(scoreDisplay, "[data-segment-on]");
+        // The score ignites first; the verdict stamp lights strictly
+        // *after* it finishes — the same one-two rhythm the old
+        // arc-then-stamp opening had, now derived from the ignition
+        // cascade's own (data-dependent) duration rather than a fixed
+        // guess, so a wider reading (more lit segments, a longer cascade)
+        // never lands the stamp mid-ignition.
+        const igniteTl = scoreDisplay ? igniteSequence(scoreDisplay, "[data-segment-on]") : null;
 
         if (stamp) {
           gsap.timeline().fromTo(
             stamp,
             { scale: 1.06, opacity: 0 },
             { scale: 1, opacity: 1, duration: MOTION.base, ease: MOTION.ease },
-            MOTION.reveal,
+            igniteTl ? igniteTl.duration() : 0,
           );
         }
       } else {

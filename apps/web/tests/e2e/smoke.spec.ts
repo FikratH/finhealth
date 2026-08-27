@@ -107,11 +107,10 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // further down the page renders two more (the real + ghost control-bench
   // readouts), so an unscoped role=img query would now match those too.
   // The score is a CSS segment mask, not a text node — its accessible name
-  // (RU-formatted value + verdict caption) is the same contract
-  // segment-display.test.tsx covers directly.
-  await expect(
-    page.locator("#score").getByRole("img", { name: "85,1 — Сильное состояние" }),
-  ).toBeVisible();
+  // is its bare RU-formatted value (no caption: the verdict is already
+  // announced by the heading below and by AnnunciatorCell's own status
+  // live region, review finding 9).
+  await expect(page.locator("#score").getByRole("img", { name: "85,1" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
 
   // net_margin row: name + Damodaran-sourced footnote marker
@@ -133,6 +132,20 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // data-scanline-hidden for on-screen purposes. --------------------------
   await page.emulateMedia({ media: "print" });
   await expect(page.locator("#categories [data-scanline-content]")).toHaveCSS("opacity", "1");
+
+  // --- print safety: the headline score itself must survive onto paper.
+  // SegmentDisplay's animated mask paints every bar as a background-color,
+  // which every major print engine drops by default (no print-color-adjust
+  // in this codebase) — score-header.tsx hides that mask in print and
+  // swaps in a plain numeral instead (review finding 1: this used to leave
+  // the printed report's single most important figure blank). -----------
+  const scoreDisplay = page.locator("#score [data-score-display]");
+  const ledMask = scoreDisplay.locator('[role="img"]');
+  const printNumeral = scoreDisplay.locator('span[aria-hidden="true"]');
+  await expect(ledMask).toBeHidden();
+  await expect(printNumeral).toBeVisible();
+  await expect(printNumeral).toHaveText("85,1");
+
   await page.emulateMedia({ media: "screen" });
 
   // --- the scroll cinema: scroll to the bottom, the last mini-nav section
@@ -177,9 +190,7 @@ test("landing → analyze → verify → results → public share", async ({ pag
   const shareContext = await browser.newContext();
   const sharePage = await shareContext.newPage();
   await sharePage.goto(resultsUrl);
-  await expect(
-    sharePage.locator("#score").getByRole("img", { name: "85,1 — Сильное состояние" }),
-  ).toBeVisible();
+  await expect(sharePage.locator("#score").getByRole("img", { name: "85,1" })).toBeVisible();
   await expect(sharePage.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
   await shareContext.close();
 

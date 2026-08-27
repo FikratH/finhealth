@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import { Button } from "@/components/ui/button";
-import { SegmentDisplay } from "@/components/segment-display";
+import { SegmentDisplay, type SegmentDisplayHandle } from "@/components/segment-display";
 import { InstrumentModule } from "@/components/instrument-module";
 import { StatusPill } from "@/components/status-pill";
 import { MetricNumber } from "@/components/metric-number";
@@ -22,6 +24,8 @@ import { metricDisplayName } from "@/lib/metric-names";
 import { formatNumber } from "@/lib/format";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
+
+gsap.registerPlugin(useGSAP);
 
 export interface WhatIfSimulatorProps {
   analysis: AnalysisResult;
@@ -99,6 +103,7 @@ export function WhatIfSimulator({ analysis, locale }: WhatIfSimulatorProps) {
 
   const [leverState, setLeverState] = useState<LeverState>(DEFAULT_LEVER_STATE);
   const [debouncedState, setDebouncedState] = useState<LeverState>(DEFAULT_LEVER_STATE);
+  const simulatedScoreRef = useRef<SegmentDisplayHandle>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedState(leverState), DEBOUNCE_MS);
@@ -108,6 +113,18 @@ export function WhatIfSimulator({ analysis, locale }: WhatIfSimulatorProps) {
   const isDefault = LEVER_KEYS.every((key) => leverState[key] === 0);
 
   const result = useMemo(() => runSimulation(analysis, debouncedState), [analysis, debouncedState]);
+
+  // "Numbers changing (simulator) = digit swap with a 60ms inter-digit
+  // cascade, never morphing" (design-direction, Motion) — every recompute
+  // re-ignites the ghost readout through the same boot-grammar cascade the
+  // hero score uses, rather than a plain re-render. Reduced motion is
+  // already handled inside igniteSequence (sets every segment lit
+  // synchronously, no tween), so this needs no reduced-motion gate of its
+  // own. The real (left) readout never changes within this component, so
+  // only the simulated one re-ignites.
+  useGSAP(() => {
+    simulatedScoreRef.current?.ignite();
+  }, { dependencies: [result.overallScore] });
 
   const baselineByKey = useMemo(
     () => new Map(analysis.ratios.map((r) => [r.key, r] as const)),
@@ -182,6 +199,7 @@ export function WhatIfSimulator({ analysis, locale }: WhatIfSimulatorProps) {
           label={t("simulatedLabel")}
           figure={
             <SegmentDisplay
+              ref={simulatedScoreRef}
               value={result.overallScore}
               decimals={1}
               digits={SCORE_DIGITS}

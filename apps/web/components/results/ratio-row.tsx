@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
-import { CalibrationScale } from "@/components/calibration-scale";
+import { CalibrationScale, type CalibrationScaleTone } from "@/components/calibration-scale";
 import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import {
@@ -12,8 +12,18 @@ import {
   type RatioInputTrace,
 } from "@/lib/results";
 import { ratioInputDisplayName } from "@/lib/metric-names";
-import type { ExtractedValue, RatioResult } from "@/lib/api-types";
+import type { ExtractedValue, RatioResult, RatioStatus } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
+
+// The cursor reads the ratio's real severity (its API status), not just
+// its raw band position — richer than the retired NormBand's flat neutral
+// cursor, and never at odds with the StatusPill beside it.
+const CALIBRATION_TONE: Record<RatioStatus, CalibrationScaleTone> = {
+  good: "good",
+  attention: "attention",
+  critical: "critical",
+  na: "neutral",
+};
 
 export interface RatioRowProps {
   ratio: RatioResult;
@@ -190,12 +200,12 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
   );
 
   return (
-    <div className="border-b border-line py-3 last:border-b-0 print:break-inside-avoid">
+    <div className="border border-line bg-panel px-4 py-3 print:break-inside-avoid">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <span className="text-ink">
+        <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
           {ratio.name}
           {footnoteNumber !== undefined && (
-            <sup className="ml-0.5">
+            <sup className="ml-0.5 normal-case tracking-normal">
               <a
                 href={`#fn-${footnoteNumber}`}
                 aria-label={t("sourceFootnoteAria", { n: footnoteNumber })}
@@ -233,11 +243,7 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
             locale={locale}
             label={t("benchmarkLabel")}
             naLabel={t("naLabel")}
-            // The cursor reads the ratio's real severity (its API status),
-            // not just its raw band position — richer than the retired
-            // NormBand's flat neutral cursor, and never at odds with the
-            // StatusPill beside it.
-            tone={ratio.status === "good" || ratio.status === "attention" || ratio.status === "critical" ? ratio.status : "neutral"}
+            tone={CALIBRATION_TONE[ratio.status]}
           />
           {showFlag && (
             <span

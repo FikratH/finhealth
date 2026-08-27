@@ -5,8 +5,8 @@ import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ConfidenceDisclosure } from "./confidence-disclosure";
 import { verdictTone } from "@/lib/verdict";
+import { formatNumber, type Locale } from "@/lib/format";
 import type { AnalysisResult } from "@/lib/api-types";
-import type { Locale } from "@/lib/format";
 
 export interface ScoreHeaderProps {
   analysis: AnalysisResult;
@@ -43,9 +43,23 @@ const SCALE_KEY: Record<
 // aria-hidden in favor of its role="status" aria-label, so the document
 // still needs one genuine heading landmark) wired to data-verdict-stamp,
 // the wrapper results-document.tsx's opening timeline fades/scales in.
-// When overall_score is null this is also where the insufficient-data
-// state composes its guidance — designed absence (ghost segment cells),
-// not a blank dial with nothing to act on.
+// The score's own accessible name deliberately omits a `caption` — the
+// verdict is already announced twice (the sr-only h1, and AnnunciatorCell's
+// own role="status" live region), and a third repetition inside the
+// score's name would just be noise (review finding 9); it reads as its
+// bare RU-formatted value instead. When overall_score is null this is also
+// where the insufficient-data state composes its guidance — designed
+// absence (ghost segment cells), not a blank dial with nothing to act on.
+//
+// Print: SegmentDisplay's animated mask paints every bar as a
+// background-color, which every major print engine drops by default
+// (no print-color-adjust in this codebase, and none is being added — the
+// paper register gets its own plain figure instead, more in keeping with
+// "print is deliberately the paper world" than forcing screen-only LED
+// paint to survive onto it). The mask is print:hidden; a plain
+// STIX-in-print numeral (matching the printed document's own display
+// voice, globals.css's print block) stands in, formatted the same way
+// SegmentDisplay's own accessible name is, "—" for a null score.
 export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   const t = useTranslations("Results.header");
   const tScale = useTranslations("Analyze.verify.controls");
@@ -57,16 +71,20 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   return (
     <section id={id} className="grid-paper border-2 border-ink p-6 sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        <span data-score-display className="grid-paper inline-flex p-4">
+        <span data-score-display className="inline-flex p-4">
           <SegmentDisplay
             value={analysis.overall_score}
             decimals={1}
             digits={SCORE_DIGITS}
             locale={locale}
-            className="text-6xl sm:text-7xl"
-            caption={insufficientData ? undefined : analysis.health_label}
-            naLabel={insufficientData ? analysis.health_label : undefined}
+            className="text-6xl sm:text-7xl print:hidden"
           />
+          <span
+            aria-hidden="true"
+            className="hidden font-display text-6xl text-ink print:inline"
+          >
+            {formatNumber(analysis.overall_score, { locale, decimals: 1 })}
+          </span>
         </span>
         <div className="flex-1 space-y-4">
           <div data-verdict-stamp>
