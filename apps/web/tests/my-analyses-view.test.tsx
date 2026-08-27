@@ -66,7 +66,7 @@ describe("MyAnalysesView", () => {
 
   it("signed-in: fetches and renders the table with fixture rows, including the null-score row", async () => {
     useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
-    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ analyses: fixtures });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: fixtures });
     renderView();
 
     expect(await screen.findByText("Производство")).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("MyAnalysesView", () => {
 
   it("signed-in, no saved analyses: shows the composed empty state with a CTA to /analyze", async () => {
     useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
-    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ analyses: [] });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: [] });
     renderView();
 
     expect(await screen.findByText(ruMessages.My.empty.heading)).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("MyAnalysesView", () => {
 
   it("delete flow: confirming removes the row after the API call succeeds", async () => {
     useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
-    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ analyses: fixtures });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: fixtures });
     vi.mocked(deleteMyAnalysis).mockResolvedValueOnce({ deleted: "an_1" });
     renderView();
 
@@ -110,7 +110,7 @@ describe("MyAnalysesView", () => {
 
   it("switching to a different signed-in user without a remount resets state — the previous user's rows never render under the new identity", async () => {
     useSession.mockReturnValue({ data: { user: { id: "user-a" } }, isPending: false });
-    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ analyses: fixtures });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: fixtures });
     const { rerender } = renderView();
 
     await screen.findByText("Производство");
@@ -124,7 +124,7 @@ describe("MyAnalysesView", () => {
         health_label: "Удовлетворительное состояние",
       },
     ];
-    let resolveSecondFetch!: (value: { analyses: MyAnalysisSummary[] }) => void;
+    let resolveSecondFetch!: (value: { plan: string; analyses: MyAnalysisSummary[] }) => void;
     vi.mocked(getMyAnalyses).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -146,7 +146,7 @@ describe("MyAnalysesView", () => {
     expect(screen.queryByText("Производство")).not.toBeInTheDocument();
     expect(screen.getByText(ruMessages.My.loading)).toBeInTheDocument();
 
-    resolveSecondFetch({ analyses: otherUserFixture });
+    resolveSecondFetch({ plan: "pro", analyses: otherUserFixture });
     expect(await screen.findByText("Строительство")).toBeInTheDocument();
   });
 
@@ -165,5 +165,32 @@ describe("MyAnalysesView", () => {
 
     expect(await screen.findByText(ruMessages.My.loadError)).toBeInTheDocument();
     expect(screen.queryByText(ruMessages.My.signedOut.heading)).not.toBeInTheDocument();
+  });
+
+  it("shows a quiet FREE plan chip once the response resolves", async () => {
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: fixtures });
+    renderView();
+
+    expect(await screen.findByText(ruMessages.My.plan.free)).toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.My.plan.pro)).not.toBeInTheDocument();
+  });
+
+  it("shows a PRO plan chip when the response carries plan: pro", async () => {
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "pro", analyses: fixtures });
+    renderView();
+
+    expect(await screen.findByText(ruMessages.My.plan.pro)).toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.My.plan.free)).not.toBeInTheDocument();
+  });
+
+  it("does not render a plan chip before the response has loaded", () => {
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+    vi.mocked(getMyAnalyses).mockReturnValueOnce(new Promise(() => {})); // never resolves
+    renderView();
+
+    expect(screen.queryByText(ruMessages.My.plan.free)).not.toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.My.plan.pro)).not.toBeInTheDocument();
   });
 });

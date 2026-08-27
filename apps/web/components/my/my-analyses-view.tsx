@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/section-heading";
 import { MyAnalysesTable } from "./my-analyses-table";
+import { SpecimenChip } from "@/components/specimen-chip";
 import { ApiError, deleteMyAnalysis, getMyAnalyses } from "@/lib/api";
 import type { MyAnalysisSummary } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -83,6 +84,7 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
   const t = useTranslations("My");
   const [state, setState] = useState<LoadState>("loading");
   const [analyses, setAnalyses] = useState<MyAnalysisSummary[]>([]);
+  const [plan, setPlan] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState(false);
 
   useEffect(() => {
@@ -97,6 +99,7 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
       .then((res) => {
         if (cancelled) return;
         setAnalyses(res.analyses);
+        setPlan(res.plan);
         setState("ready");
       })
       .catch((err) => {
@@ -129,6 +132,15 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-16">
       <SectionHeading>{t("heading")}</SectionHeading>
+
+      {/* Quiet, display-only — no endpoint enforces a limit yet (P5.T5,
+       * see apps/api/app/entitlements.py). Same specimen-label idiom as
+       * every other chip on the site, never a badge or banner. */}
+      {plan && (
+        <div className="flex flex-wrap gap-2">
+          <SpecimenChip>{t(plan === "pro" ? "plan.pro" : "plan.free")}</SpecimenChip>
+        </div>
+      )}
 
       {state === "loading" && (
         <p className="font-mono text-sm text-ink-muted">{t("loading")}</p>

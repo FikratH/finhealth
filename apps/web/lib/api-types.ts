@@ -332,6 +332,10 @@ export interface MyAnalysisSummary {
 }
 
 export interface MyAnalysesResponse {
+  /** The caller's entitlement plan (apps/api/app/entitlements.py) —
+   * "free" | "pro". Display-only: no endpoint enforces a limit yet, so
+   * this powers a quiet chip on the history page, nothing else. */
+  plan: string;
   analyses: MyAnalysisSummary[];
 }
 

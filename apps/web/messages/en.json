@@ -462,6 +462,10 @@
       "description": "Your saved company diagnostics."
     },
     "heading": "My analyses",
+    "plan": {
+      "free": "Plan: FREE",
+      "pro": "Plan: PRO"
+    },
     "signedOut": {
       "heading": "Sign in required",
       "body": "Sign in to see your saved analyses.",
