@@ -89,14 +89,14 @@ function cellsToPlainString(cells: Cell[]): string {
 
 /**
  * The seven bars of one cell, rendered from an explicit "which segments are
- * on" set — the shared primitive both this file's numeric `Cell` glyphs and
- * wordmark-ignite.tsx's letter glyphs draw through, so the truth table is
- * the only thing that differs between "a digit" and "a letter." Every bar
- * always renders (ghost when not part of the current character, lit teal
- * via `[data-lit="true"]` when it is) — "unlit segments are designed too."
- * `data-segment-on` marks exactly the bars a caller's `igniteSequence` call
- * should cascade through; bars outside `onSegments` stay permanently ghost
- * and are never targeted.
+ * on" set. Exported so any other segment-mask figure can draw through the
+ * same primitive without duplicating the CSS-class/data-attribute wiring —
+ * only the truth table needs to differ between one caller and the next.
+ * Every bar always renders (ghost when not part of the current character,
+ * lit teal via `[data-lit="true"]` when it is) — "unlit segments are
+ * designed too." `data-segment-on` marks exactly the bars a caller's
+ * `igniteSequence` call should cascade through; bars outside `onSegments`
+ * stay permanently ghost and are never targeted.
  */
 export function SegmentBars({ onSegments }: { onSegments: readonly SegmentKey[] }) {
   return (

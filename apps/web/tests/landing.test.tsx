@@ -45,18 +45,18 @@ describe("Landing page sections", () => {
         expect(headings[0]).toHaveTextContent(messages.Landing.hero.h1);
       });
 
-      it("renders the igniting wordmark as the hero's own brand-mark link, per the FIRST VIEWPORT contract", () => {
+      it("renders the real logo as the hero's own brand-mark link, per the FIRST VIEWPORT contract", () => {
         render(
           <NextIntlClientProvider locale={locale} messages={messages}>
             <LandingHero />
           </NextIntlClientProvider>,
         );
         // SiteHeader renders nothing on "/" (see site-header.test.tsx), so
-        // this is the page's ONLY wordmark. It's a segment-mask ignition
-        // (WordmarkIgnite), not a text node, so its accessible name comes
-        // from the inner role="img"'s aria-label — always Latin "Tonus",
-        // identical in both locales (design-direction: never «Тонус» in
-        // any locale).
+        // this is the page's ONLY brand mark. Founder ruling: the real
+        // logo (LogoReveal) outranks the earlier segment-rendered wordmark
+        // concept — its accessible name is the <img>'s own alt text,
+        // always Latin "Tonus", identical in both locales (design-
+        // direction: never «Тонус» in any locale).
         const wordmark = screen.getByTestId("hero-wordmark");
         expect(wordmark).toHaveAccessibleName("Tonus");
         expect(wordmark.tagName).toBe("A");

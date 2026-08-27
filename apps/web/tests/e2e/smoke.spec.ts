@@ -186,11 +186,11 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await mobileContext.close();
 });
 
-test("landing under prefers-reduced-motion: the wordmark boots instantly (no animation to wait out), and the offer/demo/CTA are all immediately visible", async ({
+test("landing under prefers-reduced-motion: the logo reveal shows instantly (no wipe to wait out), and the offer/demo/CTA are all immediately visible", async ({
   browser,
 }) => {
   // Playwright's reducedMotion context option emulates prefers-reduced-motion:
-  // reduce end-to-end — the same media feature igniteSequence's own
+  // reduce end-to-end — the same media feature LogoReveal's own
   // getPrefersReducedMotion() reads before ever building a gsap.timeline.
   const context = await browser.newContext({ reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -200,17 +200,23 @@ test("landing under prefers-reduced-motion: the wordmark boots instantly (no ani
     "Финансовая диагностика вашей компании",
   );
 
-  // Reduced motion: igniteSequence sets every one of the wordmark's "on"
-  // segments to data-lit="true" synchronously at effect time — asserted
-  // immediately, not polled, since there's no animation step to wait out.
-  // A segment outside the letter's own shape (e.g. "a" for lowercase "n")
-  // has no data-segment-on attribute at all and stays permanently ghost —
-  // "designed absence," not a bug — so this only checks the segments that
-  // ARE meant to light.
+  // Reduced motion: LogoReveal's effect returns before ever calling
+  // gsap.set on the mask, so its inline clip-path stays exactly the JSX
+  // default (fully revealed) rather than being mutated to a hidden state
+  // and animated back — checked for the *absence* of the hidden value
+  // ("inset(...100%...)", what the non-reduced-motion effect sets before
+  // animating back) rather than an exact-string match against today's
+  // browser-serialized zero value (Chromium normalizes unitless 0 to
+  // "0px" but leaves "0%" as authored, a quirk of the CSSOM getter, not
+  // something worth coupling this test to).
   const wordmark = page.getByTestId("hero-wordmark");
   await expect(wordmark).toBeVisible();
-  await expect(wordmark.locator('[data-segment-on][data-lit="false"]')).toHaveCount(0);
-  await expect(wordmark.locator('[data-segment-on][data-lit="true"]').first()).toBeAttached();
+  const maskInlineClip = await wordmark
+    .locator("[data-logo-mask]")
+    .evaluate((el) => (el as HTMLElement).style.clipPath);
+  expect(maskInlineClip).toContain("inset(");
+  expect(maskInlineClip).not.toContain("100%");
+  await expect(wordmark.locator("img")).toBeVisible();
 
   await expect(page.getByRole("link", { name: "Проверить компанию" })).toBeVisible();
   await expect(page.getByText("ДЕМО-ДАННЫЕ")).toBeVisible();
