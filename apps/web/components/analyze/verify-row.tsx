@@ -33,6 +33,7 @@ interface PeriodCellProps {
 // separate control.
 function PeriodCell({ metricName, periodLabel, entry, locale, onChange }: PeriodCellProps) {
   const t = useTranslations("Analyze.verify.table");
+  const errorsT = useTranslations("errors");
   const value = entry?.value ?? null;
   const manuallyEdited = entry?.manually_edited ?? false;
   const confidence = entry?.confidence ?? 0;
@@ -44,6 +45,7 @@ function PeriodCell({ metricName, periodLabel, entry, locale, onChange }: Period
         locale={locale}
         placeholder={t("naPlaceholder")}
         ariaLabel={t("valueInputLabel", { metric: metricName, period: periodLabel })}
+        invalidMessage={errorsT("invalidNumber")}
         onChange={onChange}
       />
       <div className="flex items-center justify-between gap-2">

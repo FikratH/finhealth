@@ -95,4 +95,53 @@ describe("VerifyTable", () => {
     renderTable({ hasPreviousPeriod: false });
     expect(screen.queryByText("Предыдущий период")).not.toBeInTheDocument();
   });
+
+  it("does not dispatch an edit on a plain keyboard tab-through (focus+blur, no change)", () => {
+    // Regression: this is exactly what a keyboard-only user does moving
+    // through the table — it must not flag every row manually_edited.
+    const { onEditLatest } = renderTable();
+    const input = screen.getByLabelText("Выручка — Текущий период");
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(onEditLatest).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch on a null -> null blur of an already-empty N/A cell", () => {
+    const { onEditLatest } = renderTable();
+    const input = screen.getByLabelText("EBITDA — Текущий период");
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(onEditLatest).not.toHaveBeenCalled();
+  });
+
+  it("parses an EN-grouped figure like '1,234.5' rather than silently nulling it", () => {
+    const { onEditLatest } = renderTable();
+    const input = screen.getByLabelText("Выручка — Текущий период");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "1,234.5" } });
+    fireEvent.blur(input);
+
+    expect(onEditLatest).toHaveBeenCalledWith("revenue", 1234.5);
+  });
+
+  it("keeps the prior value and shows a validation message on unparseable input, instead of silently nulling it", () => {
+    const { onEditLatest } = renderTable();
+    const input = screen.getByLabelText("Выручка — Текущий период");
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "garbage" } });
+    fireEvent.blur(input);
+
+    expect(onEditLatest).not.toHaveBeenCalled();
+    expect(input).toHaveValue("garbage"); // the bad draft stays visible, not reverted
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText("Не удалось распознать число. Проверьте формат и повторите."),
+    ).toBeInTheDocument();
+  });
 });

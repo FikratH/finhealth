@@ -167,6 +167,63 @@ describe("analyzeReducer", () => {
     expect(edited?.manually_edited).toBe(true);
   });
 
+  it("does NOT flag manually_edited when the dispatched value equals what's already stored", () => {
+    // Regression: a plain keyboard tab-through (required for the flow to be
+    // keyboard-completable) re-dispatches the same value on every blur —
+    // that must be a no-op, not a false "manually corrected" flag (which
+    // both swaps the UI's confidence chip and inflates the backend's
+    // confidence score — scoring.py:196-202 treats manually_edited as
+    // always-100%).
+    const start = { ...initialAnalyzeState(), values: extractionFixture.values, step: "verify" as const };
+    const state = analyzeReducer(start, {
+      type: "value_edited",
+      period: "latest",
+      metric: "revenue",
+      value: 3245900, // identical to extractionFixture's stored revenue value
+    });
+
+    expect(state.values).toBe(start.values); // same reference: a true no-op
+    const unchanged = findExtractedValue(state.values, "revenue");
+    expect(unchanged?.manually_edited).toBe(false);
+  });
+
+  it("does NOT flag manually_edited on a null -> null blur of an already-empty row", () => {
+    // Same regression, the N/A case: tabbing through EBITDA (value: null)
+    // without typing anything must not flip on the "Введено вручную" chip.
+    const start = { ...initialAnalyzeState(), values: extractionFixture.values, step: "verify" as const };
+    const state = analyzeReducer(start, {
+      type: "value_edited",
+      period: "latest",
+      metric: "ebitda",
+      value: null,
+    });
+
+    expect(state.values).toBe(start.values);
+    const unchanged = findExtractedValue(state.values, "ebitda");
+    expect(unchanged?.manually_edited).toBe(false);
+    expect(unchanged?.value).toBeNull();
+  });
+
+  it("does NOT synthesize a previous-period row from a null -> null blur with no existing entry", () => {
+    // Same regression for the "synthesize a row" branch: an empty blur on a
+    // previous-period cell that never had a value must stay unrecorded.
+    const start = {
+      ...initialAnalyzeState(),
+      step: "verify" as const,
+      extraction: extractionFixture,
+      previousValues: extractionFixture.previous_values,
+    };
+    const state = analyzeReducer(start, {
+      type: "value_edited",
+      period: "previous",
+      metric: "ebitda",
+      value: null,
+    });
+
+    expect(state.previousValues).toBe(start.previousValues);
+    expect(findExtractedValue(state.previousValues, "ebitda")).toBeUndefined();
+  });
+
   it("synthesizes a previous-period row when editing a metric with no previous value at all", () => {
     // previous_values isn't N/A-filled by the backend the way values is —
     // "ebitda" has no entry there until the user supplies one.

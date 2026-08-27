@@ -97,9 +97,14 @@ function editValue(
 ): ExtractedValue[] {
   const index = list.findIndex((v) => v.metric === metric);
   if (index === -1) {
+    // Nothing to record when there was no value before and there still
+    // isn't one — a keyboard tab-through over an empty N/A cell (required
+    // for the flow to be keyboard-completable) must not synthesize a
+    // spurious manually_edited row.
+    if (value === null) return list;
     // The metric had no value at all for this period (common for
     // previous_values, which — unlike values — isn't N/A-filled for every
-    // dictionary metric). Manual entry synthesizes the row.
+    // dictionary metric). A genuine manual entry synthesizes the row.
     return [
       ...list,
       {
@@ -116,6 +121,13 @@ function editValue(
       },
     ];
   }
+  // Idempotency guard, defense-in-depth alongside ValueInput's own
+  // compare-before-dispatch: even a caller that dispatches unconditionally
+  // must not flag manually_edited (or corrupt the backend's confidence
+  // scoring — scoring.py:196-202 treats every manually_edited value as
+  // 100% confidence) when the parsed value equals what was already stored,
+  // including null → null.
+  if (list[index].value === value) return list;
   const next = list.slice();
   next[index] = { ...next[index], value, manually_edited: true };
   return next;

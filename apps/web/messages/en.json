@@ -68,7 +68,8 @@
     "unknown": "Something went wrong. Try again in a moment.",
     "timeout": "The server didn't respond in time. Check your connection and try again.",
     "parseFailure": "The server returned a malformed response. Try again.",
-    "network": "Couldn't reach the server. Check your internet connection."
+    "network": "Couldn't reach the server. Check your internet connection.",
+    "invalidNumber": "Couldn't read that as a number. Check the format and try again."
   },
   "Analyze": {
     "meta": {
