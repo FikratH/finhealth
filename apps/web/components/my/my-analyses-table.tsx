@@ -35,7 +35,13 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
   const tDialog = useTranslations("My.deleteDialog");
 
   return (
-    <div className="overflow-x-auto border border-line bg-panel">
+    // `relative`: makes this scroll container the containing block for
+    // position:absolute descendants — without it, the actions column's
+    // sr-only <span> (position:absolute, no positioned ancestor) escapes
+    // this element's own overflow-x-auto clipping and inflates the whole
+    // page's scrollWidth at narrow viewports. See my-documents-table.tsx's
+    // identical wrapper for the full mechanism.
+    <div className="relative overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">

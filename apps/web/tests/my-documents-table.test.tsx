@@ -39,6 +39,38 @@ function renderTable(documents: MyDocumentSummary[] = fixtures, onDelete = vi.fn
 }
 
 describe("MyDocumentsTable", () => {
+  // Regression guard for a real mobile-overflow bug: /my signed-in at a
+  // 390px viewport had 158px of horizontal PAGE overflow
+  // (documentElement.scrollWidth 548 vs. clientWidth 390), traced to the
+  // actions column's sr-only <span> (Tailwind's sr-only is
+  // position:absolute). Without a positioned ancestor, its static position
+  // is computed from its unscrolled location inside the wide
+  // (min-w-[40rem]) table and escapes this wrapper's own overflow-x-auto
+  // clipping entirely — invisible (1x1, clipped) but still a real box in
+  // the document's coordinate space, inflating scrollWidth. `relative` on
+  // the wrapper makes it the containing block instead, so the span's
+  // position (and the table's own overflow) both stay properly contained.
+  // Confirmed live: injecting `position:relative` on the wrapper alone
+  // dropped documentElement.scrollWidth from 548 to exactly 390 (the
+  // viewport width) with no other change.
+  //
+  // jsdom does no real layout — getBoundingClientRect/scrollWidth aren't
+  // computed at all — so the actual overflow behavior can't be asserted
+  // here (a fabricated "0" would be vacuous, not a guard). This narrower,
+  // honest substitute asserts only that the specific class the fix depends
+  // on is present, so a future refactor that drops it (not realizing why
+  // it's there) fails a test here instead of failing silently until the
+  // next mobile capture.
+  it("the scroll wrapper is a positioning context (relative), the fix for the sr-only-span escape bug", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyDocumentsTable documents={fixtures} locale="ru" onDelete={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    const wrapper = container.querySelector(".overflow-x-auto");
+    expect(wrapper).toHaveClass("relative");
+  });
+
   it("renders a row per document: filename, kind chip, formatted date, and size in MB", () => {
     renderTable();
 

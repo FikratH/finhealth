@@ -42,6 +42,27 @@ function renderTable(analyses: MyAnalysisSummary[] = fixtures, onDelete = vi.fn(
 }
 
 describe("MyAnalysesTable", () => {
+  // jsdom does no real layout (getBoundingClientRect/scrollWidth aren't
+  // computed), so the actual bug this guards — the sr-only actions-column
+  // <span> (position:absolute, no positioned ancestor) escaping this
+  // wrapper's overflow-x-auto clipping and inflating the whole page's
+  // scrollWidth at narrow viewports, confirmed live at 548px vs. a 390px
+  // viewport before the fix — cannot be honestly asserted here. This is
+  // narrower and weaker than that: a tripwire on the specific class that
+  // fixes it (`relative`, making this element the containing block for
+  // that span), so a future refactor that drops the class — not realizing
+  // why it's there — fails a test instead of failing silently until the
+  // next mobile capture.
+  it("the scroll wrapper is a positioning context (relative) — see my-documents-table.test.tsx's identical guard for the full mechanism", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyAnalysesTable analyses={fixtures} locale="ru" onDelete={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    const wrapper = container.querySelector(".overflow-x-auto");
+    expect(wrapper).toHaveClass("relative");
+  });
+
   it("renders a row per analysis: formatted date, industry chip, and a link to its results page", () => {
     renderTable();
 

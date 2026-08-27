@@ -32,7 +32,17 @@ export function MyDocumentsTable({ documents, locale, onDelete }: MyDocumentsTab
   const tDialog = useTranslations("My.documents.deleteDialog");
 
   return (
-    <div className="overflow-x-auto border border-line bg-panel">
+    // `relative`: makes this scroll container the containing block for
+    // position:absolute descendants — without it, the actions column's
+    // sr-only <span> (position:absolute, no positioned ancestor) computes
+    // its static position from its unscrolled location inside the wide
+    // (min-w-[40rem]) table and escapes this element's own overflow-x-auto
+    // clipping entirely, inflating document.documentElement.scrollWidth
+    // (verified: 548px at a 390px viewport, entirely from two such escaped
+    // spans — one per table — with zero visible symptom, since the span
+    // itself is 1x1 and clipped). `overflow-x-auto` alone does NOT
+    // establish a positioning context; only `position` does.
+    <div className="relative overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
