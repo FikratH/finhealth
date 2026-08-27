@@ -5,7 +5,6 @@ import { SectionHeading } from "@/components/section-heading";
 import { StatusPill } from "@/components/status-pill";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { MetricNumber } from "@/components/metric-number";
-import { SpecimenChip } from "@/components/specimen-chip";
 import { OriginTicket } from "@/components/origin-ticket";
 import { NormBand } from "@/components/norm-band";
 import { SegmentDisplay } from "@/components/segment-display";
@@ -278,7 +277,6 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
             <OriginTicket>{t("chipIndustry")}</OriginTicket>
             <OriginTicket tone="accent">{t("chipPeriod")}</OriginTicket>
             <OriginTicket tone="attention">{t("chipDemo")}</OriginTicket>
-            <SpecimenChip tone="accent">{t("chipDemo")}</SpecimenChip>
           </div>
         </RegisterPreview>
       </Section>

@@ -19,8 +19,9 @@ export interface OriginTicketProps {
 // uppercase mono tag on the panel surface, for industry / period /
 // currency / «ДЕМО-ДАННЫЕ» / confidence stickers and — per the "visible
 // seams" raise — the wired origin marker beside a figure's source line.
-// SpecimenChip (specimen-chip.tsx) is a thin alias over this component so
-// every existing call site keeps working unchanged.
+// SpecimenChip (specimen-chip.tsx) was a thin alias over this component,
+// kept only until the app's ~14 call sites moved onto OriginTicket
+// directly (R4-R6); the sweep is complete and the alias has retired.
 export function OriginTicket({ children, tone = "neutral", className }: OriginTicketProps) {
   return (
     <span

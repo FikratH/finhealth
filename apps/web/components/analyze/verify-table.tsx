@@ -31,7 +31,7 @@ export function VerifyTable({
     <div className="overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[36rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-line bg-accent-surface text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
+          <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
             <th scope="col" className="px-3 py-2 font-normal">
               {t("metric")}
             </th>

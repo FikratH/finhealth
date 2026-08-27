@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
 import { verdictTone } from "@/lib/verdict";
@@ -38,7 +38,7 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
     <div className="overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-line bg-accent-surface text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
+          <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
             <th scope="col" className="px-3 py-2 font-normal">
               {t("date")}
             </th>
@@ -66,7 +66,7 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
               <tr key={row.analysis_id} className="border-b border-line last:border-b-0">
                 <td className="px-3 py-2 font-mono tabular-nums text-ink">{date}</td>
                 <td className="px-3 py-2">
-                  <SpecimenChip>{row.industry_name}</SpecimenChip>
+                  <OriginTicket>{row.industry_name}</OriginTicket>
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap items-center gap-2">

@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { useTranslations } from "next-intl";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import {
   Select,
   SelectContent,
@@ -81,7 +81,7 @@ export function DocumentControls({
             </Select>
             {suggestionPending && (
               <button type="button" onClick={onApplySuggested} title={t("applySuggested")}>
-                <SpecimenChip tone="attention">{t("suggestedBadge")}</SpecimenChip>
+                <OriginTicket tone="attention">{t("suggestedBadge")}</OriginTicket>
               </button>
             )}
           </div>
@@ -115,7 +115,7 @@ export function DocumentControls({
             value={currency}
             placeholder={t("currencyPlaceholder")}
             onChange={(event) => onCurrencyChange(event.target.value.toUpperCase())}
-            className="w-28 border border-line bg-panel px-2 py-1.5 font-mono text-sm uppercase text-ink caret-brand [caret-shape:block] focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)] focus-visible:outline-none"
+            className="w-28 border border-line bg-panel px-2 py-1.5 font-mono text-sm uppercase text-ink caret-brand [caret-shape:block] focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
 
@@ -146,13 +146,13 @@ export function DocumentControls({
         </label>
 
         <div className="ml-auto flex flex-wrap gap-2 pb-1.5">
-          <SpecimenChip>
+          <OriginTicket>
             {t("latestPeriodLabel")}: {latestPeriod ?? t("periodNotDetected")}
-          </SpecimenChip>
+          </OriginTicket>
           {previousPeriod && (
-            <SpecimenChip>
+            <OriginTicket>
               {t("previousPeriodLabel")}: {previousPeriod}
-            </SpecimenChip>
+            </OriginTicket>
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ConfidenceMeter } from "@/components/confidence-meter";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { SourcePopover } from "./source-popover";
 import { ValueInput } from "./value-input";
 import type { Locale } from "@/lib/format";
@@ -50,13 +50,13 @@ function PeriodCell({ metricName, periodLabel, entry, locale, onChange }: Period
       />
       <div className="flex items-center justify-between gap-2">
         {manuallyEdited ? (
-          <SpecimenChip tone="accent" className="items-center gap-1.5">
+          <OriginTicket tone="accent" className="items-center gap-1.5">
             <span
               aria-hidden="true"
               className="inline-block size-1.5 rounded-full bg-brand shadow-[0_0_4px_1px_var(--accent)]"
             />
             {t("manuallyEdited")}
-          </SpecimenChip>
+          </OriginTicket>
         ) : (
           <ConfidenceMeter
             value={entry ? confidence : null}

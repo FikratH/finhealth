@@ -4,7 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { cn } from "@/lib/utils";
 
 export interface SigninFormProps {
@@ -46,7 +46,7 @@ export function SigninForm({ googleEnabled }: SigninFormProps) {
   if (status === "sent") {
     return (
       <div className="border border-line bg-panel p-6 sm:p-8" role="status">
-        <SpecimenChip tone="accent">{t("sentChip")}</SpecimenChip>
+        <OriginTicket tone="accent">{t("sentChip")}</OriginTicket>
         <p className="mt-4 font-display text-xl text-ink">{t("sentTitle")}</p>
         <p className="mt-2 text-sm text-ink-muted">{t("sentDescription", { email })}</p>
         <p className="mt-4 text-xs text-ink-muted">{t("sentHint")}</p>

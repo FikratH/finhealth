@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/section-heading";
 import { MyAnalysesTable } from "./my-analyses-table";
-import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { ApiError, deleteMyAnalysis, getMyAnalyses } from "@/lib/api";
 import type { MyAnalysisSummary } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
@@ -140,7 +140,7 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
        * every other chip on the site, never a badge or banner. */}
       {plan && (
         <div className="flex flex-wrap gap-2">
-          <SpecimenChip>{t(plan === "pro" ? "plan.pro" : "plan.free")}</SpecimenChip>
+          <OriginTicket>{t(plan === "pro" ? "plan.pro" : "plan.free")}</OriginTicket>
         </div>
       )}
 
