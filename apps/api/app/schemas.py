@@ -199,6 +199,12 @@ class AnalysisResult(BaseModel):
     confidence: ConfidenceBreakdown
     missing_metrics: list[str] = []
     risk_radar: Optional[RiskRadar] = None
+    # The verified values this analysis was computed from — latest period
+    # only, scale-defaulted, otherwise untouched (see run_analysis). Powers
+    # frontend provenance: every ratio traces back to the document line it
+    # came from. Additive: absent on payloads stored before this field
+    # existed, which is why it defaults to [] rather than being required.
+    source_values: list[ExtractedValue] = []
     disclaimer: str = (
         "Сервис не заменяет профессиональную финансовую консультацию. "
         "Часть отраслевых ориентиров основана на данных Damodaran (NYU Stern, "

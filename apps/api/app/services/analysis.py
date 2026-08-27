@@ -117,4 +117,9 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
         confidence=confidence,
         missing_metrics=missing,
         risk_radar=risk_radar,
+        # Latest-period values only, post scale-defaulting (the loop above),
+        # otherwise verbatim — req.values are already sign-normalized
+        # magnitudes from extraction, so no further transform is needed for
+        # provenance display.
+        source_values=req.values,
     )

@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.schemas import AnalysisRequest, ExtractedValue, Scale
+from app.schemas import AnalysisRequest, AnalysisResult, ExtractedValue, Scale
 from app.services.analysis import run_analysis
 from tests.test_beneish import FULL_LATEST as BENEISH_FULL_LATEST
 from tests.test_beneish import FULL_PREVIOUS as BENEISH_FULL_PREVIOUS
@@ -156,3 +156,46 @@ def test_default_disclaimer_leads_with_professional_advice_notice():
         "Сервис не заменяет профессиональную финансовую консультацию.")
     assert "Damodaran" in res.disclaimer
     assert "демонстрационными" in res.disclaimer
+
+
+# --- Provenance: source_values (Plan 4 / Task 3) ----------------------------
+
+def test_source_values_mirrors_request_values_latest_period_only():
+    req = _demo_shaped_request()
+    res = run_analysis(req)
+    assert len(res.source_values) == len(req.values)
+    assert {sv.metric for sv in res.source_values} == {v.metric for v in req.values}
+    # DEMO_LATEST and DEMO_PREVIOUS share the same metric keys with
+    # different figures — assert the stored value is the *latest* one
+    # (3245900), not the previous period's (2987400), proving
+    # source_values tracks req.values and not req.previous_values.
+    revenue_sv = next(sv for sv in res.source_values if sv.metric == "revenue")
+    assert revenue_sv.value == 3245900
+
+
+def test_source_values_carry_original_label_source_snippet_confidence_and_manual_flag():
+    req = AnalysisRequest(
+        industry="manufacturing", scale=Scale.units,
+        values=[ExtractedValue(
+            metric="revenue", original_label="Выручка от реализации", value=100_000,
+            source="CSV, строка 3", confidence=92, snippet="100 000",
+            manually_edited=True)])
+    res = run_analysis(req)
+    sv = res.source_values[0]
+    assert sv.original_label == "Выручка от реализации"
+    assert sv.source == "CSV, строка 3"
+    assert sv.snippet == "100 000"
+    assert sv.confidence == 92
+    assert sv.manually_edited is True
+
+
+def test_source_values_absent_key_on_old_stored_payload_still_parses_as_empty():
+    # GET /api/analysis/{id} returns the raw stored JSON verbatim (no
+    # re-validation) — this test instead guards the schema itself: a
+    # payload persisted before this field existed, fed back through
+    # AnalysisResult (e.g. any future migration/validation path), must
+    # still parse rather than raise, defaulting to [].
+    payload = run_analysis(_demo_shaped_request()).model_dump(mode="json")
+    del payload["source_values"]
+    result = AnalysisResult(**payload)
+    assert result.source_values == []
