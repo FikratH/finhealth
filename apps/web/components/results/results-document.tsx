@@ -400,8 +400,16 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         // never touches a not-yet-revealed section's LedBar cells further
         // down the document (those cascade on their own scanline sweep
         // below instead, "where a reveal already animates").
+        // :not(details ...) for the same reason the section-level call
+        // below excludes it: the confidence-disclosure's own meters sit
+        // inside a closed <details> here too (ConfidenceDisclosure, right
+        // next to the header's main meter) — nothing sees them until a
+        // reader opens that disclosure, so they don't belong in this
+        // load-time cascade either (verdict remainder, W2).
         const scoreHeaderEl = root.querySelector<HTMLElement>("#score");
-        if (scoreHeaderEl) igniteSequence(scoreHeaderEl, "[data-cell-on]");
+        if (scoreHeaderEl) {
+          igniteSequence(scoreHeaderEl, "[data-cell-on]:not(details [data-cell-on])");
+        }
 
         if (stamp) {
           gsap.timeline().fromTo(
@@ -413,6 +421,32 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
         }
       } else {
         if (stamp) gsap.set(stamp, { scale: 1, opacity: 1 });
+
+        // Untracked restore (verdict remainder, W1): igniteSequence's
+        // mount-time cascades above are gsap-*tracked* tl.set() calls,
+        // built inside this same useGSAP callback — so a later dependency
+        // change (narrativeAvailable/narrativeHasContent, this effect's
+        // own `dependencies`) reverts them via revertOnUpdate's
+        // context.revert() before this re-run, rolling every "data-lit"
+        // attribute it touched back to the "false" igniteSequence itself
+        // set immediately before building the timeline. Nothing else ever
+        // repairs it — React's vDOM already holds "true" for those nodes,
+        // so a later render never re-writes an attribute it thinks is
+        // unchanged. Plain (untracked) setAttribute calls here, exactly
+        // like the flicker-safe scanline machinery already uses, aren't
+        // subject to that revert and are the same instant-settle idiom
+        // this branch already applies to the stamp above. Pre-existing
+        // since R4 for the score digits alone (6a74ccf's tracked
+        // ignition under this same revertOnUpdate effect) — this wave's
+        // #score LedBar cells widened the fault, and fixing it here
+        // closes both halves at once.
+        scoreDisplay
+          ?.querySelectorAll<HTMLElement>("[data-segment-on]")
+          .forEach((el) => el.setAttribute("data-lit", "true"));
+        root
+          .querySelector<HTMLElement>("#score")
+          ?.querySelectorAll<HTMLElement>("[data-cell-on]")
+          .forEach((el) => el.setAttribute("data-lit", "true"));
       }
 
       // (2) + (3): exactly one ScrollTrigger per section — the boot

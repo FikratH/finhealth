@@ -951,5 +951,23 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
       '[data-scanline-content][data-scanline-hidden="true"]',
     );
     expect(stillHidden).toHaveLength(0);
+
+    // Verdict remainder (W1): this same resync used to revert the
+    // headline score's ignition — useGSAP's revertOnUpdate rolls back
+    // every gsap-*tracked* tl.set() from the mount-time igniteSequence
+    // calls (the score's own [data-segment-on] cascade, and #score's
+    // ConfidenceMeter [data-cell-on] cascade) before this re-run, and
+    // nothing repaired it: the resync branch only ever restored the
+    // verdict stamp. Every one of #score's ignition targets must still
+    // read data-lit="true" after the resync settles — this scenario
+    // (a narrative 503 collapse) is exactly the one that used to ghost
+    // them.
+    const scoreSegments = document.querySelectorAll("#score [data-segment-on]");
+    const scoreCells = document.querySelectorAll("#score [data-cell-on]");
+    expect(scoreSegments.length).toBeGreaterThan(0);
+    expect(scoreCells.length).toBeGreaterThan(0);
+    for (const el of [...scoreSegments, ...scoreCells]) {
+      expect(el).toHaveAttribute("data-lit", "true");
+    }
   });
 });
