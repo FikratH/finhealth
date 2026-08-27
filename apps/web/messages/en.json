@@ -10,10 +10,48 @@
   "Footer": {
     "disclaimer": "Tonus generates its analysis automatically from the data you provide. It is not financial, tax, or legal advice."
   },
-  "Home": {
-    "title": "Tonus",
-    "lede": "The product scaffold is live. The company diagnosis experience ships in the phases ahead.",
-    "specimenChip": "RU/EN"
+  "Landing": {
+    "hero": {
+      "h1": "Financial diagnosis for your company",
+      "lede": "Upload your statements and verify the numbers — Tonus reads your company's health as objectively as bloodwork reads a person's: a score, the key ratios, and the actions to prioritize.",
+      "cta": "Check my company"
+    },
+    "reportFragment": {
+      "industry": "Manufacturing",
+      "period": "2024",
+      "currency": "KZT",
+      "demoLabel": "Demo data",
+      "ratioName": "Net Profit Margin",
+      "normLabel": "norm",
+      "aboveLabel": "above range",
+      "belowLabel": "below range",
+      "naLabel": "N/A",
+      "sourceLabel": "Source:"
+    },
+    "howItWorks": {
+      "heading": "How it works",
+      "stepOneTitle": "Upload",
+      "stepOneBody": "Upload your statements as PDF, XLSX, or CSV — Tonus extracts the figures automatically.",
+      "stepTwoTitle": "Verify",
+      "stepTwoBody": "Check the extracted numbers against the original document — part of the accuracy step, not a formality.",
+      "stepThreeTitle": "Get your diagnosis",
+      "stepThreeBody": "Get your company's health score, a breakdown of the key ratios, and prioritized actions with their expected effect and tradeoffs."
+    },
+    "trust": {
+      "heading": "Methodology",
+      "pointOpenMethodology": "The methodology is open: every formula, weight, and threshold is visible in the product's code.",
+      "pointDeterministic": "Calculations are deterministic — an AI never computes your numbers; the language model, when connected, only narrates values that are already calculated.",
+      "pointTraceable": "Every value traces back to specific lines of your document — the formula is shown as a substitution using your own figures.",
+      "pointBenchmarks": "The source of every industry benchmark is stated in the report¹.",
+      "footnote": "¹ Some benchmarks are sourced from Damodaran (NYU Stern), Jan 2026; the rest are marked as demonstration ranges."
+    },
+    "privacy": {
+      "body": "Documents are deleted right after the numbers are extracted. Only the figures you confirmed during verification stay in the system — never the file itself."
+    },
+    "meta": {
+      "title": "Tonus — financial diagnosis for your company",
+      "description": "Upload your statements, verify the numbers, and get an objective read on your company's health: a score, ratios, and prioritized actions. Open methodology, deterministic calculations."
+    }
   },
   "Status": {
     "good": "Good",
