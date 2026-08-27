@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import multiprocessing
 import os
+import threading
+from concurrent.futures.process import BrokenProcessPool
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -37,7 +40,67 @@ log = logging.getLogger("finhealth")
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE_MB", "15")) * 1024 * 1024
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 EXTRACT_TIMEOUT_SECONDS = int(os.environ.get("EXTRACT_TIMEOUT_SECONDS", "90"))
-_extract_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+# Extraction runs in a process pool, not a thread pool: a pathological file
+# (e.g. a PDF that sends a parsing library into a near-infinite loop) can
+# only be stopped by killing the OS process running it — Python threads
+# cannot be killed from the outside, so a hung extraction under the old
+# ThreadPoolExecutor(max_workers=4) permanently leaked one worker thread per
+# timeout (the Phase 1 deferral this closes). A killed *process* is
+# reclaimed by the OS immediately, and a fresh one can be started in its
+# place.
+#
+# Kill-on-timeout pattern (why this is more than `future.cancel()`):
+# `future.cancel()` only succeeds for a PENDING future; once a task has
+# started running in a worker process, cancel() returns False and does
+# nothing — there is no API to interrupt a running process from here. So on
+# a timeout we reach into the pool for the live multiprocessing.Process
+# handles backing its workers and kill() them directly (SIGKILL — stronger
+# than terminate()/SIGTERM, which a wedged C extension could in principle
+# ignore), then shut the now-broken pool down and swap in a freshly
+# constructed one so the *next* request is served by clean workers. The
+# timed-out future itself is abandoned: its process is dead, so it will
+# never produce a result, and nothing waits on it again.
+#
+# `_pool_lock` guards the swap: two requests can time out concurrently
+# against the same broken pool, and only the first should perform the
+# kill-and-recreate; the second sees `_extract_pool is not broken_pool` and
+# no-ops (`_recreate_extract_pool` is idempotent per broken pool instance).
+#
+# Explicit spawn context, not the platform default: macOS has defaulted to
+# "spawn" since Python 3.8, but Linux (including CI's ubuntu-latest) still
+# defaults to "fork". A fork inherits the parent's memory and any threads
+# it's holding locks in — a known source of subprocess deadlocks — so
+# forcing "spawn" here makes worker startup behave identically on every
+# platform this runs on, rather than depending on fork-only behavior. The
+# extraction worker function (app.services.extraction.extract) is a
+# module-level, picklable function taking (bytes, str), as spawn requires.
+_MP_CONTEXT = multiprocessing.get_context("spawn")
+EXTRACT_POOL_WORKERS = 2
+_pool_lock = threading.Lock()
+_extract_pool = concurrent.futures.ProcessPoolExecutor(
+    max_workers=EXTRACT_POOL_WORKERS, mp_context=_MP_CONTEXT)
+
+
+def _recreate_extract_pool(broken_pool: concurrent.futures.ProcessPoolExecutor) -> None:
+    """Kill every worker process in `broken_pool` and replace the
+    module-level pool with a fresh one. Safe to call from multiple threads
+    after concurrent timeouts on the same pool: only the caller that still
+    sees `_extract_pool is broken_pool` performs the swap."""
+    global _extract_pool
+    with _pool_lock:
+        if _extract_pool is not broken_pool:
+            return  # another thread already recreated it
+        # `_processes` is None until the pool's first submit() has run (it
+        # lazily starts workers), so an idle or never-used pool must not
+        # blow up here — nothing to kill in that case.
+        processes = getattr(broken_pool, "_processes", None) or {}
+        for process in list(processes.values()):
+            process.kill()
+        broken_pool.shutdown(wait=False, cancel_futures=True)
+        _extract_pool = concurrent.futures.ProcessPoolExecutor(
+            max_workers=EXTRACT_POOL_WORKERS, mp_context=_MP_CONTEXT)
+
 
 app = FastAPI(title="FinHealth MVP", version="0.1.0")
 app.add_middleware(
@@ -153,8 +216,14 @@ def extract(payload: ExtractRequest):
         raise HTTPException(status_code=404,
                             detail="Загруженный файл не найден или уже удалён. Загрузите файл заново.")
     data, kind = stored
+    # Snapshot the pool: a concurrent request's timeout can swap the
+    # module-level `_extract_pool` for a fresh one while this request is
+    # in flight; `pool` keeps referring to the (possibly now-broken) one
+    # this submission actually went to, so `_recreate_extract_pool(pool)`
+    # below targets the right instance.
+    pool = _extract_pool
     try:
-        future = _extract_pool.submit(extraction.extract, data, kind)
+        future = pool.submit(extraction.extract, data, kind)
         result = future.result(timeout=EXTRACT_TIMEOUT_SECONDS)
     except extraction.ScannedPdfError as e:
         raise HTTPException(status_code=422, detail=str(e))
@@ -163,9 +232,20 @@ def extract(payload: ExtractRequest):
         # on Python 3.11+; this except must precede the generic Exception
         # handler below or the timeout would be reported as a parse failure.
         log.warning("extraction timed out id=%s kind=%s", upload_id, kind)
+        _recreate_extract_pool(pool)
         raise HTTPException(
             status_code=422,
             detail="Файл слишком сложен для разбора за отведённое время. Попробуйте Excel/CSV.")
+    except BrokenProcessPool:
+        # A worker died unexpectedly — e.g. it was killed out from under
+        # this request by another request's timeout, or it crashed
+        # (segfault, OOM-kill). Recreate defensively (a no-op if this
+        # already happened) and report the same "try again" 422 rather
+        # than a 500.
+        log.warning("extract pool broken id=%s kind=%s", upload_id, kind)
+        _recreate_extract_pool(pool)
+        raise HTTPException(status_code=422,
+                            detail="Не удалось извлечь данные из файла. Попробуйте ещё раз.")
     except Exception:
         log.exception("extraction failed id=%s kind=%s", upload_id, kind)
         raise HTTPException(status_code=422,
