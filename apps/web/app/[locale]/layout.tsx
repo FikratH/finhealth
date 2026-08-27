@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Inter, PT_Mono, STIX_Two_Text } from "next/font/google";
+import localFont from "next/font/local";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -28,6 +29,20 @@ const ptMono = PT_Mono({
   subsets: ["latin", "cyrillic"],
   weight: "400",
   variable: "--font-pt-mono",
+  display: "swap",
+});
+
+// The instrument's big-figure voice for STATIC (non-igniting) segment
+// figures — animated ignition draws its own CSS mask instead (see
+// SegmentDisplay). Vendored, not loaded from Google: DSEG7 "classic" 700,
+// from the @fontsource/dseg7@4.5.4 npm package (DSEG font v0.46 by
+// keshikan, https://github.com/keshikan/DSEG), SIL Open Font License 1.1 —
+// license text at ./fonts/DSEG-LICENSE.txt, copied verbatim from the
+// upstream repo at build time of this task.
+const dseg7 = localFont({
+  src: "../fonts/dseg7-classic-700-normal.woff2",
+  weight: "700",
+  variable: "--font-dseg7",
   display: "swap",
 });
 
@@ -67,12 +82,26 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${inter.variable} ${stixTwoText.variable} ${ptMono.variable} h-full`}
+      className={`${inter.variable} ${stixTwoText.variable} ${ptMono.variable} ${dseg7.variable} h-full`}
     >
       <body className="flex min-h-full flex-col antialiased">
         <DirectionContract />
         <NextIntlClientProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {/* Monitor is the default register (defaultTheme="dark"); the
+           * existing light/dark/system toggle now switches monitor↔paper.
+           * `value` remaps next-themes' theme *names* to distinct classes —
+           * "dark" still gets the "dark" class (unchanged), "light" now
+           * gets "paper" instead of no class — so the world's default
+           * register lives on bare :root (no class needed), matching the
+           * direction's "monitor default on :root, paper under .paper
+           * theme class." See globals.css's top-of-file comment for the
+           * full rationale and the `dark:` Tailwind-utility audit. */}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            value={{ light: "paper", dark: "dark" }}
+          >
             <MotionProvider>
               <AuthBootstrap />
               <SiteHeader />

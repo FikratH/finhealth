@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { OriginTicket, type OriginTicketTone } from "@/components/origin-ticket";
 
-export type SpecimenChipTone = "neutral" | "accent" | "attention";
-
-const TONE_CLASS: Record<SpecimenChipTone, string> = {
-  neutral: "border-line text-ink-muted",
-  accent: "border-brand text-brand",
-  attention: "border-attention text-attention",
-};
+/**
+ * @deprecated Thin alias over OriginTicket, kept only so the ~14 existing
+ * call sites across the app don't need touching in this task — R4/R5
+ * sweeps them onto OriginTicket directly and this file retires. Same
+ * props, same rendered output; this is the "surfaces restyle globally at
+ * once" alias strategy the redesign plan calls for (SpecimenChip ↔
+ * ScoreDial), not a second visual language living alongside OriginTicket.
+ */
+export type SpecimenChipTone = OriginTicketTone;
 
 export interface SpecimenChipProps {
   children: ReactNode;
@@ -15,22 +17,6 @@ export interface SpecimenChipProps {
   className?: string;
 }
 
-// The specimen-label idiom: a small bordered uppercase mono chip, used for
-// industry / period / currency / «ДЕМО-ДАННЫЕ» / confidence stickers.
-export function SpecimenChip({
-  children,
-  tone = "neutral",
-  className,
-}: SpecimenChipProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 border bg-paper px-2 py-0.5 font-mono text-xs uppercase tracking-wide",
-        TONE_CLASS[tone],
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+export function SpecimenChip(props: SpecimenChipProps) {
+  return <OriginTicket {...props} />;
 }

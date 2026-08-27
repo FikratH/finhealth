@@ -12,6 +12,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/dseg7": "^4.5.4",
     "@gsap/react": "^2.1.2",
     "better-auth": "^1.7.2",
     "better-sqlite3": "^12.11.1",

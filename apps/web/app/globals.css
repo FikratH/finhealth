@@ -5,25 +5,77 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Tonus tokens — «Лабораторное заключение» (financial lab report).
- * Source of truth: .superpowers/sdd/2026-08-27-plan-3-frontend-foundation/design-direction.md
- * Own-world names on the left; shadcn's semantic names (right) are re-pointed
- * at them so stock primitives read as our skin, not their gray defaults.
+ * Tonus tokens — «Tonus Monitor» (vital-signs instrument world).
+ * REPLACES the retired «Лабораторное заключение» rendition, which now
+ * survives only as the secondary "paper" theme and the print register.
+ * Source of truth: .superpowers/sdd/redesign-monitor/design-direction.md
+ * Own-world names on the left; shadcn's semantic names (right) are
+ * re-pointed at them so stock primitives read as our skin, not their gray
+ * defaults.
+ *
+ * THEME INVERSION — how the classes map, and why:
+ * next-themes (attribute="class") normally adds the "dark" class for its
+ * "dark" theme and no class at all for its "light" theme. This file keeps
+ * that "dark" half exactly as-is (still named "dark", still the class
+ * next-themes adds for that theme) and puts the MONITOR palette on bare
+ * :root — so the world's default register needs no class, matching the
+ * direction's "monitor default on :root." The "dark" class below restates
+ * the identical monitor values (not a separate palette) for two reasons:
+ * (1) next-themes still applies it for its "dark" theme, and cascade should
+ * make no visible difference whether that class is present or not; (2) the
+ * dev/tokens page previews a register by scoping a class onto a *nested*
+ * div, where :root's rules don't reach (:root only matches the actual root
+ * element), so an explicit .dark block is required for that preview to
+ * render correctly.
+ * The paper register — the retired rendition's exact palette, kept as the
+ * secondary theme per the direction ("the Phase-3/4 light tokens survive")
+ * — moves to a NEW class, "paper", via next-themes' `value` remap
+ * (`{ light: "paper", dark: "dark" }` in the root layout) rather than
+ * reusing "light". Reusing "light" would mean the class next-themes calls
+ * "light" carries dark monitor values (since :root already does) while a
+ * separate, undocumented class carries paper — confusing. Naming it
+ * "paper" instead keeps every class name truthful about what it contains.
+ * `defaultTheme="dark"` (set in the root layout) makes monitor the
+ * true first-visit default regardless of the visitor's OS color-scheme
+ * preference — "Screen = the monitor" is a committed product decision, not
+ * a fallback that should vary with `prefers-color-scheme`. Visitors who
+ * explicitly pick "System" still get OS-driven light/dark → paper/monitor,
+ * which stays a coherent pairing (dark OS preference → dark monitor
+ * register, light OS preference → light paper register).
+ *
+ * `dark:` UTILITY AUDIT (Global Constraint: verify every existing dark:
+ * usage still makes sense after inversion): grepped for `dark:` across
+ * apps/web — every hit lives in components/ui/button.tsx (generic shadcn
+ * boilerplate: `dark:aria-invalid:*`, `dark:border-input`,
+ * `dark:bg-input/30`, `dark:hover:bg-input/50`, `dark:hover:bg-muted/50`).
+ * Their intent ("on a dark surface, use a translucent fill instead of the
+ * light-mode default") is untouched by this inversion: `dark:` still means
+ * "the .dark-classed, dark-background register" — that register is simply
+ * the monitor world now instead of the old secondary dark-lab palette. No
+ * fixes needed. `motion-reduce:` and the `@media print` block are pure
+ * media-query variants, orthogonal to the class inversion — also
+ * unaffected, verified by inspection below.
  */
 :root {
-  /* Own-world palette */
-  --paper: #fbfaf7;
-  --ink: #1a1d1c;
-  --ink-muted: #5a605d;
-  --line: #e3e1da;
-  --grid: rgba(14, 117, 105, 0.06);
-  --accent: #0e7569;
-  --good: #177e4d;
-  /* #A8681C measured ~4.32:1 on --paper (#FBFAF7) — below the 4.5:1 AA
-   * threshold for normal text. #96601A measures ~5.05:1. Dark theme's
-   * --attention is unaffected (measured against dark --paper separately). */
-  --attention: #96601a;
-  --critical: #b23b2e;
+  /* Own-world palette — the instrument ground */
+  --paper: #0a0c0e;
+  --ink: #e6edf0;
+  --ink-muted: #7c8a92;
+  --line: #1e242a;
+  --grid: rgba(25, 194, 176, 0.05);
+  --accent: #19c2b0;
+  --good: #33e07a;
+  --attention: #ffb020;
+  --critical: #ff4a3a;
+
+  /* New in the Monitor world: the bezel/panel surface instrument modules
+   * sit on (distinct from --paper's page ground, for depth via the 1px
+   * --line border alone — the direction bans shadows) and the two ghost
+   * tones (teal-family for LED-adjacent absence, neutral for plain
+   * numeric ghost cells). */
+  --panel: #101418;
+  --ghost: rgba(25, 194, 176, 0.1);
+  --ghost-neutral: #1a2126;
 
   --radius: 0.5rem;
 
@@ -40,7 +92,7 @@
   --secondary-foreground: var(--ink);
   --muted: var(--line);
   --muted-foreground: var(--ink-muted);
-  --accent-surface: color-mix(in oklch, var(--accent) 10%, var(--paper));
+  --accent-surface: color-mix(in oklch, var(--accent) 14%, var(--paper));
   --accent-surface-foreground: var(--ink);
   --destructive: var(--critical);
   --destructive-foreground: var(--paper);
@@ -64,16 +116,21 @@
   --sidebar-ring: var(--accent);
 }
 
+/* Restates :root's monitor values — see the theme-inversion note above for
+ * why this class exists instead of relying on cascade alone. */
 .dark {
-  --paper: #111413;
-  --ink: #e9e7e2;
-  --ink-muted: #9aa19d;
-  --line: #2a2e2c;
-  --grid: rgba(47, 163, 148, 0.08);
-  --accent: #2fa394;
-  --good: #3fae76;
-  --attention: #c98a3a;
-  --critical: #d1655a;
+  --paper: #0a0c0e;
+  --ink: #e6edf0;
+  --ink-muted: #7c8a92;
+  --line: #1e242a;
+  --grid: rgba(25, 194, 176, 0.05);
+  --accent: #19c2b0;
+  --good: #33e07a;
+  --attention: #ffb020;
+  --critical: #ff4a3a;
+  --panel: #101418;
+  --ghost: rgba(25, 194, 176, 0.1);
+  --ghost-neutral: #1a2126;
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -111,12 +168,79 @@
   --sidebar-ring: var(--accent);
 }
 
+/* The paper register — the retired «Лабораторное заключение» rendition's
+ * exact palette, kept as the secondary screen theme (toggle) and forced
+ * for print below. Values unchanged from before this task's inversion. */
+.paper {
+  --paper: #fbfaf7;
+  --ink: #1a1d1c;
+  --ink-muted: #5a605d;
+  --line: #e3e1da;
+  --grid: rgba(14, 117, 105, 0.06);
+  --accent: #0e7569;
+  --good: #177e4d;
+  /* #A8681C measured ~4.32:1 on --paper (#FBFAF7) — below the 4.5:1 AA
+   * threshold for normal text. #96601A measures ~5.05:1. */
+  --attention: #96601a;
+  --critical: #b23b2e;
+  /* Paper has no separate bezel surface in this rendition — panels sit
+   * flush with the page, same as before the Monitor world existed. */
+  --panel: #fbfaf7;
+  --ghost: rgba(14, 117, 105, 0.08);
+  --ghost-neutral: #e3e1da;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--paper);
+  --secondary: var(--line);
+  --secondary-foreground: var(--ink);
+  --muted: var(--line);
+  --muted-foreground: var(--ink-muted);
+  --accent-surface: color-mix(in oklch, var(--accent) 10%, var(--paper));
+  --accent-surface-foreground: var(--ink);
+  --destructive: var(--critical);
+  --destructive-foreground: var(--paper);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+
+  --chart-1: var(--accent);
+  --chart-2: var(--good);
+  --chart-3: var(--attention);
+  --chart-4: var(--critical);
+  --chart-5: var(--ink-muted);
+
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--paper);
+  --sidebar-accent: var(--accent-surface);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--accent);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-pt-mono);
-  --font-display: var(--font-stix-two-text);
+  /* STIX Two Text retires from screen (direction: "Type" section) — the
+   * display voice on screen is now Inter at weight/size, same as prose.
+   * Print forces this back to STIX below: a printed diagnosis keeps the
+   * old document's typographic register. */
+  --font-display: var(--font-inter);
+  /* The big-figure instrument voice for STATIC segment figures (DSEG7,
+   * vendored — see the root layout's font comment for provenance). The
+   * animated SegmentDisplay component draws its own CSS mask instead of
+   * using this font; --font-segment backs its static (>6-cell) fallback
+   * mode and any other place a fixed segment-styled figure is needed. */
+  --font-segment: var(--font-dseg7);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -148,7 +272,8 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Own-world tokens as Tailwind utilities: bg-paper, text-ink, border-line, text-good, etc. */
+  /* Own-world tokens as Tailwind utilities: bg-paper, text-ink, border-line,
+   * text-good, bg-panel, bg-ghost, etc. */
   --color-paper: var(--paper);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
@@ -158,6 +283,9 @@
   --color-good: var(--good);
   --color-attention: var(--attention);
   --color-critical: var(--critical);
+  --color-panel: var(--panel);
+  --color-ghost: var(--ghost);
+  --color-ghost-neutral: var(--ghost-neutral);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -213,6 +341,31 @@
  * script, so it works with zero JS.
  */
 @media print {
+  /* The print register is the paper report, always — pin the paper
+   * palette regardless of the active on-screen theme (monitor default or
+   * an explicit paper toggle). !important is required: :root and .dark
+   * tie in specificity with whichever theme class is actually present on
+   * <html> at print time, and this must win unconditionally rather than
+   * depend on that tie's source-order resolution. --font-display is
+   * pinned back to STIX Two Text here too — the screen's Monitor world
+   * retires it, but the printed document keeps the original conclusion
+   * typography. */
+  :root {
+    --paper: #fbfaf7 !important;
+    --ink: #1a1d1c !important;
+    --ink-muted: #5a605d !important;
+    --line: #e3e1da !important;
+    --grid: rgba(14, 117, 105, 0.06) !important;
+    --accent: #0e7569 !important;
+    --good: #177e4d !important;
+    --attention: #96601a !important;
+    --critical: #b23b2e !important;
+    --panel: #fbfaf7 !important;
+    --ghost: rgba(14, 117, 105, 0.08) !important;
+    --ghost-neutral: #e3e1da !important;
+    --font-display: var(--font-stix-two-text) !important;
+  }
+
   /* Modern Chromium renders a <details>'s children inside the
    * ::details-content pseudo-element and sets content-visibility: hidden
    * on it while closed — the child-selector rule below never overrides
@@ -274,4 +427,105 @@
       transparent 1px,
       transparent 8px
     );
+}
+
+/*
+ * SegmentDisplay's animated mask — the instrument world's signature
+ * primitive. Each `.segment-cell` is a fixed-aspect box sized entirely off
+ * font-size (em units), so a caller scales the whole figure with a plain
+ * text-size utility, same as the DSEG static fallback. Every cell always
+ * renders all seven bars — "unlit segments are designed too" — a bar is
+ * either `.segment-active` (part of the current character; teal when
+ * `[data-lit="true"]`, dim when ignition hasn't reached it yet) or
+ * `.segment-ghost` (not part of the character at all, or a leading padding
+ * cell; permanently the ghost tone, never targeted by ignition). The LED
+ * glow (text-shadow-style blur) is decorative, layered on top of the
+ * AA-checked --accent base color, per the direction's contrast discipline.
+ */
+.segment-cell {
+  position: relative;
+  display: inline-block;
+  width: 0.62em;
+  height: 1em;
+  margin-right: 0.16em;
+}
+.segment-cell:last-child {
+  margin-right: 0;
+}
+
+.segment {
+  position: absolute;
+  transition: none; /* boot grammar: instant state swaps, never tweened color */
+}
+
+/* Bounding boxes for the three horizontal bars (a/g/d) and four vertical
+ * bars (f/b/e/c) are deliberately NON-overlapping, with a small explicit
+ * gap at every joint (see the exact percentages below) — relying on the
+ * clip-path taper alone to create separation reads as a blobby octagon at
+ * typical figure sizes, since anti-aliasing eats the thin gap the taper
+ * would otherwise leave. Explicit gaps stay crisp at any size. */
+.segment-a,
+.segment-g,
+.segment-d {
+  left: 13%;
+  width: 74%;
+  height: 11%;
+  clip-path: polygon(8% 50%, 20% 0%, 80% 0%, 92% 50%, 80% 100%, 20% 100%);
+}
+.segment-a {
+  top: 0%;
+}
+.segment-g {
+  top: 44.5%;
+}
+.segment-d {
+  bottom: 0%;
+}
+
+.segment-f,
+.segment-b,
+.segment-e,
+.segment-c {
+  width: 13%;
+  height: 32%;
+  clip-path: polygon(50% 8%, 100% 20%, 100% 80%, 50% 92%, 0% 80%, 0% 20%);
+}
+.segment-f,
+.segment-e {
+  left: 0%;
+}
+.segment-b,
+.segment-c {
+  right: 0%;
+}
+.segment-f,
+.segment-b {
+  top: 12%;
+}
+.segment-e,
+.segment-c {
+  bottom: 12%;
+}
+
+/* Circular via Tailwind's rounded-full utility on the element itself
+ * (same idiom the rest of the codebase uses for every dot/cursor — see
+ * StatusPill's LED dot, CalibrationScale's cursor) rather than a
+ * hand-authored border-radius value here. */
+.segment-dp {
+  position: absolute;
+  right: -12%;
+  bottom: 0%;
+  width: 11%;
+  height: 11%;
+}
+
+.segment-active[data-lit="true"] {
+  background-color: var(--accent);
+  box-shadow: 0 0 0.12em 0.02em color-mix(in oklch, var(--accent) 70%, transparent);
+}
+.segment-active[data-lit="false"] {
+  background-color: var(--ghost);
+}
+.segment-ghost {
+  background-color: var(--ghost);
 }

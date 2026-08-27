@@ -7,20 +7,26 @@ import { ScoreDial } from "@/components/score-dial";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { MetricNumber } from "@/components/metric-number";
 import { SpecimenChip } from "@/components/specimen-chip";
+import { OriginTicket } from "@/components/origin-ticket";
 import { NormBand } from "@/components/norm-band";
+import { SegmentDisplay } from "@/components/segment-display";
+import { InstrumentModule } from "@/components/instrument-module";
+import { AnnunciatorCell } from "@/components/annunciator-cell";
+import { CalibrationScale } from "@/components/calibration-scale";
 import type { Locale } from "@/lib/format";
 
-// Dev-only visual QA surface — every primitive, every state, both themes
+// Dev-only visual QA surface — every primitive, every state, both registers
 // side by side. Not linked from product navigation; 404s outside dev.
 const PALETTE = [
-  { name: "--paper", light: "#FBFAF7", dark: "#111413" },
-  { name: "--ink", light: "#1A1D1C", dark: "#E9E7E2" },
-  { name: "--ink-muted", light: "#5A605D", dark: "#9AA19D" },
-  { name: "--line", light: "#E3E1DA", dark: "#2A2E2C" },
-  { name: "--accent", light: "#0E7569", dark: "#2FA394" },
-  { name: "--good", light: "#177E4D", dark: "#3FAE76" },
-  { name: "--attention", light: "#A8681C", dark: "#C98A3A" },
-  { name: "--critical", light: "#B23B2E", dark: "#D1655A" },
+  { name: "--paper", monitor: "#0A0C0E", paper: "#FBFAF7" },
+  { name: "--panel", monitor: "#101418", paper: "#FBFAF7" },
+  { name: "--ink", monitor: "#E6EDF0", paper: "#1A1D1C" },
+  { name: "--ink-muted", monitor: "#7C8A92", paper: "#5A605D" },
+  { name: "--line", monitor: "#1E242A", paper: "#E3E1DA" },
+  { name: "--accent", monitor: "#19C2B0", paper: "#0E7569" },
+  { name: "--good", monitor: "#33E07A", paper: "#177E4D" },
+  { name: "--attention", monitor: "#FFB020", paper: "#96601A" },
+  { name: "--critical", monitor: "#FF4A3A", paper: "#B23B2E" },
 ] as const;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -32,28 +38,31 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-// Class-scoped preview: the "dark" half wears the .dark class locally, so
-// both themes render side by side regardless of the page's active theme.
-function ThemePreview({
+// Class-scoped preview: each column wears its register's theme class
+// locally (.dark for Monitor, .paper for Paper), so both render correctly
+// side by side regardless of which register the page itself is in — :root
+// alone can't do this since it only matches the actual root element, not a
+// nested preview div (see globals.css's theme-inversion comment).
+function RegisterPreview({
   children,
-  lightLabel,
-  darkLabel,
+  monitorLabel,
+  paperLabel,
 }: {
   children: ReactNode;
-  lightLabel: string;
-  darkLabel: string;
+  monitorLabel: string;
+  paperLabel: string;
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <div className="border border-line bg-paper p-6 text-ink">
+      <div className="dark border border-line bg-paper p-6 text-ink">
         <p className="mb-4 font-mono text-xs uppercase tracking-wide text-ink-muted">
-          {lightLabel}
+          {monitorLabel}
         </p>
         {children}
       </div>
-      <div className="dark border border-line bg-paper p-6 text-ink">
+      <div className="paper border border-line bg-paper p-6 text-ink">
         <p className="mb-4 font-mono text-xs uppercase tracking-wide text-ink-muted">
-          {darkLabel}
+          {paperLabel}
         </p>
         {children}
       </div>
@@ -84,8 +93,8 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
       </div>
 
       <Section title={t("paletteHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {PALETTE.map((token) => (
               <li key={token.name} className="space-y-1">
                 <div
@@ -94,16 +103,16 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
                 />
                 <p className="font-mono text-xs text-ink">{token.name}</p>
                 <p className="font-mono text-[0.65rem] text-ink-muted">
-                  {token.light} / {token.dark}
+                  {token.monitor} / {token.paper}
                 </p>
               </li>
             ))}
           </ul>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("typeHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="space-y-4">
             <div>
               <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
@@ -123,39 +132,127 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
               </p>
               <p className="font-mono text-ink">{t("typeMonoSample")}</p>
             </div>
+            <div>
+              <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+                {t("typeSegmentLabel")}
+              </p>
+              <p className="font-segment text-2xl text-ink">{t("typeSegmentSample")}</p>
+            </div>
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("gridHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="grid-paper h-24 border border-line" />
-        </ThemePreview>
+        </RegisterPreview>
+      </Section>
+
+      <Section title={t("segmentHeading")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
+          <div className="flex flex-col gap-4">
+            <SegmentDisplay value={4.58} decimals={2} locale={loc} />
+            <SegmentDisplay value={-12.3} decimals={1} locale={loc} />
+            <SegmentDisplay value={null} digits={4} naLabel={t("naLabel")} locale={loc} />
+            <div>
+              <p className="mb-1 font-mono text-[0.65rem] uppercase tracking-wide text-ink-muted">
+                {t("segmentGhostLabel")}
+              </p>
+              <SegmentDisplay value={5} digits={5} locale={loc} />
+            </div>
+            <SegmentDisplay value={1234567} locale={loc} />
+          </div>
+        </RegisterPreview>
+      </Section>
+
+      <Section title={t("instrumentHeading")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
+          <InstrumentModule
+            label={t("instrumentDemoLabel")}
+            figure={<SegmentDisplay value={4.58} decimals={2} locale={loc} />}
+            unit="%"
+          >
+            <CalibrationScale
+              value={4.58}
+              low={2}
+              high={8}
+              unit="%"
+              locale={loc}
+              tone="good"
+              label={t("calibrationDemoLabel")}
+            />
+          </InstrumentModule>
+        </RegisterPreview>
+      </Section>
+
+      <Section title={t("annunciatorHeading")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
+          <div className="flex flex-col gap-3">
+            <AnnunciatorCell status="good" label={tStatus("good")} />
+            <AnnunciatorCell status="attention" label={tStatus("attention")} />
+            <AnnunciatorCell status="critical" label={tStatus("critical")} />
+            <AnnunciatorCell status="na" label={tStatus("na")} />
+          </div>
+        </RegisterPreview>
+      </Section>
+
+      <Section title={t("calibrationHeading")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
+          <div className="flex max-w-xs flex-col gap-4">
+            <CalibrationScale
+              value={1.66}
+              low={1.5}
+              high={3.0}
+              unit="x"
+              locale={loc}
+              tone="good"
+              label={t("calibrationDemoLabel")}
+            />
+            <CalibrationScale
+              value={0.8}
+              low={1.5}
+              high={3.0}
+              unit="x"
+              locale={loc}
+              tone="critical"
+              label={t("calibrationDemoLabel")}
+            />
+            <CalibrationScale
+              value={null}
+              low={1.5}
+              high={3.0}
+              unit="x"
+              locale={loc}
+              naLabel={t("naLabel")}
+              label={t("calibrationDemoLabel")}
+            />
+          </div>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("statusHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex flex-wrap gap-3">
             <StatusPill status="good" label={tStatus("good")} />
             <StatusPill status="attention" label={tStatus("attention")} />
             <StatusPill status="critical" label={tStatus("critical")} />
             <StatusPill status="na" label={tStatus("na")} />
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("scoreHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex flex-wrap gap-6">
             <ScoreDial score={86.8} locale={loc} />
             <ScoreDial score={41.2} locale={loc} />
             <ScoreDial score={null} locale={loc} caption={t("scoreInsufficientData")} />
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("confidenceHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex max-w-xs flex-col gap-3">
             <ConfidenceMeter value={92} locale={loc} label={t("confidenceHighLabel")} />
             <ConfidenceMeter value={45} locale={loc} label={t("confidenceLowLabel")} />
@@ -166,38 +263,39 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
               naLabel={t("naLabel")}
             />
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("metricHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex flex-wrap items-baseline gap-6 text-lg">
             <MetricNumber value={1.66} unit="x" locale={loc} />
             <MetricNumber value={42.5} unit="%" locale={loc} />
             <MetricNumber value={2271100} unit="money" locale={loc} decimals={0} muted />
             <MetricNumber value={null} locale={loc} naLabel={t("naLabel")} />
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("headingHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <SectionHeading level={3}>{t("headingSample")}</SectionHeading>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("chipHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex flex-wrap gap-2">
-            <SpecimenChip>{t("chipIndustry")}</SpecimenChip>
-            <SpecimenChip tone="accent">{t("chipPeriod")}</SpecimenChip>
-            <SpecimenChip tone="attention">{t("chipDemo")}</SpecimenChip>
+            <OriginTicket>{t("chipIndustry")}</OriginTicket>
+            <OriginTicket tone="accent">{t("chipPeriod")}</OriginTicket>
+            <OriginTicket tone="attention">{t("chipDemo")}</OriginTicket>
+            <SpecimenChip tone="accent">{t("chipDemo")}</SpecimenChip>
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
 
       <Section title={t("normBandHeading")}>
-        <ThemePreview lightLabel={t("themeLight")} darkLabel={t("themeDark")}>
+        <RegisterPreview monitorLabel={t("themeDark")} paperLabel={t("themeLight")}>
           <div className="flex flex-col gap-3">
             <NormBand
               value={1.66}
@@ -244,7 +342,7 @@ export default async function DevTokensPage({ params }: DevTokensPageProps) {
               naLabel={t("naLabel")}
             />
           </div>
-        </ThemePreview>
+        </RegisterPreview>
       </Section>
     </div>
   );

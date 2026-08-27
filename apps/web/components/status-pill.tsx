@@ -12,10 +12,14 @@ const SYMBOL: Record<Status, string> = {
   na: "·",
 };
 
+// The LED dot itself, plus a low-spread glow in the same color — decorative
+// on top of the AA-checked text color below it, never load-bearing for
+// legibility (design-direction: "LED glow ... at low spread — decorative
+// on top of AA-passing base colors").
 const DOT_CLASS: Record<Status, string> = {
-  good: "bg-good",
-  attention: "bg-attention",
-  critical: "bg-critical",
+  good: "bg-good shadow-[0_0_4px_1px_var(--good)]",
+  attention: "bg-attention shadow-[0_0_4px_1px_var(--attention)]",
+  critical: "bg-critical shadow-[0_0_4px_1px_var(--critical)]",
   na: "bg-ink-muted",
 };
 
@@ -34,12 +38,15 @@ export interface StatusPillProps {
   className?: string;
 }
 
+// Re-skinned in place for the Monitor world: an LED dot (with a low-spread
+// glow) and text sitting on a bezel — same API, same accessible name, same
+// glyph-plus-color discipline as before.
 export function StatusPill({ status, label, className }: StatusPillProps) {
   return (
     <span
       aria-label={label}
       className={cn(
-        "inline-flex items-center gap-1.5 border border-line px-2 py-0.5 font-mono text-xs uppercase tracking-wide",
+        "inline-flex items-center gap-1.5 border border-line bg-panel px-2 py-0.5 font-mono text-xs uppercase tracking-wide",
         TEXT_CLASS[status],
         className,
       )}

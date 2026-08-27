@@ -14,9 +14,11 @@ export interface ConfidenceMeterProps {
 
 const LOW_CONFIDENCE_THRESHOLD = 60;
 
-// A thin bar + %, not a progress ring — a scalar reading (how much of the
-// analysis to trust), so it carries role="meter" rather than
-// role="progressbar" (which implies a task moving toward completion).
+// The instrument-bar re-skin: a bezelled track (border + panel surface)
+// with an LED-glow fill — still role="meter", not role="progressbar" (a
+// scalar reading of how much of the analysis to trust, not a task moving
+// toward completion). Same API, same accessible name/value contract as
+// before.
 export function ConfidenceMeter({
   value,
   locale,
@@ -26,7 +28,8 @@ export function ConfidenceMeter({
 }: ConfidenceMeterProps) {
   const clamped = value === null ? null : Math.min(100, Math.max(0, value));
   const low = clamped !== null && clamped < LOW_CONFIDENCE_THRESHOLD;
-  const fillClass = clamped === null ? "" : low ? "bg-attention" : "bg-brand";
+  const fillClass =
+    clamped === null ? "" : low ? "bg-attention shadow-[0_0_4px_0px_var(--attention)]" : "bg-brand shadow-[0_0_4px_0px_var(--accent)]";
   const valueText =
     clamped === null
       ? (naLabel ?? formatNumber(null))
@@ -41,7 +44,7 @@ export function ConfidenceMeter({
         aria-valuemax={100}
         aria-valuenow={clamped ?? undefined}
         aria-valuetext={valueText}
-        className="h-1 w-24 flex-1 bg-line"
+        className="h-1.5 w-24 flex-1 border border-line bg-panel"
       >
         {clamped !== null && (
           <div
