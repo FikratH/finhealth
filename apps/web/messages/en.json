@@ -1,0 +1,18 @@
+{
+  "Header": {
+    "wordmark": "Tonus",
+    "localeSwitchLabel": "Switch language",
+    "themeToggleLabel": "Toggle theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "Footer": {
+    "disclaimer": "Tonus generates its analysis automatically from the data you provide. It is not financial, tax, or legal advice."
+  },
+  "Home": {
+    "title": "Tonus",
+    "lede": "The product scaffold is live. The company diagnosis experience ships in the phases ahead.",
+    "specimenChip": "RU/EN"
+  }
+}
