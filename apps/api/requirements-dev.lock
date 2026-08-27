@@ -109,6 +109,10 @@ pillow==12.3.0
     # via pdfplumber
 pluggy==1.6.0
     # via pytest
+psycopg==3.3.4
+    # via -r requirements.txt
+psycopg-binary==3.3.4 ; implementation_name != 'pypy'
+    # via psycopg
 py-partiql-parser==0.6.3
     # via moto
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
@@ -170,6 +174,7 @@ typing-extensions==4.16.0
     #   fastapi
     #   httpx2
     #   openai
+    #   psycopg
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
@@ -180,7 +185,9 @@ typing-inspection==0.4.4
     #   fastapi
     #   pydantic
 tzdata==2026.3 ; sys_platform == 'emscripten' or sys_platform == 'win32'
-    # via pandas
+    # via
+    #   pandas
+    #   psycopg
 urllib3==2.7.0
     # via
     #   botocore

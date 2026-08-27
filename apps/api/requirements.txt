@@ -14,3 +14,4 @@ certifi>=2024.0  # scripts/build_benchmarks.py: TLS trust store for the fetch
 openai>=1.50     # app/services/narrative.py: optional LLM narrative layer
 PyJWT>=2.8       # app/auth.py: HS256 verification of tokens issued by apps/web
 boto3>=1.34      # app/services/vault.py: optional R2Vault backend (S3-compatible)
+psycopg[binary]>=3.1  # app/storage.py: Postgres driver for DATABASE_URL (Neon in production)
