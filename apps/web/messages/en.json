@@ -59,6 +59,95 @@
     "critical": "Critical",
     "na": "N/A"
   },
+  "errors": {
+    "badRequest": "That request wasn't valid. Check your input and try again.",
+    "notFound": "The requested data couldn't be found.",
+    "payloadTooLarge": "The file is over 15 MB. Use a smaller file.",
+    "unsupportedType": "This file format isn't recognized. PDF, XLSX, XLS, and CSV are supported.",
+    "unprocessable": "Couldn't extract data from this file.",
+    "unknown": "Something went wrong. Try again in a moment.",
+    "timeout": "The server didn't respond in time. Check your connection and try again.",
+    "parseFailure": "The server returned a malformed response. Try again.",
+    "network": "Couldn't reach the server. Check your internet connection."
+  },
+  "Analyze": {
+    "meta": {
+      "title": "Tonus — upload and verify your statements",
+      "description": "Upload your statements and verify the extracted figures before the diagnosis is calculated."
+    },
+    "stepIndicator": {
+      "upload": "Upload",
+      "verify": "Verify",
+      "diagnosis": "Diagnosis"
+    },
+    "upload": {
+      "heading": "Upload your statements",
+      "lede": "PDF, XLSX, XLS, or CSV — Tonus extracts the figures automatically; you'll verify them in the next step.",
+      "dropzoneLabel": "Drag a file here or choose one",
+      "dropzoneHint": "PDF, XLSX, XLS, or CSV, up to 15 MB",
+      "browseButton": "Choose file",
+      "changeFileButton": "Replace file",
+      "removeFile": "Remove file",
+      "selectedFile": "Selected file: {name}",
+      "industryLabel": "Industry",
+      "industryPlaceholder": "Select an industry",
+      "industryHint": "Industry benchmarks depend on this choice — you can still adjust it during verification.",
+      "submitButton": "Upload and verify",
+      "uploadingStatus": "Uploading file…",
+      "extractingStatus": "Extracting figures…",
+      "sizeError": "\"{name}\" is {size} MB — that's over the 15 MB limit. Use a smaller file.",
+      "extensionError": "This file format isn't supported. Upload a PDF, XLSX, XLS, or CSV.",
+      "missingIndustryError": "Select an industry before uploading.",
+      "missingFileError": "Choose a file before uploading.",
+      "hints": {
+        "payloadTooLarge": "Try exporting the statement as CSV or XLSX — they're far more compact than a scanned PDF.",
+        "unsupportedType": "Make sure the file's extension actually matches its format.",
+        "unprocessable": "If this is a scan, export the report as Excel or CSV directly from your accounting system — extraction is far more accurate that way."
+      }
+    },
+    "verify": {
+      "heading": "Verify the extracted figures",
+      "lede": "This is part of the accuracy check: compare each value against the original document and correct anything Tonus got wrong.",
+      "warningsHeading": "Extraction warnings",
+      "backButton": "Back to upload",
+      "submitButton": "Run the analysis",
+      "analyzingStatus": "Building the diagnosis…",
+      "missingIndustryError": "Select an industry before running the analysis.",
+      "table": {
+        "metric": "Metric",
+        "latestPeriod": "Latest period",
+        "previousPeriod": "Previous period",
+        "noPreviousPeriod": "—",
+        "confidenceLabel": "Extraction confidence: {metric}",
+        "naPlaceholder": "N/A",
+        "manuallyEdited": "Manually entered",
+        "valueInputLabel": "{metric} — {period}"
+      },
+      "controls": {
+        "heading": "Document settings",
+        "industryLabel": "Industry",
+        "suggestedBadge": "suggested",
+        "applySuggested": "Apply the suggested industry",
+        "scaleLabel": "Scale",
+        "scaleUnits": "Units",
+        "scaleThousands": "Thousands",
+        "scaleMillions": "Millions",
+        "scaleBillions": "Billions",
+        "currencyLabel": "Currency",
+        "currencyPlaceholder": "e.g. KZT",
+        "auditedLabel": "Statements are audited",
+        "latestPeriodLabel": "Latest period",
+        "previousPeriodLabel": "Previous period",
+        "periodNotDetected": "not detected"
+      },
+      "source": {
+        "trigger": "Source",
+        "sourceLabel": "Line:",
+        "snippetLabel": "Excerpt:",
+        "noSource": "Entered manually — there's no source in the document."
+      }
+    }
+  },
   "DevTokens": {
     "title": "Tokens & primitives",
     "lede": "A dev-only page for visual acceptance of components — unavailable in production.",
