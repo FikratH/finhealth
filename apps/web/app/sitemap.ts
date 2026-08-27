@@ -15,9 +15,7 @@ import { SITE_URL } from "@/lib/seo";
 //   app/[locale]/results/[id]/page.tsx's generateMetadata comment). There
 //   is also no finite list of ids to enumerate here.
 // - /my — behind auth; an anonymous crawler has nothing to index there.
-// - /pricing — the route doesn't exist yet.
-//   // T6 adds /pricing here.
-const STATIC_ROUTES = ["/", "/analyze", "/methodology", "/signin"] as const;
+const STATIC_ROUTES = ["/", "/analyze", "/methodology", "/signin", "/pricing"] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return STATIC_ROUTES.map((route) => ({

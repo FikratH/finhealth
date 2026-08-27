@@ -26,8 +26,13 @@ import { cn } from "@/lib/utils";
 // it instead of suppressing the link outright, so it stays a stable,
 // always-in-the-same-place target (clicking it is a harmless no-op, not a
 // vanished control).
-const CURRENT_LINK_CLASS = "text-brand [text-shadow:0_0_0.3em_var(--accent)]";
-const IDLE_LINK_CLASS = "text-ink-muted hover:text-ink";
+//
+// Exported (not private to this module) so SiteHeader's own Pricing link
+// (P6.T6) can reuse the identical current-location grammar rather than
+// inventing a second copy of it — the same "reuse verbatim" discipline
+// this component's own comment above describes.
+export const CURRENT_LINK_CLASS = "text-brand [text-shadow:0_0_0.3em_var(--accent)]";
+export const IDLE_LINK_CLASS = "text-ink-muted hover:text-ink";
 
 export function AccountMenu() {
   const t = useTranslations("Header");

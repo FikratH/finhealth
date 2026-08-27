@@ -24,6 +24,7 @@ import type {
   MyDocumentsResponse,
   NarrativeResult,
   UploadedDocument,
+  WaitlistResponse,
 } from "./api-types";
 
 const UPLOAD_EXTRACT_TIMEOUT_MS = 30_000;
@@ -434,6 +435,21 @@ export async function downloadMyDocument(id: string, fallbackFilename: string): 
   // (Safari in particular) before they've finished reading the blob —
   // a macrotask delay lets the download actually start first.
   setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
+/** POST /api/waitlist — Pro waitlist signup (P6.T6). Anonymous allowed;
+ * 422 on a malformed email (surfaced as an ApiError the caller maps to a
+ * validation message, same as any other endpoint). Always 200 otherwise —
+ * `status: "already_joined"` on a duplicate email is a normal result, not
+ * an ApiError, so the caller renders the same honest confirmation either
+ * way rather than catching a "conflict" error that was never thrown. */
+export function joinWaitlist(email: string, source?: string): Promise<WaitlistResponse> {
+  return requestJson<WaitlistResponse>(
+    "/api/waitlist",
+    "POST",
+    source ? { email, source } : { email },
+    DEFAULT_TIMEOUT_MS,
+  );
 }
 
 /** POST /api/analysis/{id}/narrative — 404 unknown id, 503

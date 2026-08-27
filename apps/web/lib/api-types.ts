@@ -393,3 +393,14 @@ export interface NarrativeResult {
   model: string;
   generated_at: string;
 }
+
+// ---------------------------------------------------------------------------
+// POST /api/waitlist
+// ---------------------------------------------------------------------------
+
+/** The Pro waitlist signup's only two outcomes (P6.T6) — always a 200
+ * either way, never a 409: "already_joined" is a normal, honest result,
+ * not an error. */
+export interface WaitlistResponse {
+  status: "joined" | "already_joined";
+}

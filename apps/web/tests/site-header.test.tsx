@@ -38,4 +38,21 @@ describe("SiteHeader", () => {
       screen.getByRole("link", { name: ruMessages.Header.wordmark }),
     ).toBeInTheDocument();
   });
+
+  describe("Pricing link (P6.T6)", () => {
+    it("renders a Pricing link to /pricing", () => {
+      usePathname.mockReturnValue("/analyze");
+      renderHeader();
+      const link = screen.getByRole("link", { name: ruMessages.Header.pricing });
+      expect(link).toHaveAttribute("href", "/pricing");
+      expect(link).not.toHaveAttribute("aria-current");
+    });
+
+    it("marks the Pricing link aria-current=page while on /pricing", () => {
+      usePathname.mockReturnValue("/pricing");
+      renderHeader();
+      const link = screen.getByRole("link", { name: ruMessages.Header.pricing });
+      expect(link).toHaveAttribute("aria-current", "page");
+    });
+  });
 });

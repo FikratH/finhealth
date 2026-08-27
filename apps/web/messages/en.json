@@ -8,7 +8,8 @@
     "themeSystem": "System",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "myAnalyses": "My analyses"
+    "myAnalyses": "My analyses",
+    "pricing": "Pricing"
   },
   "SignIn": {
     "meta": {
@@ -32,7 +33,8 @@
     "genericError": "Couldn't send the link. Please try again in a minute."
   },
   "Footer": {
-    "disclaimer": "Tonus generates its analysis automatically from the data you provide. It is not financial, tax, or legal advice."
+    "disclaimer": "Tonus generates its analysis automatically from the data you provide. It is not financial, tax, or legal advice.",
+    "pricing": "Pricing"
   },
   "Landing": {
     "hero": {
@@ -547,6 +549,37 @@
     "meta": {
       "title": "Pricing",
       "description": "A free plan with the full company diagnosis, and a Pro plan with unlimited analyses, history, and export — launch pricing, subject to change."
+    },
+    "heading": "Pricing",
+    "intro": "Free already includes the full company diagnosis. Pro will add unlimited use and tools for ongoing work — billing isn't connected yet, so the waitlist is open.",
+    "free": {
+      "title": "Free",
+      "price": "0",
+      "feature1": "2 analyses total",
+      "feature2": "Full diagnosis: provenance and the calculation method",
+      "feature3": "A public link to share your result",
+      "cta": "Start for free"
+    },
+    "pro": {
+      "title": "Pro",
+      "price": "$19",
+      "pricePeriod": "/mo",
+      "priceNote": "Launch pricing, subject to change",
+      "intro": "Pro hasn't launched yet. Leave your email and we'll write when it opens.",
+      "feature1": "Unlimited analyses",
+      "feature2": "History and multi-year trends",
+      "feature3": "Saved what-if scenarios",
+      "feature4": "PDF export",
+      "formLabel": "Email",
+      "formPlaceholder": "you@company.com",
+      "emailInvalid": "Enter a valid email address.",
+      "submitButton": "Join the waitlist",
+      "submitPending": "Sending…",
+      "genericError": "Couldn't send the request. Please try again in a minute.",
+      "successChip": "You're on the list",
+      "successDescription": "We'll write to {email} once Pro is ready.",
+      "alreadyChip": "Already on the list",
+      "alreadyDescription": "This email is already on the list — no need to add it again."
     }
   },
   "NotFound": {

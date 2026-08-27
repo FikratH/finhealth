@@ -10,6 +10,7 @@ import {
   getHealth,
   getIndustries,
   getIndustryBenchmarks,
+  joinWaitlist,
   parseContentDispositionFilename,
   uploadFile,
 } from "@/lib/api";
@@ -669,6 +670,59 @@ describe("lib/api", () => {
       await expect(downloadMyDocument("doc_1", "fallback.csv")).rejects.toMatchObject({
         status: 0,
         message: "errors.network",
+      });
+    });
+  });
+
+  describe("joinWaitlist", () => {
+    it("posts {email} (no source) when none is passed, and returns status:\"joined\"", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, { status: "joined" }));
+
+      const result = await joinWaitlist("founder@example.com");
+
+      expect(result).toEqual({ status: "joined" });
+      const [path, init] = vi.mocked(fetch).mock.calls[0];
+      expect(path).toBe("/api/waitlist");
+      expect(init?.method).toBe("POST");
+      expect(JSON.parse(init?.body as string)).toEqual({ email: "founder@example.com" });
+    });
+
+    it("includes source in the body when passed", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, { status: "joined" }));
+
+      await joinWaitlist("founder@example.com", "upgrade_banner");
+
+      const [, init] = vi.mocked(fetch).mock.calls[0];
+      expect(JSON.parse(init?.body as string)).toEqual({
+        email: "founder@example.com",
+        source: "upgrade_banner",
+      });
+    });
+
+    it("returns status:\"already_joined\" as a normal resolved value, not an ApiError", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, { status: "already_joined" }));
+
+      await expect(joinWaitlist("dupe@example.com")).resolves.toEqual({
+        status: "already_joined",
+      });
+    });
+
+    it("maps a 422 malformed-email response into ApiError", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(422, { detail: "value is not a valid email address" }),
+      );
+
+      await expect(joinWaitlist("not-an-email")).rejects.toMatchObject({ status: 422 });
+    });
+
+    it("maps a 429 rate-limited response into ApiError", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(429, { detail: { code: "rate_limited", message: "Слишком много запросов. Попробуйте позже." } }),
+      );
+
+      await expect(joinWaitlist("x@example.com")).rejects.toMatchObject({
+        status: 429,
+        code: "rate_limited",
       });
     });
   });

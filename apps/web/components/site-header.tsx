@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AccountMenu } from "@/components/account-menu";
+import { AccountMenu, CURRENT_LINK_CLASS, IDLE_LINK_CLASS } from "@/components/account-menu";
+import { cn } from "@/lib/utils";
 
 // The landing route composes its own utility row (locale switch, theme
 // toggle) directly, and its own hero-scale logo reveal is the page's one
@@ -58,6 +59,16 @@ export function SiteHeader() {
           <span className="sr-only">{t("wordmark")}</span>
         </Link>
         <div className="flex items-center gap-4">
+          <Link
+            href="/pricing"
+            aria-current={pathname === "/pricing" ? "page" : undefined}
+            className={cn(
+              "rounded-sm font-mono text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              pathname === "/pricing" ? CURRENT_LINK_CLASS : IDLE_LINK_CLASS,
+            )}
+          >
+            {t("pricing")}
+          </Link>
           <AccountMenu />
           <LocaleSwitch />
           <ThemeToggle />

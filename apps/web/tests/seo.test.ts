@@ -145,7 +145,7 @@ describe("Per-route generateMetadata — plain page title, brand suffix left to 
 });
 
 describe("app/sitemap.ts — static routes only, /results and /my excluded", () => {
-  it("lists exactly the four public static routes in both locales, never a /results or /my URL", async () => {
+  it("lists exactly the five public static routes in both locales (including /pricing, P6.T6), never a /results or /my URL", async () => {
     const { SITE_URL } = await import("@/lib/seo");
     const { default: sitemap } = await import("@/app/sitemap");
     const entries = sitemap();
@@ -156,7 +156,6 @@ describe("app/sitemap.ts — static routes only, /results and /my excluded", () 
 
     expect(allUrls.some((url) => url.includes("/results"))).toBe(false);
     expect(allUrls.some((url) => url.includes("/my"))).toBe(false);
-    expect(allUrls.some((url) => url.includes("/pricing"))).toBe(false);
 
     // ru is the default, prefix-free locale (as-needed); en sits under /en.
     expect(allUrls).toContain(`${SITE_URL}/`);
@@ -167,7 +166,13 @@ describe("app/sitemap.ts — static routes only, /results and /my excluded", () 
     expect(allUrls).toContain(`${SITE_URL}/en/methodology`);
     expect(allUrls).toContain(`${SITE_URL}/signin`);
     expect(allUrls).toContain(`${SITE_URL}/en/signin`);
-    expect(entries).toHaveLength(4);
+    // P6.T6: /pricing now exists and is public/crawlable — the T3-era
+    // placeholder that asserted its ABSENCE is flipped here rather than
+    // just deleted, so a future accidental removal of the route from
+    // STATIC_ROUTES still fails loudly.
+    expect(allUrls).toContain(`${SITE_URL}/pricing`);
+    expect(allUrls).toContain(`${SITE_URL}/en/pricing`);
+    expect(entries).toHaveLength(5);
   });
 });
 
