@@ -4,10 +4,33 @@ import { MetricNumber } from "@/components/metric-number";
 import { StatusPill, type Status } from "@/components/status-pill";
 import type { RiskRadar as RiskRadarData } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
+import type { NumberUnit } from "@/lib/format";
 
 export interface RiskRadarProps {
   riskRadar: RiskRadarData;
   locale: Locale;
+}
+
+interface DupontFactorProps {
+  value: number | null;
+  unit: NumberUnit;
+  locale: Locale;
+  naLabel: string;
+  label: string;
+}
+
+// One DuPont factor: the PT Mono figure above, a small ink-muted caption
+// naming it below — without the label, four bare numbers joined by ×/=
+// read as arithmetic, not as net margin/turnover/leverage/ROE.
+function DupontFactor({ value, unit, locale, naLabel, label }: DupontFactorProps) {
+  return (
+    <span className="inline-flex flex-col items-center">
+      <MetricNumber value={value} unit={unit} locale={locale} naLabel={naLabel} className="text-lg" />
+      <span className="mt-0.5 font-mono text-[0.65rem] uppercase tracking-wide text-ink-muted">
+        {label}
+      </span>
+    </span>
+  );
 }
 
 // Beneish's flag is a statistical association, never an accusation — the
@@ -24,7 +47,9 @@ const BENEISH_FLAG_STATUS: Record<string, Status> = {
 export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
   const t = useTranslations("Results.riskRadar");
   const tStatus = useTranslations("Status");
+  const tRatios = useTranslations("Results.ratios");
   const { altman, piotroski, beneish, dupont } = riskRadar;
+  const naLabel = tRatios("naLabel");
 
   const beneishFlagLabel =
     beneish.flag === "high"
@@ -49,6 +74,7 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
                 value={altman.value}
                 unit={altman.unit}
                 locale={locale}
+                naLabel={naLabel}
                 className="text-2xl"
               />
               <StatusPill status={altman.status} label={tStatus(altman.status)} />
@@ -91,7 +117,13 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
             {t("beneish.heading")}
           </p>
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
-            <MetricNumber value={beneish.m_score} decimals={2} locale={locale} className="text-2xl" />
+            <MetricNumber
+              value={beneish.m_score}
+              decimals={2}
+              locale={locale}
+              naLabel={naLabel}
+              className="text-2xl"
+            />
             <StatusPill
               status={beneish.flag ? BENEISH_FLAG_STATUS[beneish.flag] : "na"}
               label={beneishFlagLabel}
@@ -105,20 +137,44 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
             {t("dupont.heading")}
           </p>
           {dupont ? (
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <MetricNumber value={dupont.net_margin} unit="%" locale={locale} />
-              <span aria-hidden="true" className="text-ink-muted">
+            <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+              <DupontFactor
+                value={dupont.net_margin}
+                unit="%"
+                locale={locale}
+                naLabel={naLabel}
+                label={t("dupont.netMargin")}
+              />
+              <span aria-hidden="true" className="pb-4 text-ink-muted">
                 ×
               </span>
-              <MetricNumber value={dupont.asset_turnover} unit="x" locale={locale} />
-              <span aria-hidden="true" className="text-ink-muted">
+              <DupontFactor
+                value={dupont.asset_turnover}
+                unit="x"
+                locale={locale}
+                naLabel={naLabel}
+                label={t("dupont.assetTurnover")}
+              />
+              <span aria-hidden="true" className="pb-4 text-ink-muted">
                 ×
               </span>
-              <MetricNumber value={dupont.equity_multiplier} unit="x" locale={locale} />
-              <span aria-hidden="true" className="text-ink-muted">
+              <DupontFactor
+                value={dupont.equity_multiplier}
+                unit="x"
+                locale={locale}
+                naLabel={naLabel}
+                label={t("dupont.equityMultiplier")}
+              />
+              <span aria-hidden="true" className="pb-4 text-ink-muted">
                 =
               </span>
-              <MetricNumber value={dupont.roe} unit="%" locale={locale} />
+              <DupontFactor
+                value={dupont.roe}
+                unit="%"
+                locale={locale}
+                naLabel={naLabel}
+                label={t("dupont.roe")}
+              />
             </div>
           ) : (
             <p className="mt-2 text-sm text-ink-muted">{t("dupont.unavailable")}</p>

@@ -193,9 +193,26 @@
       "body": "This report doesn't exist, its retention period has expired, or the link was entered incorrectly.",
       "cta": "Check my company"
     },
+    "error": {
+      "heading": "Couldn't load the diagnosis",
+      "body": "Something went wrong while loading this report. Try again in a moment.",
+      "retry": "Try again"
+    },
     "header": {
       "confidenceLabel": "Overall analysis confidence",
-      "insufficientGuidance": "To get a score, add the missing figures:"
+      "insufficientGuidance": "To get a score, add the missing figures:",
+      "confidence": {
+        "detailsToggle": "Confidence breakdown",
+        "dataCompletenessLabel": "Data completeness",
+        "extractionConfidenceLabel": "Extraction accuracy",
+        "manualCorrectionsLabel": "Manual corrections",
+        "hasPreviousPeriodYes": "Has a previous period",
+        "hasPreviousPeriodNo": "No previous period",
+        "hasIndustryBenchmarksYes": "Has industry benchmarks",
+        "hasIndustryBenchmarksNo": "No industry benchmarks",
+        "auditedYes": "Statements are audited",
+        "auditedNo": "Statements are not audited"
+      }
     },
     "categories": {
       "heading": "Categories",

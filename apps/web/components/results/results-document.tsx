@@ -61,7 +61,11 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
 
       <WarningsAccordion warnings={analysis.warnings} />
 
-      <MissingMetricsHint missingMetrics={analysis.missing_metrics} />
+      {/* The insufficient-data state's guidance panel (in ScoreHeader)
+       * already lists these same missing_metrics — skip the duplicate. */}
+      {analysis.overall_score !== null && (
+        <MissingMetricsHint missingMetrics={analysis.missing_metrics} />
+      )}
 
       <Footnotes sources={footnoteIndex} />
 

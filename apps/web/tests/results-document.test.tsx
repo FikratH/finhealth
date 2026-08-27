@@ -376,7 +376,36 @@ describe("ResultsDocument", () => {
     expect(screen.getAllByText(analysisFixture.disclaimer)).toHaveLength(2);
   });
 
-  it("renders the insufficient-data state when overall_score is null: dash dial, health_label, composed missing-metrics guidance", () => {
+  it("labels each DuPont factor (net margin / asset turnover / equity multiplier / ROE), not four bare numbers", () => {
+    renderDocument(analysisFixture);
+    expect(screen.getByText(ruMessages.Results.riskRadar.dupont.netMargin)).toBeInTheDocument();
+    expect(screen.getByText(ruMessages.Results.riskRadar.dupont.assetTurnover)).toBeInTheDocument();
+    expect(
+      screen.getByText(ruMessages.Results.riskRadar.dupont.equityMultiplier),
+    ).toBeInTheDocument();
+    expect(screen.getByText(ruMessages.Results.riskRadar.dupont.roe)).toBeInTheDocument();
+  });
+
+  it("renders the confidence breakdown, including the engine's own audit note", () => {
+    renderDocument(analysisFixture);
+    // The disclosure is a <details>; its content is present in the DOM
+    // (queryable) regardless of the native open/closed collapse state.
+    expect(
+      screen.getByText(analysisFixture.confidence.notes[0]),
+    ).toBeInTheDocument();
+    // ConfidenceMeter exposes its label via aria-label on role="meter",
+    // not as visible text — query accordingly.
+    expect(
+      screen.getByRole("meter", {
+        name: ruMessages.Results.header.confidence.dataCompletenessLabel,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(ruMessages.Results.header.confidence.auditedYes),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the insufficient-data state when overall_score is null: dash dial, health_label, composed missing-metrics guidance, and no duplicate missing-metrics section", () => {
     const nullScoreFixture: AnalysisResult = {
       ...analysisFixture,
       overall_score: null,
@@ -395,5 +424,11 @@ describe("ResultsDocument", () => {
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }
+
+    // The standalone MissingMetricsHint section is skipped when the
+    // header's own insufficient-data panel already lists the same metrics.
+    expect(
+      screen.queryByText(ruMessages.Results.missingMetrics.heading),
+    ).not.toBeInTheDocument();
   });
 });

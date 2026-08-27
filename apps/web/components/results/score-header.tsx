@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import { ScoreDial } from "@/components/score-dial";
 import { SpecimenChip } from "@/components/specimen-chip";
 import { ConfidenceMeter } from "@/components/confidence-meter";
+import { ConfidenceDisclosure } from "./confidence-disclosure";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -22,8 +23,10 @@ const SCALE_KEY: Record<
 
 // The «заключение» (stamped conclusion) block: rule-framed, the health
 // label reads as the verdict (no eyebrow above it — the craft floor bans
-// kickers outright), the disclaimer sits beneath. When overall_score is
-// null this is also where the insufficient-data state composes its
+// kickers outright). A disclaimer line is placed beneath it here (a
+// deliberate choice, not a design-direction quote — it's echoed again as
+// its own closing section further down the document). When overall_score
+// is null this is also where the insufficient-data state composes its
 // guidance — designed absence, not a blank dial with nothing to act on.
 export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
   const t = useTranslations("Results.header");
@@ -53,6 +56,7 @@ export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
             label={t("confidenceLabel")}
             className="max-w-xs"
           />
+          <ConfidenceDisclosure confidence={analysis.confidence} locale={locale} />
           {insufficientData && analysis.missing_metrics.length > 0 && (
             <div className="border-t border-line pt-4">
               <p className="text-sm text-ink">{t("insufficientGuidance")}</p>

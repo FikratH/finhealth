@@ -193,9 +193,26 @@
       "body": "Такого отчёта не существует, срок его хранения истёк, либо ссылка введена с ошибкой.",
       "cta": "Проверить компанию"
     },
+    "error": {
+      "heading": "Не удалось загрузить диагноз",
+      "body": "Что-то пошло не так при загрузке отчёта. Попробуйте ещё раз через мгновение.",
+      "retry": "Повторить попытку"
+    },
     "header": {
       "confidenceLabel": "Общая уверенность анализа",
-      "insufficientGuidance": "Чтобы получить балл, добавьте недостающие показатели:"
+      "insufficientGuidance": "Чтобы получить балл, добавьте недостающие показатели:",
+      "confidence": {
+        "detailsToggle": "Из чего складывается уверенность",
+        "dataCompletenessLabel": "Полнота данных",
+        "extractionConfidenceLabel": "Точность извлечения",
+        "manualCorrectionsLabel": "Ручных исправлений",
+        "hasPreviousPeriodYes": "Есть предыдущий период",
+        "hasPreviousPeriodNo": "Нет предыдущего периода",
+        "hasIndustryBenchmarksYes": "Есть отраслевые ориентиры",
+        "hasIndustryBenchmarksNo": "Нет отраслевых ориентиров",
+        "auditedYes": "Отчётность аудирована",
+        "auditedNo": "Отчётность не аудирована"
+      }
     },
     "categories": {
       "heading": "Категории",
