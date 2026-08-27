@@ -538,5 +538,10 @@
         "cancel": "Cancel"
       }
     }
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "body": "This page doesn't exist, or the address was mistyped.",
+    "cta": "Back home"
   }
 }
