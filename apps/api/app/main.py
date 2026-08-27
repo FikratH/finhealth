@@ -12,11 +12,11 @@ import concurrent.futures
 import logging
 import os
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import storage
+from . import auth, storage
 from .schemas import (
     AnalysisRequest,
     ExtractRequest,
@@ -179,14 +179,14 @@ def extract(payload: ExtractRequest):
 
 
 @app.post("/api/analyze")
-def analyze(req: AnalysisRequest):
+def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id)):
     try:
         result = run_analysis(req)
     except KeyError:
         raise HTTPException(status_code=400, detail="Неизвестная отрасль.")
     payload = result.model_dump(mode="json")
-    storage.save_analysis(result.analysis_id, result.created_at, payload)
-    log.info("analysis saved id=%s industry=%s", result.analysis_id, req.industry)
+    storage.save_analysis(result.analysis_id, result.created_at, payload, user_id=user_id)
+    log.info("analysis saved id=%s industry=%s user_id=%s", result.analysis_id, req.industry, user_id)
     return payload
 
 

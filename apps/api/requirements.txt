@@ -14,3 +14,4 @@ httpx>=0.27
 lxml>=5.0        # scripts/build_benchmarks.py: pd.read_html parser backend
 certifi>=2024.0  # scripts/build_benchmarks.py: TLS trust store for the fetch
 openai>=1.50     # app/services/narrative.py: optional LLM narrative layer
+PyJWT>=2.8       # app/auth.py: HS256 verification of tokens issued by apps/web

@@ -10,4 +10,7 @@ def _isolated_storage(tmp_path, monkeypatch):
     # A developer's exported DATABASE_URL would otherwise win over DB_PATH
     # (see storage.database_url()) and break this isolation.
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    # Same concern for auth: a developer's exported AUTH_JWT_SECRET must not
+    # leak into tests that assume auth is off by default.
+    monkeypatch.delenv("AUTH_JWT_SECRET", raising=False)
     yield
