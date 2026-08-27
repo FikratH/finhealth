@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AccountMenu, CURRENT_LINK_CLASS, IDLE_LINK_CLASS } from "@/components/account-menu";
+import { AccountMenu } from "@/components/account-menu";
+import { CURRENT_LINK_CLASS, IDLE_LINK_CLASS } from "@/components/nav-link-class";
 import { cn } from "@/lib/utils";
 
 // The landing route composes its own utility row (locale switch, theme

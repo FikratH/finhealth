@@ -25,6 +25,26 @@ test("pricing page renders both tiers, and the header/footer both link to it", a
   await expect(page.locator("footer").getByRole("link", { name: "Тарифы" })).toBeVisible();
 });
 
+test("round-2 regression guard (N1): the footer's Pricing link actually carries its idle styling, not just its href", async ({
+  page,
+}) => {
+  // IDLE_LINK_CLASS used to come from account-menu.tsx, a "use client"
+  // module — SiteFooter (a Server Component) importing a named export
+  // across that boundary got a client REFERENCE, not the string, and
+  // cn() silently dropped it: the link still worked (href, text, click)
+  // but rendered with none of text-ink-muted/hover:text-ink on every
+  // prerendered page. jsdom-based component tests can't see this at all
+  // (jsdom doesn't enforce the RSC server/client boundary) — this is the
+  // one check in the whole suite that renders the real built HTML and can
+  // actually catch a regression here, so it gets its own test rather than
+  // riding inside a broader render-check.
+  await page.goto("/pricing");
+
+  const footerLink = page.locator("footer").getByRole("link", { name: "Тарифы" });
+  await expect(footerLink).toBeVisible();
+  await expect(footerLink).toHaveClass(/text-ink-muted/);
+});
+
 test("Free tier's CTA links to /analyze", async ({ page }) => {
   await page.goto("/pricing");
 
@@ -40,7 +60,7 @@ test("Pro waitlist happy path: fill email, submit, see the annunciator confirmat
   await page.goto("/pricing");
 
   await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Встать в список ожидания" }).click();
+  await page.getByRole("button", { name: "Записаться в лист ожидания" }).click();
 
   // round-1 fix (F2): the confirmation is a role=status live region —
   // headline + AnnunciatorCell's label ("Вы в списке") plus its
@@ -51,6 +71,10 @@ test("Pro waitlist happy path: fill email, submit, see the annunciator confirmat
   await expect(successRegion).toContainText("Готово — вы в списке ожидания");
   await expect(successRegion).toContainText("Вы в списке");
   await expect(successRegion).toContainText(email);
+  // Round-2 residual: the submit button unmounted along with the form —
+  // focus must land on the confirmation panel itself, not fall back to
+  // <body> and strand a keyboard user with no indication where they are.
+  await expect(successRegion).toBeFocused();
   // The form itself is replaced, not left behind alongside the confirmation.
   await expect(page.getByLabel("Email")).toHaveCount(0);
 
@@ -59,7 +83,7 @@ test("Pro waitlist happy path: fill email, submit, see the annunciator confirmat
   // second fresh signup.
   await page.goto("/pricing");
   await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Встать в список ожидания" }).click();
+  await page.getByRole("button", { name: "Записаться в лист ожидания" }).click();
 
   const duplicateRegion = page.getByRole("status");
   await expect(duplicateRegion).toContainText("Вы уже в списке ожидания");

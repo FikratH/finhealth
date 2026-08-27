@@ -66,6 +66,19 @@ describe("WaitlistForm", () => {
     expect(region).toHaveTextContent(pro.successChip);
   });
 
+  it("round-2 residual: moves focus to the confirmation panel, since the submit button that had it just unmounted", async () => {
+    joinWaitlist.mockResolvedValue({ status: "joined" });
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText(pro.formLabel), {
+      target: { value: "founder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
+
+    const region = await screen.findByRole("status");
+    expect(region).toHaveFocus();
+  });
+
   it("shows the honest \"already on the list\" confirmation on a duplicate — not an error", async () => {
     joinWaitlist.mockResolvedValue({ status: "already_joined" });
     renderForm();

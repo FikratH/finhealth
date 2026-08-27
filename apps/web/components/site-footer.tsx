@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IDLE_LINK_CLASS } from "@/components/account-menu";
+import { IDLE_LINK_CLASS } from "@/components/nav-link-class";
 import { cn } from "@/lib/utils";
 
 export function SiteFooter() {
@@ -15,9 +15,12 @@ export function SiteFooter() {
          * current-location marking here (unlike SiteHeader's, which
          * mirrors AccountMenu's aria-current grammar): the footer has
          * never carried a "you are here" nav before, and one lone link
-         * doesn't need it to stay legible. Reuses AccountMenu's exported
-         * IDLE_LINK_CLASS (round-1 review, F6) rather than re-inlining its
-         * value, so the two never drift independently. */}
+         * doesn't need it to stay legible. IDLE_LINK_CLASS comes from the
+         * directive-free components/nav-link-class.ts (round-2 review,
+         * N1) — SiteFooter is a Server Component, and importing this same
+         * string from account-menu.tsx (a "use client" module, round 1's
+         * fix) silently yielded a client reference instead of the actual
+         * class string here. */}
         <nav className="mb-3">
           <Link
             href="/pricing"

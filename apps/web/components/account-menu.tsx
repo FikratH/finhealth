@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useSession, authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { CURRENT_LINK_CLASS, IDLE_LINK_CLASS } from "@/components/nav-link-class";
 import { cn } from "@/lib/utils";
 
 // The header's account area: a composed two-state grammar, not a dropdown —
@@ -25,14 +26,11 @@ import { cn } from "@/lib/utils";
 // verbatim rather than inventing a second "you are here" language — marks
 // it instead of suppressing the link outright, so it stays a stable,
 // always-in-the-same-place target (clicking it is a harmless no-op, not a
-// vanished control).
-//
-// Exported (not private to this module) so SiteHeader's own Pricing link
-// (P6.T6) can reuse the identical current-location grammar rather than
-// inventing a second copy of it — the same "reuse verbatim" discipline
-// this component's own comment above describes.
-export const CURRENT_LINK_CLASS = "text-brand [text-shadow:0_0_0.3em_var(--accent)]";
-export const IDLE_LINK_CLASS = "text-ink-muted hover:text-ink";
+// vanished control). CURRENT_LINK_CLASS/IDLE_LINK_CLASS themselves live in
+// components/nav-link-class.ts (round-2 review, N1) — not exported from
+// here — so SiteHeader's own Pricing link (P6.T6) and SiteFooter's (a
+// Server Component) can both reuse the identical grammar without a Server
+// Component ever importing a named export across a "use client" boundary.
 
 export function AccountMenu() {
   const t = useTranslations("Header");

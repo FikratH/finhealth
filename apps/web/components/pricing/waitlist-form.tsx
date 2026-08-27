@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { joinWaitlist } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,21 @@ export function WaitlistForm() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+
+  // round-2 review (residual 1): the submit button that had focus
+  // unmounts along with the whole form when a terminal state replaces
+  // it — left unhandled, focus silently falls back to <body>, stranding
+  // a keyboard user with no indication where they landed. Moving focus
+  // to the confirmation panel itself (tabIndex={-1} makes a non-
+  // interactive div focusable programmatically without adding it to the
+  // Tab order) keeps a keyboard user oriented on the same content the
+  // role="status" live region is already announcing.
+  useEffect(() => {
+    if (status === "joined" || status === "already_joined") {
+      confirmationRef.current?.focus();
+    }
+  }, [status]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +77,7 @@ export function WaitlistForm() {
       // submitting actually did anything. The headline above the cell
       // mirrors SigninForm's own sent-state shape (chip/headline/
       // description) and gives the live region an immediate opening line.
-      <div role="status">
+      <div ref={confirmationRef} tabIndex={-1} role="status">
         <p className="font-display text-xl text-ink">
           {joined ? t("successTitle") : t("alreadyTitle")}
         </p>
