@@ -231,6 +231,21 @@ class MyAnalysesResponse(BaseModel):
     analyses: list[MyAnalysisSummary]
 
 
+class MyDocumentSummary(BaseModel):
+    """One row of GET /api/my/documents — a retained document's metadata,
+    never its raw bytes (see app/services/vault.py's VaultDocument, which
+    this mirrors field-for-field)."""
+    doc_id: str
+    filename: str
+    kind: str            # pdf | xlsx | xls | csv
+    size_bytes: int
+    created_at: str
+
+
+class MyDocumentsResponse(BaseModel):
+    documents: list[MyDocumentSummary]
+
+
 class NarrativeResult(BaseModel):
     text_ru: str
     text_en: str

@@ -4,6 +4,9 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.db
+# local-disk document vault (apps/api/app/services/vault.py, P5.T7) —
+# dev-only fallback storage, never committed
+apps/api/.data/
 # node (Phase 3)
 node_modules/
 .next/

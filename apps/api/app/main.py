@@ -13,9 +13,10 @@ import logging
 import multiprocessing
 import os
 import threading
+import uuid
 from concurrent.futures.process import BrokenProcessPool
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,10 +27,11 @@ from .schemas import (
     ExtractRequest,
     ExtractionResult,
     MyAnalysesResponse,
+    MyDocumentsResponse,
     NarrativeResult,
     UploadedDocument,
 )
-from .services import extraction
+from .services import extraction, vault
 from .services import narrative as narrative_service
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
@@ -196,7 +198,28 @@ def industry_benchmarks(industry_id: str):
 
 
 @app.post("/api/upload", response_model=UploadedDocument, dependencies=[Depends(rate_limit)])
-async def upload(file: UploadFile = File(...)):
+async def upload(
+    file: UploadFile = File(...),
+    # Opt-in vault retention (P5.T7): "1"/"true"/"yes"/"on" all count as
+    # set, matching services.vault._env_bool's own leniency. Absent/"0"/
+    # anything else is False — the ordinary, unmodified delete-after-
+    # extract path (see /api/extract below).
+    retain: bool = Form(False),
+    user_id: str | None = Depends(auth.get_current_user_id),
+):
+    if retain:
+        # Conditional require_user, not Depends(auth.require_user) on the
+        # route: retain is a per-request opt-in, not a blanket auth
+        # requirement — anonymous upload must keep working unchanged when
+        # retain is absent/false (the Global Constraint). Same 401 body as
+        # require_user's, so the two are indistinguishable to a caller.
+        if user_id is None:
+            raise HTTPException(status_code=401, detail=auth.AUTH_REQUIRED_DETAIL)
+        if not vault.vault_enabled():
+            raise HTTPException(status_code=503, detail={
+                "code": "vault_unavailable",
+                "message": "Хранилище документов недоступно.",
+            })
     await run_in_threadpool(storage.cleanup_stale_uploads)
     chunks: list[bytes] = []
     size = 0
@@ -214,11 +237,13 @@ async def upload(file: UploadFile = File(...)):
     if not data:
         raise HTTPException(status_code=400, detail="Файл пуст.")
     kind = _detect_kind(file.filename or "", data)
-    upload_id = await run_in_threadpool(storage.save_upload, data, kind)
-    log.info("upload accepted id=%s kind=%s size=%d", upload_id, kind, len(data))
+    filename = os.path.basename(file.filename or "document")
+    upload_id = await run_in_threadpool(
+        storage.save_upload, data, kind, retain=retain, user_id=user_id, filename=filename)
+    log.info("upload accepted id=%s kind=%s size=%d retain=%s", upload_id, kind, len(data), retain)
     return UploadedDocument(
         upload_id=upload_id,
-        filename=os.path.basename(file.filename or "document"),
+        filename=filename,
         content_type=file.content_type or "application/octet-stream",
         size_bytes=len(data), detected_kind=kind)
 
@@ -276,8 +301,35 @@ def extract(payload: ExtractRequest):
         log.exception("extraction failed id=%s kind=%s", upload_id, kind)
         raise HTTPException(status_code=422,
                             detail="Не удалось извлечь данные из файла. Попробуйте Excel/CSV.")
+    else:
+        # Success-only branch (P5.T7): honor an opt-in retain=1 captured at
+        # upload time (storage.save_upload's sidecar — see its docstring),
+        # by copying the bytes into the vault before the `finally` below
+        # clears the ephemeral upload. When retain was never requested,
+        # read_upload_retain_meta() returns None and this is a no-op — the
+        # delete-after-extract behavior stays byte-identical to pre-T7.
+        retain_meta = storage.read_upload_retain_meta(upload_id)
+        if retain_meta is not None:
+            try:
+                vault.get_vault().put(
+                    doc_id=uuid.uuid4().hex, data=data, kind=kind,
+                    user_id=retain_meta["user_id"], filename=retain_meta.get("filename", ""))
+                log.info("document retained id=%s kind=%s", upload_id, kind)
+            except Exception:
+                # Retention is opt-in, extraction already succeeded — a
+                # vault write failure must never turn a successful analysis
+                # into an error response. Degrade to "deleted, exactly as
+                # if retain had not been requested" (the `finally` below
+                # still runs either way) rather than surfacing a failure
+                # for something the user only gets a yes/no on, not a retry.
+                log.warning("vault retain failed upload_id=%s kind=%s", upload_id, kind,
+                           exc_info=True)
     finally:
-        # the document itself is never stored permanently
+        # the document itself is never stored permanently in the ephemeral
+        # upload area — unchanged from pre-T7 and unconditional: even a
+        # successful retain above only copies the bytes into the vault, so
+        # this still clears the short-lived UPLOAD_DIR scratch file (and its
+        # retain sidecar, if any — delete_upload's glob covers both).
         storage.delete_upload(upload_id)
         log.info("upload deleted id=%s", upload_id)
     result.upload_id = upload_id
@@ -355,6 +407,45 @@ def delete_my_analysis(analysis_id: str, user_id: str = Depends(auth.require_use
     if not storage.delete_analysis_for_user(analysis_id, user_id):
         raise HTTPException(status_code=404, detail="Анализ не найден.")
     return {"deleted": analysis_id}
+
+
+@app.get("/api/my/documents", response_model=MyDocumentsResponse)
+def my_documents(user_id: str = Depends(auth.require_user)):
+    """The caller's own retained documents (P5.T7 opt-in vault), newest
+    first. Metadata only — GET never returns the raw bytes. Mirrors
+    GET /api/my/analyses' require_user + scoped-projection idiom."""
+    try:
+        docs = vault.get_vault().list_for_user(user_id)
+    except vault.VaultPathError:
+        # user_id comes from a verified JWT sub — this should be
+        # unreachable in practice, but a failed path-safety check must
+        # never 500; degrade to "no documents" rather than leak why.
+        log.warning("vault path validation rejected user_id on list")
+        docs = []
+    return {"documents": [
+        {
+            "doc_id": d.doc_id,
+            "filename": d.filename,
+            "kind": d.kind,
+            "size_bytes": d.size_bytes,
+            "created_at": d.created_at,
+        }
+        for d in docs
+    ]}
+
+
+@app.delete("/api/my/documents/{doc_id}")
+def delete_my_document(doc_id: str, user_id: str = Depends(auth.require_user)):
+    """Ownership-checked delete, same 404-never-403 idiom as
+    DELETE /api/my/analyses/{id}: an id that doesn't exist and an id that
+    belongs to someone else both 404 identically."""
+    try:
+        deleted = vault.get_vault().delete(doc_id, user_id)
+    except vault.VaultPathError:
+        deleted = False
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Документ не найден.")
+    return {"deleted": doc_id}
 
 
 @app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult,

@@ -29,6 +29,11 @@ JWT_ALGORITHM = "HS256"
 JWT_ISSUER = "tonus-web"
 JWT_AUDIENCE = "tonus-api"
 
+# Shared with main.py: the retain=1 upload path also require_user-gates
+# itself (conditionally — see main.upload's own comment), and reuses this
+# exact detail body so the two 401s are indistinguishable to a caller.
+AUTH_REQUIRED_DETAIL = {"code": "auth_required", "message": "Требуется вход в систему."}
+
 
 def get_current_user_id(request: Request) -> str | None:
     """Returns the authenticated user's id (the JWT `sub` claim), or None
@@ -74,8 +79,5 @@ def require_user(request: Request) -> str:
     calls get_current_user_id directly instead."""
     user_id = get_current_user_id(request)
     if user_id is None:
-        raise HTTPException(status_code=401, detail={
-            "code": "auth_required",
-            "message": "Требуется вход в систему.",
-        })
+        raise HTTPException(status_code=401, detail=AUTH_REQUIRED_DETAIL)
     return user_id

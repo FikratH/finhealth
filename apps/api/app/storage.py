@@ -126,12 +126,30 @@ def get_engine() -> Engine:
 
 
 # --------------------------- uploads (ephemeral) ---------------------------
-def save_upload(data: bytes, kind: str) -> str:
+_RETAIN_META_SUFFIX = ".retain.json"
+
+
+def save_upload(data: bytes, kind: str, *, retain: bool = False,
+                user_id: Optional[str] = None, filename: str = "") -> str:
+    """Writes the uploaded bytes to a random-UUID-named temp file, as
+    before. When `retain` is true (P5.T7's opt-in vault path — always
+    paired with a signed-in `user_id` by main.py's upload handler), also
+    writes a small JSON sidecar (`{upload_id}.retain.json`) recording the
+    owning user and original filename, so `POST /api/extract` — a separate
+    request, minutes apart, that only receives `upload_id` — can look up
+    "was retention requested, and by whom" without any other state. The
+    sidecar is swept by the exact same `delete_upload`/`cleanup_stale_uploads`
+    glob (`{upload_id}.*`) as the document itself, so it never outlives it."""
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     upload_id = uuid.uuid4().hex
     path = UPLOAD_DIR / f"{upload_id}.{kind}"
     with open(path, "wb") as f:
         f.write(data)
+    if retain and user_id:
+        meta_path = UPLOAD_DIR / f"{upload_id}{_RETAIN_META_SUFFIX}"
+        meta_path.write_text(
+            json.dumps({"user_id": user_id, "filename": filename}, ensure_ascii=False),
+            encoding="utf-8")
     return upload_id
 
 
@@ -140,10 +158,30 @@ def read_upload(upload_id: str) -> Optional[tuple[bytes, str]]:
     if not all(ch in "0123456789abcdef" for ch in upload_id) or len(upload_id) != 32:
         return None
     for path in UPLOAD_DIR.glob(f"{upload_id}.*"):
+        if path.name.endswith(_RETAIN_META_SUFFIX):
+            # The retain sidecar (see save_upload) also matches this glob —
+            # it is never the document itself, so it must never be returned
+            # as if it were the uploaded file's bytes.
+            continue
         kind = path.suffix.lstrip(".")
         with open(path, "rb") as f:
             return f.read(), kind
     return None
+
+
+def read_upload_retain_meta(upload_id: str) -> Optional[dict]:
+    """Returns `{"user_id", "filename"}` if `retain=1` was requested for
+    this upload_id at save_upload() time, else None (retain wasn't
+    requested, the sidecar is gone/expired, or upload_id is malformed).
+    Never raises — a corrupt/missing sidecar degrades to "not retained",
+    which is the safe direction (falls back to the pre-T7 delete path)."""
+    if not all(ch in "0123456789abcdef" for ch in upload_id) or len(upload_id) != 32:
+        return None
+    meta_path = UPLOAD_DIR / f"{upload_id}{_RETAIN_META_SUFFIX}"
+    try:
+        return json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def delete_upload(upload_id: str) -> None:
