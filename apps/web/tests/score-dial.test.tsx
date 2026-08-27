@@ -44,4 +44,21 @@ describe("ScoreDial", () => {
       expect(circle.getAttribute("pathLength")).toBe("100");
     }
   });
+
+  it("marks the value arc with data-score-arc and its final filled length as data-filled — the contract results-document.tsx's load-time GSAP timeline draws from", () => {
+    const { container } = render(<ScoreDial score={86.8} locale="ru" />);
+    const arc = container.querySelector("[data-score-arc]");
+    expect(arc).not.toBeNull();
+    // ARC_LENGTH is 75 pathLength units (270° of 360°); 86.8/100 of that.
+    expect(arc).toHaveAttribute("data-filled", String((86.8 / 100) * 75));
+    // The arc already renders its *final* dasharray directly — no
+    // animation of its own, no "from" (hidden) state at render time, so a
+    // no-JS or crawler visitor always sees the completed arc.
+    expect(arc).toHaveAttribute("stroke-dasharray", `${(86.8 / 100) * 75} ${100 - (86.8 / 100) * 75}`);
+  });
+
+  it("never sets data-score-arc when there is no value circle to draw (null score)", () => {
+    const { container } = render(<ScoreDial score={null} caption="Недостаточно данных" />);
+    expect(container.querySelector("[data-score-arc]")).toBeNull();
+  });
 });

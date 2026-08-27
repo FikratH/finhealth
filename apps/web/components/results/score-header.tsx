@@ -10,6 +10,10 @@ import type { Locale } from "@/lib/format";
 export interface ScoreHeaderProps {
   analysis: AnalysisResult;
   locale: Locale;
+  /** Anchor id for the mini-nav's first entry — the заключение is the
+   * document's own top, not a scroll-revealed section, so it isn't
+   * wrapped in RevealSection like the rest of results-document.tsx. */
+  id?: string;
 }
 
 // Ink color for the verdict stamp — mirrors apps/api's health_label
@@ -48,7 +52,7 @@ const SCALE_KEY: Record<
 // its own closing section further down the document). When overall_score
 // is null this is also where the insufficient-data state composes its
 // guidance — designed absence, not a blank dial with nothing to act on.
-export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
+export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
   const t = useTranslations("Results.header");
   const tScale = useTranslations("Analyze.verify.controls");
   const insufficientData = analysis.overall_score === null;
@@ -57,7 +61,7 @@ export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
     : analysis.latest_period;
 
   return (
-    <section className="grid-paper border-2 border-ink p-6 sm:p-8">
+    <section id={id} className="grid-paper border-2 border-ink p-6 sm:p-8">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
         <ScoreDial
           score={analysis.overall_score}
@@ -71,6 +75,7 @@ export function ScoreHeader({ analysis, locale }: ScoreHeaderProps) {
            * status ink, tilted slightly like a hand-applied stamp. No
            * texture, no gradient, no shadow. */}
           <h1
+            data-verdict-stamp
             className={cn(
               "inline-block -rotate-[1.5deg] border-4 border-double px-5 py-2 text-center font-display text-xl uppercase tracking-[0.2em] sm:text-2xl",
               STAMP_TONE_CLASS[verdictTone(analysis.overall_score)],

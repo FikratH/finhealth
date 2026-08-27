@@ -1,0 +1,103 @@
+"use client";
+
+import type { MouseEvent } from "react";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { getLenis } from "@/components/motion-provider";
+
+export interface MiniNavItem {
+  id: string;
+  label: string;
+}
+
+export interface MiniNavProps {
+  items: MiniNavItem[];
+  /** Currently-in-view section id, tracked by results-document.tsx's
+   * per-section ScrollTriggers. Stays at the first item under reduced
+   * motion or before JS runs — nothing here depends on it to function. */
+  activeId: string | null;
+}
+
+// The always-lit mini-nav: every section anchor renders at full legibility
+// simultaneously (StepIndicator's "always-lit you are here" raise,
+// reapplied to the scroll cinema) — never a set of dimmed dots that reveal
+// labels on hover. Both renderings are real <a href="#id"> anchors, so
+// clicking works with zero JS via the browser's native jump; the onClick
+// handler only intervenes when a Lenis instance is actually driving the
+// page (motion allowed, on /results/*), calling its smooth scrollTo
+// instead of letting the native jump happen.
+//
+// Desktop (xl+, where a fixed rail clears the max-w-5xl document column)
+// gets a sticky right rail listing every anchor. Below that breakpoint —
+// where the rail would collide with the document — a top hairline bar
+// reflects how far through the section list the reader has scrolled
+// instead: a discrete, always-legible readout, not a continuous
+// scroll-scrub (this app's scroll cinema has none).
+export function MiniNav({ items, activeId }: MiniNavProps) {
+  const t = useTranslations("Results.nav");
+
+  if (items.length === 0) return null;
+
+  const activeIndex = Math.max(
+    0,
+    items.findIndex((item) => item.id === activeId),
+  );
+  const progress = ((activeIndex + 1) / items.length) * 100;
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>, id: string) {
+    const lenis = getLenis();
+    if (!lenis) return; // no Lenis (reduced motion, or SSR/no-JS) — the native #id jump already does the job
+    const target = document.getElementById(id);
+    if (!target) return;
+    event.preventDefault();
+    lenis.scrollTo(target);
+  }
+
+  return (
+    <>
+      <nav
+        aria-label={t("railLabel")}
+        className="fixed top-1/2 right-6 z-40 hidden -translate-y-1/2 flex-col items-end gap-3 xl:flex"
+      >
+        {items.map((item) => {
+          const isActive = item.id === activeId;
+          return (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              onClick={(event) => handleClick(event, item.id)}
+              aria-current={isActive ? "true" : undefined}
+              className={cn(
+                "flex items-center gap-2 font-mono text-xs uppercase tracking-wide transition-colors",
+                isActive ? "text-ink" : "text-ink-muted hover:text-ink",
+              )}
+            >
+              {item.label}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "h-px w-4 shrink-0 bg-current transition-[width]",
+                  isActive && "w-8",
+                )}
+              />
+            </a>
+          );
+        })}
+      </nav>
+
+      <div
+        role="progressbar"
+        aria-label={t("progressLabel")}
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="fixed inset-x-0 top-0 z-40 h-0.5 bg-line xl:hidden"
+      >
+        <div
+          className="h-full bg-accent transition-[width] duration-300 ease-out motion-reduce:transition-none"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </>
+  );
+}

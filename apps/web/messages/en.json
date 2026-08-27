@@ -227,6 +227,12 @@
         "auditedNo": "Statements are not audited"
       }
     },
+    "nav": {
+      "score": "Conclusion",
+      "strengthsRisks": "Strengths & risks",
+      "railLabel": "Report section navigation",
+      "progressLabel": "Report section progress"
+    },
     "categories": {
       "heading": "Categories",
       "insufficientData": "Insufficient data",

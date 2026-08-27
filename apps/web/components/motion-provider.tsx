@@ -22,6 +22,30 @@ function registerScrollTriggerOnce() {
 // /results/[id] under next-intl's "as-needed" locale prefix.
 const RESULTS_ROUTE_SEGMENT = "/results/";
 
+// GSAP's own factory defaults (gsap-core: threshold 500ms, adjustedLag
+// 33ms) — restored explicitly on cleanup below, since this provider is the
+// only thing in the app that ever calls lagSmoothing(0). Without this, a
+// visitor who leaves /results/* still carries the "never smooth over a
+// stalled frame" setting into every other route's GSAP work (the
+// MotionDemo beats, any future non-results motion) for the rest of the
+// session.
+const GSAP_DEFAULT_LAG_SMOOTHING_THRESHOLD = 500;
+const GSAP_DEFAULT_LAG_SMOOTHING_ADJUSTED_LAG = 33;
+
+let activeLenis: Lenis | null = null;
+
+/**
+ * The Lenis instance this provider is currently driving, or `null` when
+ * none exists (non-results routes, reduced motion, or before the effect
+ * below has run). Read-only accessor for descendants that need to trigger
+ * a smooth scroll (the results mini-nav's click-to-navigate) — they call
+ * this rather than constructing their own Lenis, and fall back to a plain
+ * anchor jump when it returns `null`.
+ */
+export function getLenis(): Lenis | null {
+  return activeLenis;
+}
+
 type MotionProviderProps = {
   children: ReactNode;
 };
@@ -62,6 +86,7 @@ export function MotionProvider({ children }: MotionProviderProps) {
     }
 
     const lenis = new Lenis();
+    activeLenis = lenis;
     const onScroll = () => ScrollTrigger.update();
     lenis.on("scroll", onScroll);
 
@@ -79,9 +104,15 @@ export function MotionProvider({ children }: MotionProviderProps) {
     // Full cleanup on unmount or route change: kill only what this effect
     // created — our ticker callback and this Lenis instance. Never
     // ScrollTrigger.killAll() here; triggers belong to whichever component
-    // created them, not to this provider.
+    // created them, not to this provider. lagSmoothing(0) is restored to
+    // GSAP's own defaults so it doesn't leak into other routes' GSAP work.
     return () => {
       gsap.ticker.remove(onTick);
+      gsap.ticker.lagSmoothing(
+        GSAP_DEFAULT_LAG_SMOOTHING_THRESHOLD,
+        GSAP_DEFAULT_LAG_SMOOTHING_ADJUSTED_LAG,
+      );
+      activeLenis = null;
       lenis.off("scroll", onScroll);
       lenis.destroy();
     };

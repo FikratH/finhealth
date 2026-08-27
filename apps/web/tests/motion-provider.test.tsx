@@ -42,7 +42,7 @@ const { LenisMock, lenisInstances } = vi.hoisted(() => {
 // requested way to assert "the constructor was never called".
 vi.mock("lenis", () => ({ default: LenisMock }));
 
-const { MotionProvider } = await import("@/components/motion-provider");
+const { MotionProvider, getLenis } = await import("@/components/motion-provider");
 
 function mockMatchMedia(matches: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -154,5 +154,58 @@ describe("MotionProvider", () => {
 
     expect(LenisMock).not.toHaveBeenCalled();
     expect(tickerListenerCount()).toBe(baseline);
+  });
+
+  it("exposes the live Lenis instance via getLenis() while mounted on a /results/* route, and clears it again on unmount", () => {
+    usePathname.mockReturnValue("/results/abc123");
+    mockMatchMedia(false);
+
+    expect(getLenis()).toBeNull();
+
+    const { unmount } = render(
+      <MotionProvider>
+        <p>child</p>
+      </MotionProvider>,
+    );
+
+    expect(getLenis()).toBe(lenisInstances[0]);
+
+    unmount();
+
+    expect(getLenis()).toBeNull();
+  });
+
+  it("getLenis() stays null when no Lenis was ever constructed (non-results route)", () => {
+    usePathname.mockReturnValue("/analyze");
+    mockMatchMedia(false);
+
+    render(
+      <MotionProvider>
+        <p>child</p>
+      </MotionProvider>,
+    );
+
+    expect(getLenis()).toBeNull();
+  });
+
+  it("restores gsap.ticker.lagSmoothing to GSAP's own defaults (500ms, 33ms) on unmount, so the setting doesn't leak into other routes", () => {
+    usePathname.mockReturnValue("/results/abc123");
+    mockMatchMedia(false);
+
+    const lagSmoothingSpy = vi.spyOn(gsap.ticker, "lagSmoothing");
+
+    const { unmount } = render(
+      <MotionProvider>
+        <p>child</p>
+      </MotionProvider>,
+    );
+
+    expect(lagSmoothingSpy).toHaveBeenCalledWith(0);
+
+    unmount();
+
+    expect(lagSmoothingSpy).toHaveBeenLastCalledWith(500, 33);
+
+    lagSmoothingSpy.mockRestore();
   });
 });

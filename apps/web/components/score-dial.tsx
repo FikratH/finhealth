@@ -1,6 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatNumber, type Locale } from "@/lib/format";
 
@@ -32,16 +29,15 @@ export function ScoreDial({
   size = 160,
   className,
 }: ScoreDialProps) {
-  const [drawn, setDrawn] = useState(false);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setDrawn(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
   const hasScore = score !== null;
   const clamped = hasScore ? Math.min(100, Math.max(0, score)) : 0;
-  const filled = drawn ? (clamped / 100) * ARC_LENGTH : 0;
+  // Always the *final* filled length — this component no longer animates
+  // its own draw. It renders the completed arc directly (SSR/no-JS visible
+  // state); results-document.tsx's useGSAP finds this value circle via
+  // `data-score-arc` and tweens `stroke-dasharray` from 0 up to this same
+  // `data-filled` target as part of the заключение's load-time opening, so
+  // no-JS and reduced-motion visitors simply never see the "from" state.
+  const filled = (clamped / 100) * ARC_LENGTH;
   const valueDasharray = `${filled} ${100 - filled}`;
   // Give the dial an accessible name that describes what the number means,
   // not just the bare figure — combine it with the verdict caption
@@ -79,6 +75,8 @@ export function ScoreDial({
         />
         {hasScore && (
           <circle
+            data-score-arc
+            data-filled={filled}
             cx={CENTER}
             cy={CENTER}
             r={RADIUS}
@@ -89,7 +87,6 @@ export function ScoreDial({
             strokeLinecap="round"
             strokeDasharray={valueDasharray}
             transform={ROTATE}
-            className="transition-[stroke-dasharray] duration-700 ease-out motion-reduce:transition-none"
           />
         )}
         <text

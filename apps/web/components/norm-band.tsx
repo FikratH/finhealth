@@ -70,7 +70,7 @@ export function NormBand({
       </span>
       <span className="text-xs text-ink-muted">{rangeText}</span>
       {outOfRange && (
-        <span className={cn("inline-flex items-center gap-1", flagClass)}>
+        <span data-normband-flag className={cn("inline-flex items-center gap-1", flagClass)}>
           <span aria-hidden="true">{flagGlyph}</span>
           <span className="sr-only">{flagText}</span>
         </span>

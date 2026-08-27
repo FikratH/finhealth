@@ -1,4 +1,10 @@
+"use client";
+
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
 import { SectionHeading } from "@/components/section-heading";
 import { ScoreHeader } from "./score-header";
 import { CategoryScores } from "./category-scores";
@@ -10,7 +16,10 @@ import { WarningsAccordion } from "./warnings-accordion";
 import { MissingMetricsHint } from "./missing-metrics-hint";
 import { Footnotes } from "./footnotes";
 import { ShareButton } from "./share-button";
+import { RevealSection } from "./reveal-section";
+import { MiniNav, type MiniNavItem } from "./mini-nav";
 import { buildFootnoteIndex } from "@/lib/results";
+import { MOTION, getPrefersReducedMotion } from "@/lib/motion";
 import type { AnalysisResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
@@ -19,60 +28,234 @@ export interface ResultsDocumentProps {
   locale: Locale;
 }
 
+// Registered once per module load (guarded, same pattern as
+// motion-provider.tsx's registerScrollTriggerOnce) rather than at module
+// scope directly: gsap.registerPlugin(ScrollTrigger) touches
+// window.matchMedia internally, so it must run only on the client, inside
+// this component's effect — never during SSR of this "use client" module.
+let scrollTriggerRegistered = false;
+function registerScrollTriggerOnce() {
+  if (scrollTriggerRegistered) return;
+  gsap.registerPlugin(useGSAP, ScrollTrigger);
+  scrollTriggerRegistered = true;
+}
+
+// Reveal a section once it's most of the way into view — early enough to
+// feel anticipatory, not so early it fires while the section is still
+// mostly off-screen.
+const SECTION_REVEAL_START = "top 75%";
+
 // The diagnosis document: one continuous page the score header, category
 // bars, ratio sections, risk radar, and prescriptions all belong to — not
-// a dashboard of separately-scrolling cards. Phase 4 replaces this
-// presentation with the scroll cinema; this component is the data layer
-// Phase 4 reuses, so it stays a plain, print-friendly document in the
-// meantime.
+// a dashboard of separately-scrolling cards. This is also the results
+// page's one client boundary for motion: every ScrollTrigger the scroll
+// cinema creates is created here, scoped to `scope`, and killed by
+// useGSAP's own cleanup on unmount (gsap-react's context.revert()) — no
+// child component (RevealSection, NormBand, ScoreDial) owns any animation
+// of its own; they only carry the data-* hooks this component's useGSAP
+// queries and drives.
 export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   const tRatios = useTranslations("Results.ratios");
   const tDisclaimer = useTranslations("Results.disclaimer");
+  const tNav = useTranslations("Results.nav");
+  const tCategories = useTranslations("Results.categories");
+  const tRiskRadar = useTranslations("Results.riskRadar");
+  const tRecommendations = useTranslations("Results.recommendations");
   const footnoteIndex = buildFootnoteIndex(analysis.ratios);
 
+  const scope = useRef<HTMLDivElement>(null);
+  const hasStrengthsOrRisks = analysis.strengths.length > 0 || analysis.risks.length > 0;
+  const hasRecommendations = analysis.recommendations.length > 0;
+
+  // Seeded to the document's own top (the заключение is always what's on
+  // screen at load) — "always-lit" means something is current from the
+  // first frame, never a blank nav waiting for the first scroll.
+  const [activeId, setActiveId] = useState<string | null>("score");
+
+  const navItems: MiniNavItem[] = [
+    { id: "score", label: tNav("score") },
+    { id: "categories", label: tCategories("heading") },
+    { id: "ratios", label: tRatios("heading") },
+    ...(analysis.risk_radar ? [{ id: "risk-radar", label: tRiskRadar("heading") }] : []),
+    ...(hasStrengthsOrRisks ? [{ id: "strengths-risks", label: tNav("strengthsRisks") }] : []),
+    ...(hasRecommendations
+      ? [{ id: "recommendations", label: tRecommendations("heading") }]
+      : []),
+  ];
+
+  useGSAP(
+    () => {
+      registerScrollTriggerOnce();
+      // The reduced-motion gate: read fresh here (not via the reactive
+      // usePrefersReducedMotion hook) so it's honored on this very first
+      // run. Returning early means zero gsap.set/gsap.timeline/ScrollTrigger
+      // calls ever happen — every element stays exactly as rendered (fully
+      // visible, ScoreDial's arc already at its final data-filled value),
+      // and the mini-nav still works via its plain <a href="#id"> anchors.
+      if (getPrefersReducedMotion()) return;
+
+      const root = scope.current;
+      if (!root) return;
+
+      // (1) The заключение opening — on load, not scroll: the score arc
+      // draws, then the verdict stamp "applies" (scale 1.06→1 + opacity,
+      // no bounce), once.
+      const arc = root.querySelector<SVGCircleElement>("[data-score-arc]");
+      const stamp = root.querySelector<HTMLElement>("[data-verdict-stamp]");
+      const openingTl = gsap.timeline();
+
+      if (arc) {
+        // ScoreDial always renders its *final* dasharray (data-filled is
+        // that same target, in the same pathLength=100 units) — a plain
+        // numeric proxy tweened via onUpdate draws it from 0, rather than
+        // relying on GSAP to interpolate the two-number dasharray string
+        // directly.
+        const target = Number(arc.dataset.filled ?? "0");
+        const proxy = { filled: 0 };
+        openingTl.fromTo(
+          proxy,
+          { filled: 0 },
+          {
+            filled: target,
+            duration: MOTION.reveal,
+            ease: MOTION.ease,
+            onUpdate: () => {
+              arc.setAttribute("stroke-dasharray", `${proxy.filled} ${100 - proxy.filled}`);
+            },
+          },
+          0,
+        );
+      }
+
+      if (stamp) {
+        openingTl.fromTo(
+          stamp,
+          { scale: 1.06, opacity: 0 },
+          { scale: 1, opacity: 1, duration: MOTION.base, ease: MOTION.ease },
+          arc ? ">" : 0,
+        );
+      }
+
+      // (2) + (3) + (4): exactly one ScrollTrigger per section — the
+      // hairline draws (scaleX 0→1), the content fades up 12px, any
+      // NormBand flags inside it ink in alongside (150ms), and the
+      // mini-nav's active id updates on every crossing in either
+      // direction — all off the same trigger, never a second one.
+      // toggleActions "play none none none" makes the reveal itself
+      // trigger-once (it never reverses on scroll-back) without killing
+      // the trigger, so onEnterBack can keep tracking nav state for the
+      // rest of the session.
+      const sections = gsap.utils.toArray<HTMLElement>("[data-reveal-section]", root);
+      sections.forEach((section) => {
+        const rule = section.querySelector<HTMLElement>("[data-reveal-rule]");
+        const content = section.querySelector<HTMLElement>("[data-reveal-content]");
+        const flags = section.querySelectorAll<HTMLElement>("[data-normband-flag]");
+        if (!content) return;
+
+        gsap.set(content, { opacity: 0, y: 12 });
+        if (rule) gsap.set(rule, { scaleX: 0 });
+        if (flags.length) gsap.set(flags, { opacity: 0 });
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: section,
+            start: SECTION_REVEAL_START,
+            toggleActions: "play none none none",
+            // Sections without a mini-nav id (warnings, missing-metrics,
+            // footnotes, the disclaimer) still reveal — they just never
+            // touch nav state, so scrolling past them can't blank out the
+            // last real anchor the reader passed.
+            onEnter: () => section.id && setActiveId(section.id),
+            onEnterBack: () => section.id && setActiveId(section.id),
+          },
+        });
+        if (rule) tl.to(rule, { scaleX: 1, duration: MOTION.reveal, ease: MOTION.ease }, 0);
+        tl.to(content, { opacity: 1, y: 0, duration: MOTION.reveal, ease: MOTION.ease }, 0);
+        if (flags.length) {
+          tl.to(
+            flags,
+            { opacity: 1, duration: MOTION.fast, ease: MOTION.ease },
+            MOTION.reveal * 0.5,
+          );
+        }
+      });
+    },
+    { scope },
+  );
+
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-6 py-10">
-      <div className="flex justify-end">
-        <ShareButton />
+    <div ref={scope}>
+      <MiniNav items={navItems} activeId={activeId} />
+
+      <div className="mx-auto max-w-5xl space-y-10 px-6 py-10">
+        <div className="flex justify-end">
+          <ShareButton />
+        </div>
+
+        <ScoreHeader analysis={analysis} locale={locale} id="score" />
+
+        <RevealSection id="categories">
+          <CategoryScores categories={analysis.category_scores} locale={locale} />
+        </RevealSection>
+
+        <RevealSection id="ratios" className="space-y-6">
+          <SectionHeading>{tRatios("heading")}</SectionHeading>
+          {analysis.category_scores.map((category) => (
+            <RatioSection
+              key={category.category}
+              category={category}
+              ratios={analysis.ratios.filter((ratio) => ratio.category === category.category)}
+              locale={locale}
+              footnoteIndex={footnoteIndex}
+            />
+          ))}
+        </RevealSection>
+
+        {analysis.risk_radar && (
+          <RevealSection id="risk-radar">
+            <RiskRadar riskRadar={analysis.risk_radar} locale={locale} />
+          </RevealSection>
+        )}
+
+        {hasStrengthsOrRisks && (
+          <RevealSection id="strengths-risks">
+            <StrengthsRisks strengths={analysis.strengths} risks={analysis.risks} />
+          </RevealSection>
+        )}
+
+        {hasRecommendations && (
+          <RevealSection id="recommendations">
+            <Recommendations recommendations={analysis.recommendations} locale={locale} />
+          </RevealSection>
+        )}
+
+        {analysis.warnings.length > 0 && (
+          <RevealSection>
+            <WarningsAccordion warnings={analysis.warnings} />
+          </RevealSection>
+        )}
+
+        {/* The insufficient-data state's guidance panel (in ScoreHeader)
+         * already lists these same missing_metrics — skip the duplicate. */}
+        {analysis.overall_score !== null && analysis.missing_metrics.length > 0 && (
+          <RevealSection>
+            <MissingMetricsHint missingMetrics={analysis.missing_metrics} />
+          </RevealSection>
+        )}
+
+        {footnoteIndex.size > 0 && (
+          <RevealSection>
+            <Footnotes sources={footnoteIndex} />
+          </RevealSection>
+        )}
+
+        <RevealSection>
+          <section className="border-2 border-ink p-6">
+            <h2 className="font-display text-xl text-ink">{tDisclaimer("heading")}</h2>
+            <p className="mt-2 text-sm text-ink-muted">{analysis.disclaimer}</p>
+          </section>
+        </RevealSection>
       </div>
-
-      <ScoreHeader analysis={analysis} locale={locale} />
-
-      <CategoryScores categories={analysis.category_scores} locale={locale} />
-
-      <section className="space-y-6">
-        <SectionHeading>{tRatios("heading")}</SectionHeading>
-        {analysis.category_scores.map((category) => (
-          <RatioSection
-            key={category.category}
-            category={category}
-            ratios={analysis.ratios.filter((ratio) => ratio.category === category.category)}
-            locale={locale}
-            footnoteIndex={footnoteIndex}
-          />
-        ))}
-      </section>
-
-      {analysis.risk_radar && <RiskRadar riskRadar={analysis.risk_radar} locale={locale} />}
-
-      <StrengthsRisks strengths={analysis.strengths} risks={analysis.risks} />
-
-      <Recommendations recommendations={analysis.recommendations} locale={locale} />
-
-      <WarningsAccordion warnings={analysis.warnings} />
-
-      {/* The insufficient-data state's guidance panel (in ScoreHeader)
-       * already lists these same missing_metrics — skip the duplicate. */}
-      {analysis.overall_score !== null && (
-        <MissingMetricsHint missingMetrics={analysis.missing_metrics} />
-      )}
-
-      <Footnotes sources={footnoteIndex} />
-
-      <section className="border-2 border-ink p-6">
-        <h2 className="font-display text-xl text-ink">{tDisclaimer("heading")}</h2>
-        <p className="mt-2 text-sm text-ink-muted">{analysis.disclaimer}</p>
-      </section>
     </div>
   );
 }

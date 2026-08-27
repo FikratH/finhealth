@@ -26,6 +26,15 @@ test.beforeAll(() => {
   fs.mkdirSync(IMPECCABLE_DIR, { recursive: true });
 });
 
+// Set by the main flow test below, reused by the reduced-motion test that
+// follows it in the same file — this suite runs single-worker,
+// non-parallel (playwright.config.ts), so sequential tests can rely on
+// module state the same way the main test already reuses `resultsUrl` for
+// its own share-context check. Re-running the whole upload→verify→analyze
+// flow a second time just to load a results page under a different
+// emulated media feature would be pure waste.
+let resultsUrl = "";
+
 test("landing → analyze → verify → results → public share", async ({ page, browser }) => {
   // --- Landing: h1 + CTA ---------------------------------------------
   await page.goto("/");
@@ -76,8 +85,41 @@ test("landing → analyze → verify → results → public share", async ({ pag
 
   await page.screenshot({ path: path.join(SDD_SCREENS_DIR, "results-top.png") });
 
+  // --- the scroll cinema: scroll to the bottom, the last mini-nav section
+  // (Рекомендации) reveals, and the desktop rail highlights it ----------
+  await page.setViewportSize({ width: 1440, height: 900 }); // clears the xl: breakpoint the desktop rail needs
+  const nav = page.getByRole("navigation", { name: "Навигация по разделам отчёта" });
+  await expect(nav.getByRole("link", { name: "Заключение" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  ); // always-lit: something is current before any scroll happens
+
+  const recommendationsHeading = page.getByRole("heading", { name: "Рекомендации" });
+  const recommendationsLink = nav.getByRole("link", { name: "Рекомендации" });
+  // Real wheel input, not a scripted scrollIntoView — Lenis intercepts
+  // wheel/touch to drive its own smooth scroll, so this is what actually
+  // exercises the ScrollTrigger callbacks the mini-nav's highlight depends
+  // on (a script-driven jump could bypass Lenis's own scroll pipeline).
+  // Polls aria-current itself, not Playwright's isVisible() — that check
+  // only cares about display/visibility, not computed opacity, so it
+  // would report "visible" even at this section's pre-reveal opacity: 0.
+  await page.mouse.move(720, 450);
+  for (let i = 0; i < 40; i++) {
+    if ((await recommendationsLink.getAttribute("aria-current")) === "true") break;
+    await page.mouse.wheel(0, 800);
+  }
+  await expect(recommendationsLink).toHaveAttribute("aria-current", "true");
+  await expect(recommendationsHeading).toBeVisible();
+  // opacity is a compositing effect, not an inherited computed style, so
+  // this checks the actual element GSAP sets it on (data-reveal-content)
+  // rather than the heading inside it, which would always read back "1".
+  await expect(page.locator("#recommendations [data-reveal-content]")).toHaveCSS(
+    "opacity",
+    "1",
+  );
+
   // --- share URL: same score renders in a brand-new browser context ----
-  const resultsUrl = page.url();
+  resultsUrl = page.url(); // module-level — reused by the reduced-motion test below
   const shareContext = await browser.newContext();
   const sharePage = await shareContext.newPage();
   await sharePage.goto(resultsUrl);
@@ -114,4 +156,40 @@ test("landing → analyze → verify → results → public share", async ({ pag
     fullPage: true,
   });
   await mobileContext.close();
+});
+
+test("results page under prefers-reduced-motion: every section is already visible, no scroll required, and the mini-nav still works via native anchors", async ({
+  browser,
+}) => {
+  test.skip(!resultsUrl, "requires resultsUrl from the preceding flow test");
+
+  // Playwright's reducedMotion context option emulates
+  // prefers-reduced-motion: reduce end-to-end — the same media feature
+  // getPrefersReducedMotion()/usePrefersReducedMotion() read, and the same
+  // one this app's useGSAP guards on before any gsap.set ever runs.
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    reducedMotion: "reduce",
+  });
+  const page = await context.newPage();
+  await page.goto(resultsUrl);
+
+  // No scroll happens below this line — every section must already be
+  // visible from the unscrolled load.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
+  await expect(page.getByRole("heading", { name: "Категории" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Коэффициенты" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Риск-радар" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Рекомендации" })).toBeVisible();
+
+  // The mini-nav is still functional: with no Lenis instance (reduced
+  // motion never constructs one), clicking falls through to the native
+  // #id anchor jump.
+  await page
+    .getByRole("navigation", { name: "Навигация по разделам отчёта" })
+    .getByRole("link", { name: "Рекомендации" })
+    .click();
+  await expect(page).toHaveURL(/#recommendations$/);
+
+  await context.close();
 });

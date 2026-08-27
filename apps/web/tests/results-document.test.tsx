@@ -1,9 +1,36 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import gsap from "gsap";
 import { ResultsDocument } from "@/components/results/results-document";
 import ruMessages from "@/messages/ru.json";
 import type { AnalysisResult } from "@/lib/api-types";
+
+// The scroll cinema (Task 2) runs real GSAP/ScrollTrigger against whatever
+// window.matchMedia reports. This file's existing tests are about
+// *content* (data correctness, RU formatting, conditional sections) —
+// none of them care about motion — so the suite defaults to reduced
+// motion (matches: true) for every test: useGSAP's guard then returns
+// before any gsap.set ever runs, so nothing is hidden and every assertion
+// below can query rendered content directly, exactly as it did before
+// Task 2. Tests that specifically exercise the motion-enabled path
+// override this locally (see "the scroll cinema" describe block).
+function mockMatchMedia(matches: boolean) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
+beforeEach(() => {
+  mockMatchMedia(true);
+});
 
 // Trimmed inline fixture — cut down from
 // apps/api/demo/expected_analysis_example.json to a subset that still
@@ -364,8 +391,11 @@ describe("ResultsDocument", () => {
     // altman_z ratio also renders in the main ratios list via RatioRow,
     // which shows ratio.name too — an unscoped query would be ambiguous.
     renderDocument(analysisFixture);
+    // Query by heading role, not text: the mini-nav's own anchor repeats
+    // this same label ("Риск-радар"), so an unscoped getByText would match
+    // both it and the section's actual <h2>.
     const radarSection = screen
-      .getByText(ruMessages.Results.riskRadar.heading)
+      .getByRole("heading", { name: ruMessages.Results.riskRadar.heading })
       .closest("section") as HTMLElement;
     expect(
       within(radarSection).getByText("Altman Z′ (частная компания, без X2)"),
@@ -449,5 +479,100 @@ describe("ResultsDocument", () => {
     expect(
       screen.queryByText(ruMessages.Results.missingMetrics.heading),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ResultsDocument — the scroll cinema", () => {
+  function getNav() {
+    return screen.getByRole("navigation", { name: ruMessages.Results.nav.railLabel });
+  }
+
+  it("renders one mini-nav anchor per present section, each pointing at that section's id", () => {
+    renderDocument(analysisFixture);
+
+    const links = within(getNav()).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "#score",
+      "#categories",
+      "#ratios",
+      "#risk-radar",
+      "#strengths-risks",
+      "#recommendations",
+    ]);
+    expect(within(getNav()).getByRole("link", { name: /Заключение/ })).toBeInTheDocument();
+    expect(
+      within(getNav()).getByRole("link", { name: ruMessages.Results.riskRadar.heading }),
+    ).toBeInTheDocument();
+  });
+
+  it("omits mini-nav anchors for sections the analysis doesn't have", () => {
+    const noExtrasFixture: AnalysisResult = {
+      ...analysisFixture,
+      risk_radar: undefined,
+      strengths: [],
+      risks: [],
+      recommendations: [],
+    };
+    renderDocument(noExtrasFixture);
+
+    const links = within(getNav()).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "#score",
+      "#categories",
+      "#ratios",
+    ]);
+  });
+
+  it("marks the заключение as aria-current on initial render, before any scroll has happened", () => {
+    renderDocument(analysisFixture);
+
+    const links = within(getNav()).getAllByRole("link");
+    const current = links.filter((link) => link.getAttribute("aria-current") === "true");
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAttribute("href", "#score");
+  });
+
+  it("under prefers-reduced-motion, never calls gsap.set — every reveal-wrapped section stays at its rendered, fully visible state", () => {
+    // beforeEach already mocks matches: true (reduced motion) for this
+    // whole file; re-assert it explicitly here since this test's whole
+    // point is the reduced-motion contract.
+    mockMatchMedia(true);
+    const setSpy = vi.spyOn(gsap, "set");
+
+    renderDocument(analysisFixture);
+
+    expect(setSpy).not.toHaveBeenCalled();
+    // A representative sample from a RevealSection-wrapped block: still
+    // visible, not held at opacity: 0 waiting for a scroll trigger that
+    // reduced motion guarantees will never fire.
+    expect(screen.getByText(analysisFixture.recommendations[0].tradeoffs)).toBeVisible();
+
+    setSpy.mockRestore();
+  });
+
+  it("SSR/SEO guard — with motion enabled, every section's text is still present in the DOM while the reveal-hidden state is active (reveals are style-only, never content-hiding)", () => {
+    mockMatchMedia(false); // motion enabled: useGSAP's gsap.set(opacity: 0) runs for every section below the заключение
+    renderDocument(analysisFixture);
+
+    // Sampled once per document block, in document order — none of these
+    // depend on toBeVisible(); a crawler or no-JS visitor reads exactly
+    // this same markup, opacity and all. Headings are queried by role
+    // (not text) where the mini-nav repeats the same label as an <a>.
+    expect(
+      screen.getByRole("heading", { name: ruMessages.Results.categories.heading }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Net Profit Margin")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: ruMessages.Results.riskRadar.heading }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(analysisFixture.strengths[0])).toBeInTheDocument();
+    expect(screen.getByText(analysisFixture.risks[0])).toBeInTheDocument();
+    expect(screen.getByText(analysisFixture.recommendations[0].action)).toBeInTheDocument();
+    // The disclaimer body renders twice (beneath the verdict, and again as
+    // the closing section) — assert the closing section's own heading
+    // instead of the (duplicated) body text.
+    expect(
+      screen.getByRole("heading", { name: ruMessages.Results.disclaimer.heading }),
+    ).toBeInTheDocument();
   });
 });
