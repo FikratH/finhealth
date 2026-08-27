@@ -250,7 +250,14 @@
       "substitutionLabel": "Подстановка",
       "explanationLabel": "Пояснение",
       "warningsLabel": "Предупреждения",
-      "sourceFootnoteAria": "Источник ориентира — сноска {n}"
+      "sourceFootnoteAria": "Источник ориентира — сноска {n}",
+      "provenanceHeading": "Происхождение",
+      "provenanceAsWrittenLabel": "В документе",
+      "provenanceSourceLabel": "Строка",
+      "provenanceSnippetLabel": "Фрагмент",
+      "provenanceConfidenceLabel": "Уверенность извлечения: {metric}",
+      "provenanceManuallyEdited": "Изменено вручную",
+      "provenanceDerived": "Расчётное значение"
     },
     "riskRadar": {
       "heading": "Риск-радар",

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildFootnoteIndex, sortRecommendationsByPriority } from "@/lib/results";
-import type { Recommendation, RatioResult } from "@/lib/api-types";
+import {
+  buildFootnoteIndex,
+  sortRecommendationsByPriority,
+  traceRatioInputs,
+  truncateSnippet,
+} from "@/lib/results";
+import type { ExtractedValue, Recommendation, RatioResult } from "@/lib/api-types";
 
 function recommendation(overrides: Partial<Recommendation>): Recommendation {
   return {
@@ -97,5 +102,63 @@ describe("buildFootnoteIndex", () => {
       ratio({ key: "b", benchmark: { ratio: "b", weight: 1, direction: "higher", good: [0, 1], acceptable: [0, 1], note: "", source: "" } }),
     ];
     expect(buildFootnoteIndex(ratios).size).toBe(0);
+  });
+});
+
+function sourceValue(overrides: Partial<ExtractedValue>): ExtractedValue {
+  return {
+    metric: "revenue",
+    original_label: "",
+    value: null,
+    source: "",
+    confidence: 0,
+    snippet: "",
+    manually_edited: false,
+    ...overrides,
+  };
+}
+
+describe("traceRatioInputs", () => {
+  it("matches an input key to the source_values entry with the same metric", () => {
+    const r = ratio({ inputs: { revenue: 100, total_assets: 200 } });
+    const sources = [sourceValue({ metric: "revenue" }), sourceValue({ metric: "total_assets" })];
+    const traces = traceRatioInputs(r, sources);
+    expect(traces).toEqual([
+      { key: "revenue", value: 100, source: sources[0] },
+      { key: "total_assets", value: 200, source: sources[1] },
+    ]);
+  });
+
+  it("leaves a derived key (no matching metric) with a null source", () => {
+    // working_capital, ebit, average_total_assets etc. are computed, never
+    // read directly from the document — they never appear as a
+    // source_values[].metric.
+    const r = ratio({ inputs: { working_capital: 50 } });
+    const traces = traceRatioInputs(r, [sourceValue({ metric: "revenue" })]);
+    expect(traces).toEqual([{ key: "working_capital", value: 50, source: null }]);
+  });
+
+  it("preserves ratio.inputs' own key order", () => {
+    const r = ratio({ inputs: { b: 2, a: 1, c: 3 } });
+    const traces = traceRatioInputs(r, []);
+    expect(traces.map((t) => t.key)).toEqual(["b", "a", "c"]);
+  });
+
+  it("returns an empty array for a ratio with no inputs", () => {
+    expect(traceRatioInputs(ratio({ inputs: {} }), [sourceValue({})])).toEqual([]);
+  });
+});
+
+describe("truncateSnippet", () => {
+  it("returns the snippet unchanged, with no `full`, when at or under the limit", () => {
+    const short = "a".repeat(160);
+    expect(truncateSnippet(short)).toEqual({ display: short });
+  });
+
+  it("truncates to 160 chars with an ellipsis and carries the untruncated text as `full`", () => {
+    const long = "a".repeat(200);
+    const result = truncateSnippet(long);
+    expect(result.display).toBe(`${"a".repeat(160)}…`);
+    expect(result.full).toBe(long);
   });
 });

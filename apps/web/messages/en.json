@@ -250,7 +250,14 @@
       "substitutionLabel": "Substitution",
       "explanationLabel": "Explanation",
       "warningsLabel": "Warnings",
-      "sourceFootnoteAria": "Benchmark source — footnote {n}"
+      "sourceFootnoteAria": "Benchmark source — footnote {n}",
+      "provenanceHeading": "Provenance",
+      "provenanceAsWrittenLabel": "As written",
+      "provenanceSourceLabel": "Line",
+      "provenanceSnippetLabel": "Excerpt",
+      "provenanceConfidenceLabel": "Extraction confidence: {metric}",
+      "provenanceManuallyEdited": "Manually edited",
+      "provenanceDerived": "Computed value"
     },
     "riskRadar": {
       "heading": "Risk radar",

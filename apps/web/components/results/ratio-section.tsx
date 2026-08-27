@@ -1,6 +1,6 @@
 import { SectionHeading } from "@/components/section-heading";
 import { RatioRow } from "./ratio-row";
-import type { CategoryScore, RatioResult } from "@/lib/api-types";
+import type { CategoryScore, ExtractedValue, RatioResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
 export interface RatioSectionProps {
@@ -8,6 +8,10 @@ export interface RatioSectionProps {
   ratios: RatioResult[];
   locale: Locale;
   footnoteIndex: Map<string, number>;
+  /** The analysis's source_values, passed through to each RatioRow so it
+   * can render its provenance trace. Empty on analyses stored before that
+   * field existed — RatioRow renders no trace section in that case. */
+  sourceValues: ExtractedValue[];
 }
 
 // One category's ratios, grouped under its own heading — every ratio the
@@ -18,6 +22,7 @@ export function RatioSection({
   ratios,
   locale,
   footnoteIndex,
+  sourceValues,
 }: RatioSectionProps) {
   if (ratios.length === 0) return null;
 
@@ -35,6 +40,7 @@ export function RatioSection({
                 ? footnoteIndex.get(ratio.benchmark.source)
                 : undefined
             }
+            sourceValues={sourceValues}
           />
         ))}
       </div>

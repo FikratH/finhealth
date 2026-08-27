@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import gsap from "gsap";
 import { ResultsDocument } from "@/components/results/results-document";
 import ruMessages from "@/messages/ru.json";
-import type { AnalysisResult } from "@/lib/api-types";
+import type { AnalysisResult, ExtractedValue } from "@/lib/api-types";
 
 // The scroll cinema (Task 2) runs real GSAP/ScrollTrigger against whatever
 // window.matchMedia reports. This file's existing tests are about
@@ -340,6 +340,51 @@ const analysisFixture: AnalysisResult = {
       roe: 11.092851273623666,
     },
   },
+  // Provenance (Plan 4 / Task 3): three source_values, copied verbatim in
+  // shape from apps/api/demo/expected_analysis_example.json's entries for
+  // these metrics (figures adjusted to match this trimmed fixture's own
+  // ratio.inputs numbers above). current_assets matches current_ratio;
+  // total_debt matches both debt_to_equity and net_debt (shared-source
+  // case) and is manually_edited; revenue matches both net_margin and
+  // altman_z.
+  source_values: [
+    {
+      metric: "current_assets",
+      original_label: "Оборотные активы",
+      value: 808750000.0,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 4",
+      confidence: 96,
+      snippet: "Оборотные активы | 808 750 | 767 900",
+      manually_edited: false,
+    },
+    {
+      metric: "total_debt",
+      original_label: "Процентный долг",
+      value: 540000000.0,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 14",
+      confidence: 80,
+      snippet: "Процентный долг | 540 000 | 610 000",
+      manually_edited: true,
+    },
+    {
+      metric: "revenue",
+      original_label: "Выручка от реализации",
+      value: 3245900000.0,
+      currency: "KZT",
+      scale: "units",
+      period: "2024",
+      source: "CSV, строка 2",
+      confidence: 98,
+      snippet: "Выручка от реализации | 3 245 900 | 2 987 400",
+      manually_edited: false,
+    },
+  ] as ExtractedValue[],
   disclaimer:
     "Сервис не заменяет профессиональную финансовую консультацию. Часть отраслевых ориентиров основана на данных Damodaran (NYU Stern, янв. 2026); остальные являются демонстрационными и помечены соответствующим образом.",
 };
@@ -479,6 +524,57 @@ describe("ResultsDocument", () => {
     expect(
       screen.queryByText(ruMessages.Results.missingMetrics.heading),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ResultsDocument — provenance trace (Plan 4 / Task 3)", () => {
+  it("renders a matched input's document wording, source line, and snippet inside its ratio's detail disclosure", () => {
+    renderDocument(analysisFixture);
+    // Every ratio with a sourced input gets its own "Происхождение" block,
+    // so scope to current_ratio's own row (its only sourced input is
+    // current_assets) rather than asserting on the heading text globally.
+    const row = screen.getByText("Current Ratio").closest("div")!.parentElement as HTMLElement;
+    expect(within(row).getByText(ruMessages.Results.ratios.provenanceHeading)).toBeInTheDocument();
+    expect(within(row).getByText("«Оборотные активы»")).toBeInTheDocument();
+    expect(within(row).getByText("CSV, строка 4")).toBeInTheDocument();
+    expect(within(row).getByText("«Оборотные активы | 808 750 | 767 900»")).toBeInTheDocument();
+    expect(
+      within(row).getByRole("meter", {
+        name: ruMessages.Results.ratios.provenanceConfidenceLabel.replace(
+          "{metric}",
+          "Оборотные активы",
+        ),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the manually-edited badge — never a confidence meter — for a manually_edited source value, once per ratio that cites it", () => {
+    renderDocument(analysisFixture);
+    // total_debt is manually_edited and feeds two ratios' inputs
+    // (debt_to_equity and net_debt) — the same source_values entry powers
+    // both rows' traces independently.
+    expect(
+      screen.getAllByText(ruMessages.Results.ratios.provenanceManuallyEdited),
+    ).toHaveLength(2);
+  });
+
+  it("labels an input with no matching source_values entry as a computed value, not a document citation", () => {
+    renderDocument(analysisFixture);
+    // altman_z's working_capital/ebit/equity_or_market_cap/total_liabilities
+    // inputs have no source_values counterpart (only its `revenue` input
+    // does) — each renders the derived label instead of a trace.
+    expect(
+      screen.getAllByText(ruMessages.Results.ratios.provenanceDerived).length,
+    ).toBeGreaterThanOrEqual(4);
+  });
+
+  it("renders no provenance section anywhere, and does not crash, for an analysis stored before source_values existed", () => {
+    const oldFixture: AnalysisResult = { ...analysisFixture, source_values: undefined };
+    expect(() => renderDocument(oldFixture)).not.toThrow();
+    expect(
+      screen.queryByText(ruMessages.Results.ratios.provenanceHeading),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("«Оборотные активы»")).not.toBeInTheDocument();
   });
 });
 

@@ -250,6 +250,16 @@ export interface AnalysisResult {
    * 2026-08-27 additive extension, don't have the field at all — callers
    * must handle `undefined`, not just a null risk_radar. */
   risk_radar?: RiskRadar;
+  /** The verified values this analysis was computed from (latest period
+   * only, scale-defaulted, otherwise verbatim). Same optionality reasoning
+   * as `risk_radar`: present on every newly created analysis, absent on
+   * payloads stored before the 2026-08-27 additive extension — callers
+   * must handle `undefined`. Powers the ratio detail disclosure's
+   * provenance trace (lib/results.ts's `traceRatioInputs`): match a key in
+   * a ratio's `inputs{}` against `source_values[].metric` to find the
+   * document line it came from; no match means the input is derived
+   * (an average, a subtotal, an alias) rather than read directly. */
+  source_values?: ExtractedValue[];
   disclaimer: string;
 }
 

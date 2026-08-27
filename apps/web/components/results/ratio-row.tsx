@@ -3,7 +3,10 @@ import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
 import { NormBand } from "@/components/norm-band";
 import { SpecimenChip } from "@/components/specimen-chip";
-import type { RatioResult } from "@/lib/api-types";
+import { ConfidenceMeter } from "@/components/confidence-meter";
+import { traceRatioInputs, truncateSnippet, type RatioInputTrace } from "@/lib/results";
+import { metricDisplayName } from "@/lib/metric-names";
+import type { ExtractedValue, RatioResult } from "@/lib/api-types";
 import type { Locale } from "@/lib/format";
 
 export interface RatioRowProps {
@@ -13,16 +16,82 @@ export interface RatioRowProps {
    * one — assigned by lib/results.ts's buildFootnoteIndex across the whole
    * document so a shared source keeps a shared number. */
   footnoteNumber?: number;
+  /** The analysis's source_values — matched against this ratio's inputs to
+   * render the provenance trace. Empty (default) on analyses stored before
+   * that field existed, in which case the trace section renders nothing. */
+  sourceValues?: ExtractedValue[];
+}
+
+// One traced input: either a document-sourced value (original wording,
+// location, raw excerpt, confidence) or a derived/computed figure (an
+// average, a subtotal, an alias) that was never read directly — the two
+// read as distinctly different claims and must not look alike.
+function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Locale }) {
+  const t = useTranslations("Results.ratios");
+  const displayName = metricDisplayName(trace.key, locale);
+
+  if (!trace.source) {
+    return (
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-ink-muted">{displayName}</span>
+        <SpecimenChip>{t("provenanceDerived")}</SpecimenChip>
+      </div>
+    );
+  }
+
+  const { source } = trace;
+  const snippet = truncateSnippet(source.snippet);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="text-ink">{displayName}</span>
+        {source.manually_edited ? (
+          <SpecimenChip tone="accent">{t("provenanceManuallyEdited")}</SpecimenChip>
+        ) : (
+          <ConfidenceMeter
+            value={source.confidence}
+            locale={locale}
+            label={t("provenanceConfidenceLabel", { metric: displayName })}
+            naLabel={t("naLabel")}
+          />
+        )}
+      </div>
+      {source.original_label && (
+        <p>
+          <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+            {t("provenanceAsWrittenLabel")}:
+          </span>{" "}
+          <span className="text-ink-muted">«{source.original_label}»</span>
+        </p>
+      )}
+      {source.source && (
+        <p className="font-mono text-xs text-ink-muted">
+          {t("provenanceSourceLabel")}: <span className="text-ink">{source.source}</span>
+        </p>
+      )}
+      {source.snippet && (
+        <p className="font-mono text-xs text-ink-muted" title={snippet.full}>
+          {t("provenanceSnippetLabel")}:{" "}
+          <span className="text-ink">«{snippet.display}»</span>
+        </p>
+      )}
+    </div>
+  );
 }
 
 // Money-unit ratios are informational only (API: always status "na",
 // score null) — a bare "Н/Д" pill would read as a data gap rather than the
 // deliberate "not scored" choice it is, so it gets its own «справочно»
 // marker instead of the status pill.
-export function RatioRow({ ratio, locale, footnoteNumber }: RatioRowProps) {
+export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: RatioRowProps) {
   const t = useTranslations("Results.ratios");
   const tStatus = useTranslations("Status");
   const isMoney = ratio.unit === "money";
+  // Absent entirely (not just empty) on analyses stored before source_values
+  // existed — traces stay empty in that case, and the section below simply
+  // doesn't render. No crash: traceRatioInputs only ever reads sourceValues.
+  const traces = sourceValues.length > 0 ? traceRatioInputs(ratio, sourceValues) : [];
 
   return (
     <div className="border-b border-line py-3 last:border-b-0 print:break-inside-avoid">
@@ -114,6 +183,20 @@ export function RatioRow({ ratio, locale, footnoteNumber }: RatioRowProps) {
               <ul className="mt-1 list-disc space-y-1 pl-5 text-ink-muted">
                 {ratio.warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {traces.length > 0 && (
+            <div>
+              <span className="font-mono text-xs uppercase tracking-wide text-ink-muted">
+                {t("provenanceHeading")}
+              </span>
+              <ul className="mt-1 space-y-2">
+                {traces.map((trace) => (
+                  <li key={trace.key} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
+                    <ProvenanceRow trace={trace} locale={locale} />
+                  </li>
                 ))}
               </ul>
             </div>

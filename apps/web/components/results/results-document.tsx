@@ -110,6 +110,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
               ratios={analysis.ratios.filter((ratio) => ratio.category === category.category)}
               locale={locale}
               footnoteIndex={footnoteIndex}
+              sourceValues={analysis.source_values ?? []}
             />
           ))}
         </>
