@@ -20,7 +20,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, entitlements, storage
+from . import auth, entitlements, storage, waitlist as waitlist_service
 from .ratelimit import rate_limit
 from .routers import my as my_router
 from .schemas import (
@@ -29,6 +29,8 @@ from .schemas import (
     ExtractionResult,
     NarrativeResult,
     UploadedDocument,
+    WaitlistRequest,
+    WaitlistResponse,
 )
 from .services import extraction, vault
 from .services import narrative as narrative_service
@@ -372,6 +374,22 @@ def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current
         except Exception:
             log.warning("entitlements increment failed user_id=%s", user_id, exc_info=True)
     return payload
+
+
+@app.post("/api/waitlist", response_model=WaitlistResponse, dependencies=[Depends(rate_limit)])
+def join_waitlist(payload: WaitlistRequest, user_id: str | None = Depends(auth.get_current_user_id)):
+    """Pro waitlist signup (P6.T6, pre-payments launch stance — see
+    docs/payments-plan.md): anonymous allowed, `EmailStr` rejects a
+    malformed address with a 422 before this body ever runs. Idempotent on
+    a duplicate (normalized, case-insensitive) email — always 200, never a
+    409/already-exists error, since from the visitor's perspective
+    resubmitting the same email isn't a failure. `user_id` is attached the
+    same optional way `/api/analyze` does (present when a valid JWT is on
+    the request, else None) so a signed-in visitor's signup is linkable to
+    their account without requiring one."""
+    created = waitlist_service.join(payload.email, user_id=user_id, source=payload.source)
+    log.info("waitlist join user_id=%s status=%s", user_id, "joined" if created else "already_joined")
+    return WaitlistResponse(status="joined" if created else "already_joined")
 
 
 @app.get("/api/analysis/{analysis_id}")

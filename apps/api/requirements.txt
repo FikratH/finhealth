@@ -1,6 +1,6 @@
 fastapi>=0.111
 uvicorn[standard]>=0.30
-pydantic>=2.7
+pydantic[email]>=2.7  # [email] pulls in email-validator for EmailStr (app/schemas.py's WaitlistRequest)
 sqlalchemy>=2.0
 alembic>=1.13
 pandas>=2.2

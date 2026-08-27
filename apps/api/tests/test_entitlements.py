@@ -83,10 +83,14 @@ def test_migration_chain_0002_follows_0001():
     cfg = Config(str(storage._ALEMBIC_INI))
     cfg.set_main_option("script_location", str(storage._ALEMBIC_DIR))
     script = ScriptDirectory.from_config(cfg)
-    head = script.get_revision("head")
+    # Looks up 0002 by its own revision id, not via get_revision("head") —
+    # P6.T6 added 0003_waitlist on top, so "head" no longer resolves to
+    # 0002. This test's actual claim (0002 follows 0001) is unaffected by
+    # later migrations landing above it, so it shouldn't need editing every
+    # time one does.
+    rev = script.get_revision("0002_entitlements")
 
-    assert head.revision == "0002_entitlements"
-    assert head.down_revision == "0001_initial"
+    assert rev.down_revision == "0001_initial"
 
 
 def test_alembic_upgrade_head_sql_compiles_for_postgresql_with_entitlements():

@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class Scale(str, Enum):
@@ -244,6 +244,18 @@ class MyDocumentSummary(BaseModel):
 
 class MyDocumentsResponse(BaseModel):
     documents: list[MyDocumentSummary]
+
+
+class WaitlistRequest(BaseModel):
+    email: EmailStr
+    # Where the signup happened — the pricing page's Pro CTA is the only
+    # call site today, so this defaults to that; additive if a future call
+    # site (e.g. a future upgrade-prompt banner) passes something else.
+    source: str = "pricing_page"
+
+
+class WaitlistResponse(BaseModel):
+    status: str  # "joined" | "already_joined" — always a 200 either way
 
 
 class NarrativeResult(BaseModel):

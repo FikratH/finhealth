@@ -9,10 +9,12 @@ Off by default (`RATE_LIMIT_PER_MINUTE` unset or `0`), so it never affects
 an environment that hasn't opted in, including the test suite: only tests
 that explicitly monkeypatch the limit on exercise the 429 path.
 
-Applied via `Depends(rate_limit)` on seven routes: the four that do real
-per-request work (upload, extract, analyze, narrative), plus, as of P6.T5,
-all three `/api/my/documents...` routes (list, delete, download) — not on
-cheap GET readers like /api/health or /api/industries in general.
+Applied via `Depends(rate_limit)` on eight routes: the four that do real
+per-request work (upload, extract, analyze, narrative), `/api/waitlist`
+(P6.T6 — anonymous-allowed, so it's exactly the shape this limiter exists
+for), plus, as of P6.T5, all three `/api/my/documents...` routes (list,
+delete, download) — not on cheap GET readers like /api/health or
+/api/industries in general.
 `GET /api/my/documents` reads that way in isolation (one local query), but
 its actual cost is R2Vault's when a document vault backend is configured:
 `list_for_user` issues a paginated `list_objects_v2` plus one `get_object`

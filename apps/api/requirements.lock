@@ -28,6 +28,10 @@ cryptography==50.0.1
     # via pdfminer-six
 defusedxml==0.7.1
     # via -r requirements.txt
+dnspython==2.8.0
+    # via email-validator
+email-validator==2.3.0
+    # via pydantic
 et-xmlfile==2.0.0
     # via openpyxl
 fastapi==0.141.1
@@ -49,6 +53,7 @@ httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
 idna==3.19
     # via
     #   anyio
+    #   email-validator
     #   httpx2
 jiter==0.16.0
     # via openai
