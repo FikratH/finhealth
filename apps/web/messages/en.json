@@ -183,6 +183,19 @@
     "aboveRange": "above range",
     "belowRange": "below range"
   },
+  "DevMotion": {
+    "title": "The metronome",
+    "lede": "A dev-only page for visual acceptance of the motion tokens — unavailable in production.",
+    "beatsHeading": "Beats",
+    "fastLabel": "fast",
+    "fastCopy": "Micro-feedback: hover, press, a norm-band flag's ink-in state.",
+    "baseLabel": "base",
+    "baseCopy": "The default beat: a section appearing, the verdict stamp \"applying\".",
+    "revealLabel": "reveal",
+    "revealCopy": "Scroll reveal: a hairline rule drawing in, a section's content settling into view.",
+    "replayLabel": "Replay",
+    "reducedNotice": "Reduced motion is on system-wide — beats are shown in their final state, no movement."
+  },
   "Results": {
     "meta": {
       "title": "Tonus — company diagnosis",
