@@ -20,6 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import auth, entitlements, storage
+from .ratelimit import rate_limit
 from .schemas import (
     AnalysisRequest,
     ExtractRequest,
@@ -181,7 +182,7 @@ def industry_benchmarks(industry_id: str):
 
 
 @app.post("/api/upload", response_model=UploadedDocument)
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...), _rl: None = Depends(rate_limit)):
     await run_in_threadpool(storage.cleanup_stale_uploads)
     chunks: list[bytes] = []
     size = 0
@@ -209,7 +210,7 @@ async def upload(file: UploadFile = File(...)):
 
 
 @app.post("/api/extract", response_model=ExtractionResult)
-def extract(payload: ExtractRequest):
+def extract(payload: ExtractRequest, _rl: None = Depends(rate_limit)):
     upload_id = payload.upload_id
     stored = storage.read_upload(upload_id)
     if stored is None:
@@ -260,7 +261,8 @@ def extract(payload: ExtractRequest):
 
 
 @app.post("/api/analyze")
-def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id)):
+def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id),
+           _rl: None = Depends(rate_limit)):
     try:
         result = run_analysis(req)
     except KeyError:
@@ -332,7 +334,7 @@ def delete_my_analysis(analysis_id: str, user_id: str = Depends(auth.require_use
 
 
 @app.post("/api/analysis/{analysis_id}/narrative", response_model=NarrativeResult)
-def generate_narrative(analysis_id: str, refresh: bool = False):
+def generate_narrative(analysis_id: str, refresh: bool = False, _rl: None = Depends(rate_limit)):
     """Generates (or returns the cached) LLM narrative for an analysis.
     Optional and provider-agnostic: absent OPENAI_API_KEY is a 503, never a
     500 — the rest of the product is unaffected either way. `?refresh=1`
