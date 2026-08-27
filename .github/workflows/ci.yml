@@ -16,8 +16,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: apps/api/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: apps/api/requirements.lock
+      # Installs from the committed, fully-pinned lock (see apps/api/README.md
+      # "Dependency locking" for how it's generated/regenerated), not the
+      # loose requirements.txt — reproducible builds, not "whatever resolves
+      # today".
+      - run: pip install -r requirements.lock
       - run: python -m pytest tests -q
 
   web:
