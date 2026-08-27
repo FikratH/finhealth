@@ -417,14 +417,18 @@ describe("ResultsDocument", () => {
     // text node) — its accessible name combines the RU-formatted value with
     // a metric-naming caption ("Общий балл"/"Overall score"), never the
     // verdict itself: the verdict is already announced by the sr-only <h1>
-    // below (AnnunciatorCell's own role="img" aria-label repeats the same
-    // text but isn't a live region), so the score's own name doesn't
-    // repeat it a third time (review finding 9), while still reading as
-    // more than a bare number (review finding N2).
+    // below, so the score's own name doesn't repeat it a third time
+    // (review finding 9), while still reading as more than a bare number
+    // (review finding N2).
     expect(screen.getByRole("img", { name: "85,1 — Общий балл" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Сильное состояние" }),
     ).toBeInTheDocument();
+    // Named once (finish review, material_fixes 5): AnnunciatorCell sits
+    // beside the h1 rendering the same verdict text, but score-header.tsx
+    // wraps it aria-hidden — the h1 is the only element that exposes
+    // "Сильное состояние" as an accessible name.
+    expect(screen.queryByRole("img", { name: "Сильное состояние" })).not.toBeInTheDocument();
   });
 
   it("renders a known ratio row (net_margin) with its RU-formatted value and a Damodaran footnote", () => {
@@ -548,6 +552,11 @@ describe("ResultsDocument", () => {
     for (const metric of nullScoreFixture.missing_metrics) {
       expect(within(header).getByText(metric)).toBeInTheDocument();
     }
+    // Named once here too — AnnunciatorCell's own accessible name stays
+    // hidden even in the insufficient-data state.
+    expect(
+      within(header).queryByRole("img", { name: nullScoreFixture.health_label }),
+    ).not.toBeInTheDocument();
 
     // The standalone MissingMetricsHint section is skipped when the
     // header's own insufficient-data panel already lists the same metrics.

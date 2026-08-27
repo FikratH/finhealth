@@ -39,18 +39,19 @@ const SCALE_KEY: Record<
 // way it used to drive ScoreDial's data-score-arc), then the verdict lights
 // as an AnnunciatorCell a beat later — "stamp moment → verdict lights,"
 // the same one-two rhythm the old arc-then-stamp opening had. The verdict
-// keeps a real <h1> (sr-only — AnnunciatorCell's own label text is
-// aria-hidden in favor of its role="img" aria-label, so the document
-// still needs one genuine heading landmark) wired to data-verdict-stamp,
-// the wrapper results-document.tsx's opening timeline fades/scales in.
+// keeps a real <h1> (sr-only) wired to data-verdict-stamp, the wrapper
+// results-document.tsx's opening timeline fades/scales in — the document's
+// one genuine heading landmark for the verdict. The AnnunciatorCell beside
+// it renders aria-hidden (its own role="img" aria-label would otherwise
+// name the same verdict a second time, adjacently — finish review,
+// material_fixes 5; see AnnunciatorCell's own header comment).
 // The score's own `caption` names the READING ("Общий балл"/"Overall
 // score"), never the verdict — the verdict is already announced by the
-// sr-only h1 (AnnunciatorCell's own role="img" aria-label repeats the same
-// text but isn't a live region — see its own header comment), and
-// repeating it a third time inside the score's own name would just be
-// noise (review finding 9); a metric-naming caption instead gives the
-// bare figure a meaningful accessible name without reintroducing that
-// duplication (review finding N2). When overall_score is null this is
+// sr-only h1, and repeating it a third time inside the score's own name
+// would just be noise (review finding 9); a metric-naming caption instead
+// gives the bare figure a meaningful accessible name without
+// reintroducing that duplication (review finding N2). When overall_score
+// is null this is
 // also where the insufficient-data state composes its guidance — designed
 // absence (ghost segment cells), not a blank dial with nothing to act on.
 // The null-score accessible name (review finding N4): `caption` stays the
@@ -101,7 +102,12 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
         <div className="flex-1 space-y-4">
           <div data-verdict-stamp>
             <h1 className="sr-only">{analysis.health_label}</h1>
-            <AnnunciatorCell status={verdictTone(analysis.overall_score)} label={analysis.health_label} />
+            {/* aria-hidden: the sr-only h1 above is the verdict's one real
+             * accessible name — see this file's own header comment and
+             * AnnunciatorCell's. */}
+            <div aria-hidden="true">
+              <AnnunciatorCell status={verdictTone(analysis.overall_score)} label={analysis.health_label} />
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <OriginTicket>{analysis.industry_name}</OriginTicket>

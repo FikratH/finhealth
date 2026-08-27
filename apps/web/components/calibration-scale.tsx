@@ -69,29 +69,55 @@ export function CalibrationScale({
   const ariaLabel = `${label}: ${valueText} (${rangeText})`;
 
   return (
-    <div role="img" aria-label={ariaLabel} className={cn("w-full", className)}>
-      <div className="relative h-5">
-        <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line" />
-        <div
-          className="absolute top-1/2 h-1 -translate-y-1/2 bg-line"
-          style={{ left: `${lowPct}%`, width: `${Math.max(0, highPct - lowPct)}%` }}
-        />
-        <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-ink-muted" style={{ left: `${lowPct}%` }} />
-        <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-ink-muted" style={{ left: `${highPct}%` }} />
-        {valuePct !== null && (
+    <div className={cn("w-full", className)}>
+      {/* print:hidden — every visual part below is a background-color div
+       * (the track, the норма band, both ticks, the LED cursor), which
+       * print engines drop by default (no print-color-adjust in this
+       * codebase — the F1 fix's own precedent, score-header.tsx, argues
+       * against forcing screen-only LED paint onto the paper register).
+       * Without this, a printed ratio row shows a blank strip with two
+       * orphaned bound labels and no норма word naming them (I1). */}
+      <div role="img" aria-label={ariaLabel} className="print:hidden">
+        <div className="relative h-5">
+          <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-line" />
           <div
-            className={cn(
-              "absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
-              CURSOR_CLASS[tone],
-            )}
-            style={{ left: `${valuePct}%` }}
+            className="absolute top-1/2 h-1 -translate-y-1/2 bg-line"
+            style={{ left: `${lowPct}%`, width: `${Math.max(0, highPct - lowPct)}%` }}
           />
-        )}
+          <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-ink-muted" style={{ left: `${lowPct}%` }} />
+          <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-ink-muted" style={{ left: `${highPct}%` }} />
+          {valuePct !== null && (
+            <div
+              className={cn(
+                "absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                CURSOR_CLASS[tone],
+              )}
+              style={{ left: `${valuePct}%` }}
+            />
+          )}
+        </div>
+        <div className="mt-1 flex justify-between font-mono text-[0.65rem] text-ink-muted">
+          <span>{formatNumber(low, { locale, unit })}</span>
+          <span>{formatNumber(high, { locale, unit })}</span>
+        </div>
       </div>
-      <div className="mt-1 flex justify-between font-mono text-[0.65rem] text-ink-muted">
-        <span>{formatNumber(low, { locale, unit })}</span>
-        <span>{formatNumber(high, { locale, unit })}</span>
-      </div>
+      {/* The paper register's own text grammar — NormBand's exact wording
+       * («1,66 · норма 1,5–3,0»), reusing this component's own `label`
+       * (callers already pass the «норма»/"norm" word — ratio-row.tsx's
+       * `t("benchmarkLabel")` — as the gauge's accessible name) rather
+       * than a second normLabel prop. aria-hidden: the (now print:hidden)
+       * role="img" above already carries the accessible name; screen
+       * readers never see this print-only line. */}
+      <p
+        aria-hidden="true"
+        className="hidden font-mono text-sm print:inline-flex print:items-baseline print:gap-2"
+      >
+        <span className={value === null ? "text-ink-muted" : "text-ink"}>{valueText}</span>
+        <span className="text-ink-muted">·</span>
+        <span className="text-ink-muted">
+          {label} {rangeText}
+        </span>
+      </p>
     </div>
   );
 }

@@ -109,8 +109,9 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // The score is a CSS segment mask, not a text node — its accessible name
   // combines the RU-formatted value with a metric-naming caption ("Общий
   // балл"), never the verdict itself: the verdict is already announced by
-  // the heading below and by AnnunciatorCell's own status live region
-  // (review findings 9 and N2).
+  // the heading below, and AnnunciatorCell (which renders the same text
+  // beside it) is aria-hidden so it doesn't name the verdict a second time
+  // (review findings 9 and N2; finish review, material_fixes 5).
   await expect(
     page.locator("#score").getByRole("img", { name: "85,1 — Общий балл" }),
   ).toBeVisible();
@@ -148,6 +149,23 @@ test("landing → analyze → verify → results → public share", async ({ pag
   await expect(ledMask).toBeHidden();
   await expect(printNumeral).toBeVisible();
   await expect(printNumeral).toHaveText("85,1");
+
+  // --- print safety: a ratio row's норма-band must survive onto paper too
+  // (I1: CalibrationScale is all background-color divs — the track, the
+  // норма band, both ticks, the LED cursor — dropped by print engines the
+  // same way the score's own segment mask used to be, on the largest
+  // section of the printed document). Scoped to the net_margin row
+  // already located above; its gauge hides and a print-only text line
+  // («норма 3,73%–7,89%», CalibrationScale's own NormBand-grammar
+  // fallback) takes its place. -------------------------------------------
+  const netMarginRow = netMarginName.locator("xpath=ancestor::div[contains(@class,'border-line')][1]");
+  const ratioGauge = netMarginRow.locator('[role="img"]').first();
+  const ratioNormText = netMarginRow.locator("p", { hasText: "норма" }).first();
+  await expect(ratioGauge).toBeHidden();
+  await expect(ratioNormText).toBeVisible();
+  await expect(ratioNormText).toContainText("норма");
+  await expect(ratioNormText).toContainText("3,73%");
+  await expect(ratioNormText).toContainText("7,89%");
 
   await page.emulateMedia({ media: "screen" });
 
