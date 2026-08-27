@@ -19,7 +19,7 @@ path. Reading and deleting a user's own already-retained documents
 (`GET`/`DELETE /api/my/documents...`) is deliberately NOT gated by
 `VAULT_ENABLED`: a user must always be able to see and remove their own
 retained data even if a founder later flips the feature off for new
-uploads — see main.py's endpoints for where this split is applied.
+uploads — see app/routers/my.py's endpoints for where this split is applied.
 
 Both backends store one small JSON sidecar per document alongside the raw
 bytes (`{doc_id}.meta.json`) holding the metadata the storage medium
@@ -58,8 +58,8 @@ _META_SUFFIX = ".meta.json"
 class VaultPathError(ValueError):
     """A `user_id`/`doc_id`/`kind` failed path-safety validation. Always
     treat as "not found" at the HTTP boundary — never let the raw exception
-    surface, and never distinguish it from a genuine miss (see main.py's
-    handlers)."""
+    surface, and never distinguish it from a genuine miss (see
+    app/routers/my.py's handlers)."""
 
 
 class VaultBackendError(Exception):
@@ -69,7 +69,7 @@ class VaultBackendError(Exception):
     caller-side validation failure): this is the storage medium itself
     misbehaving. Callers should treat it as "vault temporarily
     unavailable" and never let the underlying cause reach the client (see
-    main.py's `/api/my/documents` handlers)."""
+    app/routers/my.py's `/api/my/documents` handlers)."""
 
 
 def _safe_component(value: str) -> bool:
@@ -183,14 +183,23 @@ class LocalDiskVault:
     def delete(self, doc_id: str, user_id: str) -> bool:
         """Idempotent: a doc_id that isn't (or is no longer) present simply
         returns False rather than raising — calling this twice in a row is
-        always safe, the second call just reports "nothing to do"."""
+        always safe, the second call just reports "nothing to do".
+        `missing_ok=True` absorbs the common "already gone" case
+        (FileNotFoundError), but a different OSError — PermissionError, a
+        read-only filesystem, a full disk on the containing directory's own
+        metadata update — is a genuine backend failure, not a caller-side
+        validation problem, so it becomes VaultBackendError like R2Vault's
+        equivalent failures do, rather than an unhandled 500."""
         _require_safe(user_id, doc_id)
         user_dir = self._user_dir(user_id)
         doc = self._read_meta(user_dir, doc_id)
         if doc is None:
             return False
-        (user_dir / f"{doc_id}.{doc.kind}").unlink(missing_ok=True)
-        (user_dir / f"{doc_id}{_META_SUFFIX}").unlink(missing_ok=True)
+        try:
+            (user_dir / f"{doc_id}.{doc.kind}").unlink(missing_ok=True)
+            (user_dir / f"{doc_id}{_META_SUFFIX}").unlink(missing_ok=True)
+        except OSError as e:
+            raise VaultBackendError(str(e)) from e
         return True
 
     def list_for_user(self, user_id: str) -> list[VaultDocument]:
@@ -238,7 +247,15 @@ class R2Vault:
         return f"{user_id}/{doc_id}{_META_SUFFIX}"
 
     def _get_object_or_none(self, key: str):
-        from botocore.exceptions import ClientError
+        # ClientError is what a service-level error (bad credentials,
+        # missing bucket, throttling — the request reached S3/R2 and got a
+        # real error response) raises; BotoCoreError is the SIBLING branch
+        # for everything that means the request never got a response at all
+        # (EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError,
+        # SSL errors, ...) — an R2 outage lands here, not in ClientError.
+        # Both must translate the same way; only ClientError carries a
+        # `.response` to read a not-found code off of.
+        from botocore.exceptions import BotoCoreError, ClientError
         try:
             return self._client.get_object(Bucket=self._bucket, Key=key)
         except ClientError as e:
@@ -250,6 +267,8 @@ class R2Vault:
             # anything about the underlying cause) reach a caller; translate
             # to the one vault-level "something's wrong with the backend"
             # signal every call site already knows to handle.
+            raise VaultBackendError(str(e)) from e
+        except BotoCoreError as e:
             raise VaultBackendError(str(e)) from e
 
     def _read_meta(self, user_id: str, doc_id: str) -> Optional[VaultDocument]:
@@ -264,7 +283,7 @@ class R2Vault:
 
     def put(self, doc_id: str, data: bytes, kind: str, user_id: str,
             filename: str = "") -> VaultDocument:
-        from botocore.exceptions import ClientError
+        from botocore.exceptions import BotoCoreError, ClientError
         doc = VaultDocument(doc_id=doc_id, user_id=user_id, kind=kind,
                             filename=filename, size_bytes=len(data),
                             created_at=_now_iso())
@@ -275,7 +294,7 @@ class R2Vault:
                 Bucket=self._bucket, Key=self._meta_key(user_id, doc_id),
                 Body=json.dumps(asdict(doc), ensure_ascii=False).encode("utf-8"),
                 ContentType="application/json")
-        except ClientError as e:
+        except (ClientError, BotoCoreError) as e:
             raise VaultBackendError(str(e)) from e
         return doc
 
@@ -289,26 +308,26 @@ class R2Vault:
         return resp["Body"].read(), doc
 
     def delete(self, doc_id: str, user_id: str) -> bool:
-        from botocore.exceptions import ClientError
+        from botocore.exceptions import BotoCoreError, ClientError
         doc = self._read_meta(user_id, doc_id)
         if doc is None:
             return False
         try:
             self._client.delete_object(Bucket=self._bucket, Key=self._data_key(user_id, doc_id, doc.kind))
             self._client.delete_object(Bucket=self._bucket, Key=self._meta_key(user_id, doc_id))
-        except ClientError as e:
+        except (ClientError, BotoCoreError) as e:
             raise VaultBackendError(str(e)) from e
         return True
 
     def list_for_user(self, user_id: str) -> list[VaultDocument]:
-        from botocore.exceptions import ClientError
+        from botocore.exceptions import BotoCoreError, ClientError
         _require_safe(user_id)
         docs = []
         prefix = f"{user_id}/"
         paginator = self._client.get_paginator("list_objects_v2")
         try:
             pages = list(paginator.paginate(Bucket=self._bucket, Prefix=prefix))
-        except ClientError as e:
+        except (ClientError, BotoCoreError) as e:
             raise VaultBackendError(str(e)) from e
         for page in pages:
             for obj in page.get("Contents", []):

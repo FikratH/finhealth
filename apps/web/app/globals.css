@@ -568,6 +568,58 @@ details.elevated-surface[open] {
   box-shadow: 0 0 12px -2px color-mix(in oklch, var(--accent) 30%, transparent);
 }
 
+/* Horizontal scroll affordance for wide in-panel tables (my-analyses-table,
+ * my-documents-table) at narrow viewports — the "browser surfaces" craft
+ * floor: native scroll chrome gets the world's own palette instead of the
+ * unstyled OS default, and the fact that more content exists is signaled
+ * at the scrollable edge instead of a bare, cropped mid-word cut with no
+ * cue at all (finish review, material_fixes 2). Decorates the existing
+ * `overflow-x-auto` + `border` bezel in place — never a substitute for
+ * it, and the rows stay exactly as they are (BINDING keep-line: the
+ * hairline table-as-document idiom survives; this does not card the rows).
+ *
+ * Edge fade: the standard "scroll shadows" CSS technique — two pairs of
+ * background gradients on the same element. One pair (`local` attachment)
+ * is solid-panel-color-to-transparent and scrolls WITH the content,
+ * covering the fade near whichever edge is currently at rest; the other
+ * pair (`scroll` attachment) is the actual fade color, pinned to the
+ * viewport. Where the cover isn't blocking it, the fade shows through.
+ * Pure CSS, no JS scroll listener — and unlike a static overlay, it
+ * genuinely tracks scroll position: the fade at a given edge disappears
+ * once you've scrolled that edge into view, so it never implies more
+ * content than there is. The fade color is `--accent` at low opacity
+ * (the world's LED-ink device signaling a state — see `.elevated-surface`
+ * above for the same "glow, not a blurred drop-shadow implying depth"
+ * reasoning), not a gray drop-shadow.
+ */
+.table-scroll-x {
+  background-color: var(--panel);
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+  background-image:
+    linear-gradient(to right, var(--panel) 30%, transparent),
+    linear-gradient(to left, var(--panel) 30%, transparent),
+    linear-gradient(to right, color-mix(in oklch, var(--accent) 35%, transparent), transparent),
+    linear-gradient(to left, color-mix(in oklch, var(--accent) 35%, transparent), transparent);
+  background-position: left, right, left, right;
+  background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) var(--panel);
+}
+.table-scroll-x::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll-x::-webkit-scrollbar-track {
+  background-color: var(--panel);
+}
+.table-scroll-x::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+}
+.table-scroll-x::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
+}
+
 /*
  * scanlineSweep's (lib/motion.ts) content-hiding contract: the attribute is
  * only ever set imperatively at effect time (never render-time), so a

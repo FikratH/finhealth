@@ -526,6 +526,7 @@
         "date": "Date",
         "size": "Size",
         "sizeMb": "{size} MB",
+        "sizeUnderMb": "<0.1 MB",
         "actions": "Actions",
         "delete": "Delete",
         "deleteAria": "Delete document: {filename}, {date}"

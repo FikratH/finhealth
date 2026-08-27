@@ -24,10 +24,14 @@ export type ValuePeriod = "latest" | "previous";
 /** `message` is either the backend's RU detail string (pass through
  * verbatim) or a translation key: the literal `"timeout"` api.ts throws on
  * an aborted request, or one of its `"errors.*"` fallback keys. See
- * `lib/analyze-errors.ts` for telling the two apart. */
+ * `lib/analyze-errors.ts` for telling the two apart. `code` mirrors
+ * `ApiError.code` (the backend's stable machine-readable code, when the
+ * response carried the `{code, message}` detail shape) — undefined
+ * otherwise; see `errorHintKey`'s own comment for why this matters. */
 export interface AnalyzeError {
   message: string;
   status: number;
+  code?: string;
 }
 
 export interface AnalyzeState {

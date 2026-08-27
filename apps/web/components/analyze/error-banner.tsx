@@ -23,7 +23,7 @@ export interface ErrorBannerProps {
 export function ErrorBanner({ error, hintT }: ErrorBannerProps) {
   const t = useTranslations();
   const message = isTranslationKey(error.message) ? t(error.message) : error.message;
-  const hintKey = errorHintKey(error.status);
+  const hintKey = errorHintKey(error);
   const hint = hintKey && hintT ? hintT(hintKey) : null;
 
   return (

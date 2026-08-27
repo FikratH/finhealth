@@ -333,7 +333,7 @@ export interface DeleteAnalysisResponse {
 // ---------------------------------------------------------------------------
 
 /** One row of the signed-in user's analysis history — a summary
- * projection (apps/api/app/main.py's `my_analyses` endpoint), never the
+ * projection (apps/api/app/routers/my.py's `my_analyses` endpoint), never the
  * full `AnalysisResult` payload. */
 export interface MyAnalysisSummary {
   analysis_id: string;
@@ -358,7 +358,7 @@ export interface MyAnalysesResponse {
 // ---------------------------------------------------------------------------
 
 /** One row of the signed-in user's retained-document vault (P5.T7,
- * apps/api/app/main.py's `my_documents` endpoint) — metadata only, never
+ * apps/api/app/routers/my.py's `my_documents` endpoint) — metadata only, never
  * the document's raw bytes. */
 export interface MyDocumentSummary {
   doc_id: string;

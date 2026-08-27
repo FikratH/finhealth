@@ -98,6 +98,18 @@ describe("MyAnalysesView", () => {
     expect(screen.getByText(ruMessages.My.table.scoreNa)).toBeInTheDocument();
   });
 
+  // Close-wave finish-review fix 4: the page had no <h1> at all before —
+  // its first heading was an <h2>. "Мои документы" stays its own peer h2.
+  it("signed-in: «Мои анализы» is the page's <h1>, exactly one", async () => {
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+    vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: fixtures });
+    renderView();
+
+    const h1s = await screen.findAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(ruMessages.My.heading);
+  });
+
   it("signed-in, no saved analyses: shows the composed empty state with a CTA to /analyze", async () => {
     useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
     vi.mocked(getMyAnalyses).mockResolvedValueOnce({ plan: "free", analyses: [] });

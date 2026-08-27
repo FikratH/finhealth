@@ -107,4 +107,84 @@ describe("UploadStep — retain checkbox", () => {
 
     expect(screen.queryByText(ruMessages.Analyze.upload.retainLabel)).not.toBeInTheDocument();
   });
+
+  // Close-wave F4: a checked retain must not survive the checkbox's own
+  // gating conditions lapsing mid-session (e.g. the user signs out from
+  // the header in the same tab — useSession is reactive, no remount).
+  describe("F4 — retain resets when its own visibility conditions lapse", () => {
+    function renderWithRerender(overrides: Partial<React.ComponentProps<typeof UploadStep>> = {}) {
+      const onRetainChange = vi.fn();
+      const props = {
+        file: null,
+        industries,
+        industry: "",
+        uploadPhase: "idle" as const,
+        error: null,
+        retain: true,
+        vaultEnabled: true,
+        onFileSelected: vi.fn(),
+        onFileCleared: vi.fn(),
+        onIndustryChange: vi.fn(),
+        onRetainChange,
+        onSubmit: vi.fn(),
+        ...overrides,
+      };
+      const { rerender } = render(
+        <NextIntlClientProvider locale="ru" messages={ruMessages}>
+          <UploadStep {...props} />
+        </NextIntlClientProvider>,
+      );
+      return { onRetainChange, rerender, props };
+    }
+
+    it("signing out mid-flow (retain=true, checkbox was showing) calls onRetainChange(false)", () => {
+      useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+      const { onRetainChange, rerender, props } = renderWithRerender();
+      expect(onRetainChange).not.toHaveBeenCalled();
+
+      useSession.mockReturnValue({ data: null, isPending: false });
+      rerender(
+        <NextIntlClientProvider locale="ru" messages={ruMessages}>
+          <UploadStep {...props} />
+        </NextIntlClientProvider>,
+      );
+
+      expect(onRetainChange).toHaveBeenCalledWith(false);
+    });
+
+    it("the server's vault_enabled flipping false mid-flow also resets retain", () => {
+      useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+      const { onRetainChange, rerender, props } = renderWithRerender();
+
+      rerender(
+        <NextIntlClientProvider locale="ru" messages={ruMessages}>
+          <UploadStep {...props} vaultEnabled={false} />
+        </NextIntlClientProvider>,
+      );
+
+      expect(onRetainChange).toHaveBeenCalledWith(false);
+    });
+
+    it("does NOT fire when retain is already false — no spurious calls on mount or on unrelated re-renders", () => {
+      useSession.mockReturnValue({ data: null, isPending: false });
+      const { onRetainChange } = renderWithRerender({ retain: false, vaultEnabled: false });
+
+      expect(onRetainChange).not.toHaveBeenCalled();
+    });
+
+    it("does NOT fire while retain stays true and both conditions still hold", () => {
+      useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+      const { onRetainChange, rerender, props } = renderWithRerender();
+
+      // Re-render with an unrelated prop change (e.g. uploadPhase) — retain
+      // is still legitimately offered, so this must stay silent.
+      rerender(
+        <NextIntlClientProvider locale="ru" messages={ruMessages}>
+          <UploadStep {...props} uploadPhase="uploading" />
+        </NextIntlClientProvider>,
+      );
+
+      expect(onRetainChange).not.toHaveBeenCalled();
+    });
+  });
 });

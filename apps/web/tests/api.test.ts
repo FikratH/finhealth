@@ -248,7 +248,7 @@ describe("lib/api", () => {
       });
     });
 
-    it("unwraps a {detail:{code,message}} body (the narrative endpoint's shape) into ApiError.message, not the fallback key", async () => {
+    it("unwraps a {detail:{code,message}} body (the narrative endpoint's shape) into ApiError.message AND ApiError.code, not the fallback key", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
         jsonResponse(503, {
           detail: {
@@ -261,6 +261,17 @@ describe("lib/api", () => {
       await expect(generateNarrative("an_demo123")).rejects.toMatchObject({
         status: 503,
         message: "Пояснение аналитика недоступно: ключ OPENAI_API_KEY не настроен.",
+        code: "narrative_unavailable",
+      });
+    });
+
+    it("leaves ApiError.code undefined for the plain {detail:\"<RU string>\"} shape", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(404, { detail: "Анализ не найден." }));
+
+      await expect(getAnalysis("x")).rejects.toMatchObject({
+        status: 404,
+        message: "Анализ не найден.",
+        code: undefined,
       });
     });
 

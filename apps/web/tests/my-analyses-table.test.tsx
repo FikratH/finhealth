@@ -63,6 +63,22 @@ describe("MyAnalysesTable", () => {
     expect(wrapper).toHaveClass("relative");
   });
 
+  // Close-wave finish-review fix 2: the mobile 390w capture showed cells
+  // clipping mid-word with no cue that the table scrolls, leaving the
+  // actions column unreachable in practice. jsdom does no rendering, so —
+  // same honesty rule as above — this only guards the class that carries
+  // the palette-themed scrollbar + edge-fade CSS (globals.css's
+  // `.table-scroll-x`), not the visual result itself.
+  it("the scroll wrapper carries the scroll-affordance class (table-scroll-x)", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyAnalysesTable analyses={fixtures} locale="ru" onDelete={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    const wrapper = container.querySelector(".overflow-x-auto");
+    expect(wrapper).toHaveClass("table-scroll-x");
+  });
+
   it("renders a row per analysis: formatted date, industry chip, and a link to its results page", () => {
     renderTable();
 

@@ -134,7 +134,10 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-16">
-      <SectionHeading>{t("heading")}</SectionHeading>
+      {/* level={1}: this is the signed-in /my page's own first heading —
+       * it had no h1 at all before (close-wave finish-review fix 4). The
+       * documents section right below stays its own peer h2. */}
+      <SectionHeading level={1}>{t("heading")}</SectionHeading>
 
       {/* Quiet, display-only — no endpoint enforces a limit yet (P5.T5,
        * see apps/api/app/entitlements.py). Same specimen-label idiom as

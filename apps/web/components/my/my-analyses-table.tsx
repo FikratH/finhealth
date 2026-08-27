@@ -41,7 +41,12 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
     // this element's own overflow-x-auto clipping and inflates the whole
     // page's scrollWidth at narrow viewports. See my-documents-table.tsx's
     // identical wrapper for the full mechanism.
-    <div className="relative overflow-x-auto border border-line bg-panel">
+    //
+    // `table-scroll-x` (globals.css): the palette-themed scrollbar + edge
+    // fade scroll affordance (close-wave finish-review fix 2) — at narrow
+    // viewports this is the only signal that «Открыть»/«Удалить» are
+    // reachable by scrolling, not clipped away.
+    <div className="relative table-scroll-x overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">

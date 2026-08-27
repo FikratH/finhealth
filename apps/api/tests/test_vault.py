@@ -5,6 +5,8 @@ path-traversal rejection and get_vault()/vault_enabled() backend selection.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import boto3
 import pytest
 from moto import mock_aws
@@ -335,6 +337,95 @@ def test_r2_get_returns_none_on_genuine_404_not_vault_backend_error():
                     access_key_id="k", secret_access_key="s")
     store._client = _FailingS3Client(code="NoSuchKey")
     assert store.get("doc1", "user-a") is None
+
+
+# --------------------------------------------------------------------------
+# R2Vault: connection-class failures (BotoCoreError, NOT ClientError) must
+# translate the same way (close-wave F1). ClientError means "the request
+# reached S3/R2 and it sent back a real error response" (bad credentials,
+# missing bucket, throttling); BotoCoreError is the sibling branch for
+# everything that means the request never got a response at all — an
+# actual R2 outage (the exact scenario T7's original finding named) raises
+# EndpointConnectionError, a BotoCoreError subclass, not a ClientError.
+# --------------------------------------------------------------------------
+
+class _ConnectionFailingS3Client:
+    """A stand-in for a boto3 S3 client that can't reach the endpoint at
+    all — simulates an R2 outage or a network partition, distinct from
+    _FailingS3Client's "reached the service, got an error response"."""
+
+    def __init__(self):
+        from botocore.exceptions import EndpointConnectionError
+        self._error = EndpointConnectionError(endpoint_url="https://example.test")
+
+    def get_object(self, **kwargs):
+        raise self._error
+
+    def put_object(self, **kwargs):
+        raise self._error
+
+    def delete_object(self, **kwargs):
+        raise self._error
+
+    def get_paginator(self, name):
+        error = self._error
+
+        class _Paginator:
+            def paginate(self, **kwargs):
+                raise error
+
+        return _Paginator()
+
+
+def _r2_with_connection_failure() -> R2Vault:
+    store = R2Vault(bucket="b", endpoint_url="https://example.test",
+                    access_key_id="k", secret_access_key="s")
+    store._client = _ConnectionFailingS3Client()
+    return store
+
+
+def test_r2_get_raises_vault_backend_error_on_endpoint_connection_error():
+    store = _r2_with_connection_failure()
+    with pytest.raises(VaultBackendError):
+        store.get("doc1", "user-a")
+
+
+def test_r2_put_raises_vault_backend_error_on_endpoint_connection_error():
+    store = _r2_with_connection_failure()
+    with pytest.raises(VaultBackendError):
+        store.put("doc1", b"data", "csv", "user-a")
+
+
+def test_r2_delete_raises_vault_backend_error_on_endpoint_connection_error():
+    # _read_meta (a get_object call) fails first — the exact same
+    # connection failure a real outage would hit before any delete_object
+    # is even attempted.
+    store = _r2_with_connection_failure()
+    with pytest.raises(VaultBackendError):
+        store.delete("doc1", "user-a")
+
+
+def test_r2_list_for_user_raises_vault_backend_error_on_endpoint_connection_error():
+    store = _r2_with_connection_failure()
+    with pytest.raises(VaultBackendError):
+        store.list_for_user("user-a")
+
+
+# --------------------------------------------------------------------------
+# LocalDiskVault.delete: a genuine OSError (not "already gone") also
+# becomes VaultBackendError, matching R2Vault's posture.
+# --------------------------------------------------------------------------
+
+def test_local_vault_delete_raises_vault_backend_error_on_os_error(tmp_path, monkeypatch):
+    store = LocalDiskVault(base_dir=tmp_path / "vault")
+    store.put("doc1", b"data", "csv", "user-a")
+
+    def _raise_permission_error(self, missing_ok=False):
+        raise PermissionError("simulated read-only filesystem")
+
+    monkeypatch.setattr(Path, "unlink", _raise_permission_error)
+    with pytest.raises(VaultBackendError):
+        store.delete("doc1", "user-a")
 
 
 # --------------------------------------------------------------------------

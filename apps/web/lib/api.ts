@@ -62,11 +62,24 @@ async function withAuthHeader(headers: HeadersInit | undefined): Promise<Headers
 
 export class ApiError extends Error {
   readonly status: number;
+  /** The backend's stable machine-readable error code (e.g.
+   * "vault_unavailable", "auth_required"), present only when the response
+   * carried the `{detail: {code, message}}` shape — undefined for the
+   * plain-string `{detail: "<RU string>"}` shape (400/404/413/415/422's
+   * bare RU strings) and for client-only errors (timeout/network/parse
+   * failure). Lets a caller distinguish *which* error produced a given
+   * status rather than assuming every occurrence of that status means the
+   * same thing — see lib/analyze-errors.ts's errorHintKey, the one
+   * consumer that needs this (P5 close wave F3): a bare 503 could be the
+   * vault being unavailable OR an unrelated infra/proxy 503, and only the
+   * code tells them apart. */
+  readonly code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -90,30 +103,40 @@ export function fallbackKey(status: number): string {
   return STATUS_FALLBACK_KEYS[status] ?? "errors.unknown";
 }
 
-/** Reads a usable message off an error response body, if present. Most
- * endpoints send `{detail: "<RU string>"}`; the narrative endpoint
- * (POST /api/analysis/{id}/narrative) sends `{detail: {code, message}}`
- * instead so callers can branch on `code` — this also unwraps that shape's
- * `message` so `ApiError.message` carries a usable RU string either way. */
-export async function readDetail(response: Response): Promise<string | undefined> {
+/** One error response body's parsed shape: `message` is what
+ * ApiError.message ultimately carries; `code` (only present for the
+ * `{detail: {code, message}}` shape) is what ApiError.code carries. */
+export interface ParsedErrorDetail {
+  message?: string;
+  code?: string;
+}
+
+/** Reads a usable message (and code, when present) off an error response
+ * body. Most endpoints send `{detail: "<RU string>"}` (message only, no
+ * code); several — narrative, auth, the vault paths — send
+ * `{detail: {code, message}}` instead so callers can branch on `code`,
+ * not just parse RU prose. `response.json()` can only be consumed once,
+ * so this is the single parse both `message` and `code` come from —
+ * callers must not call this twice on the same Response. */
+export async function readDetail(response: Response): Promise<ParsedErrorDetail> {
   try {
     const body: unknown = await response.json();
     if (body && typeof body === "object" && "detail" in body) {
       const detail = (body as { detail: unknown }).detail;
       if (typeof detail === "string" && detail.length > 0) {
-        return detail;
+        return { message: detail };
       }
-      if (detail && typeof detail === "object" && "message" in detail) {
-        const message = (detail as { message: unknown }).message;
-        if (typeof message === "string" && message.length > 0) {
-          return message;
-        }
+      if (detail && typeof detail === "object") {
+        const d = detail as { message?: unknown; code?: unknown };
+        const message = typeof d.message === "string" && d.message.length > 0 ? d.message : undefined;
+        const code = typeof d.code === "string" && d.code.length > 0 ? d.code : undefined;
+        return { message, code };
       }
     }
   } catch {
     // Non-JSON or empty body — fall through to the status-keyed fallback.
   }
-  return undefined;
+  return {};
 }
 
 function isAbortError(err: unknown): boolean {
@@ -145,7 +168,7 @@ async function request<T>(
 
   if (!response.ok) {
     const detail = await readDetail(response);
-    throw new ApiError(response.status, detail ?? fallbackKey(response.status));
+    throw new ApiError(response.status, detail.message ?? fallbackKey(response.status), detail.code);
   }
 
   try {

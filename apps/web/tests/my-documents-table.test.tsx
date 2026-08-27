@@ -71,6 +71,19 @@ describe("MyDocumentsTable", () => {
     expect(wrapper).toHaveClass("relative");
   });
 
+  // Close-wave finish-review fix 2: same honesty rule as above — guards
+  // only the class that carries the palette-themed scrollbar + edge-fade
+  // CSS (globals.css's `.table-scroll-x`), not the rendered visual result.
+  it("the scroll wrapper carries the scroll-affordance class (table-scroll-x)", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyDocumentsTable documents={fixtures} locale="ru" onDelete={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    const wrapper = container.querySelector(".overflow-x-auto");
+    expect(wrapper).toHaveClass("table-scroll-x");
+  });
+
   it("renders a row per document: filename, kind chip, formatted date, and size in MB", () => {
     renderTable();
 
@@ -82,6 +95,20 @@ describe("MyDocumentsTable", () => {
     expect(screen.getByText("01.08.2026")).toBeInTheDocument();
     expect(screen.getByText(ruMessages.My.documents.table.sizeMb.replace("{size}", "2,0"))).toBeInTheDocument();
     expect(screen.getByText(ruMessages.My.documents.table.sizeMb.replace("{size}", "0,5"))).toBeInTheDocument();
+  });
+
+  // Close-wave finish-review fix 1: a real, non-empty file must never
+  // render as "0,0 МБ" — bytesToMB rounded to 1 decimal floors anything
+  // under ~50KB to exactly that. A genuine value must never display as a
+  // silent zero.
+  it("a small (2 KB) file shows the explicit '<0,1 МБ' label, never '0,0 МБ'", () => {
+    const small: MyDocumentSummary[] = [
+      { doc_id: "doc_3", filename: "small.csv", kind: "csv", size_bytes: 2000, created_at: "2026-08-27T10:00:00Z" },
+    ];
+    renderTable(small);
+
+    expect(screen.getByText(ruMessages.My.documents.table.sizeUnderMb)).toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.My.documents.table.sizeMb.replace("{size}", "0,0"))).not.toBeInTheDocument();
   });
 
   it("gives each row's delete button a contextual accessible name (filename + date), not the bare 'Удалить'", () => {

@@ -248,14 +248,14 @@ def delete_analysis(analysis_id: str) -> bool:
 def list_analyses_for_user(user_id: str, limit: int = 50) -> list[dict]:
     """Projection source for GET /api/my/analyses: newest first, capped at
     `limit`. Returns the raw (id, created_at, payload-as-dict) rows — the
-    caller (main.py) projects out just the summary fields it needs, so this
+    caller (app/routers/my.py) projects out just the summary fields it needs, so this
     stays a plain scoped fetch rather than encoding response shape here.
 
     A row whose payload isn't valid JSON is skipped rather than raised —
     one corrupt row must degrade to "absent from the list," not 500 the
     whole history page for every other (good) row. Logged by id only,
     never the payload contents (financial values never hit the logs, same
-    discipline as main.py's own logging)."""
+    discipline as app/routers/my.py's own logging)."""
     engine = get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
@@ -279,7 +279,7 @@ def delete_analysis_for_user(analysis_id: str, user_id: str) -> bool:
     """Ownership-checked delete for DELETE /api/my/analyses/{id}: one
     conditional statement rather than fetch-then-check, so "doesn't exist"
     and "exists but belongs to someone else" collapse into the same
-    zero-rows-affected result — the caller (main.py) maps both to a bare
+    zero-rows-affected result — the caller (app/routers/my.py) maps both to a bare
     404 rather than ever being in a position to leak which case it was.
     A NULL user_id (anonymous row) never matches any user_id comparison,
     so anonymous rows are correctly undeletable through this path too."""

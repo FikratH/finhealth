@@ -42,7 +42,12 @@ export function MyDocumentsTable({ documents, locale, onDelete }: MyDocumentsTab
     // spans — one per table — with zero visible symptom, since the span
     // itself is 1x1 and clipped). `overflow-x-auto` alone does NOT
     // establish a positioning context; only `position` does.
-    <div className="relative overflow-x-auto border border-line bg-panel">
+    //
+    // `table-scroll-x` (globals.css): the palette-themed scrollbar + edge
+    // fade scroll affordance (close-wave finish-review fix 2) — at narrow
+    // viewports this is the only signal that the actions column
+    // («Удалить») is reachable by scrolling, not clipped away.
+    <div className="relative table-scroll-x overflow-x-auto border border-line bg-panel">
       <table className="w-full min-w-[40rem] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line bg-panel text-left font-mono text-xs uppercase tracking-wide text-ink-muted">
@@ -63,7 +68,17 @@ export function MyDocumentsTable({ documents, locale, onDelete }: MyDocumentsTab
         <tbody>
           {documents.map((doc) => {
             const date = formatDate(doc.created_at, locale);
-            const sizeLabel = t("sizeMb", { size: formatNumber(bytesToMB(doc.size_bytes), { locale, decimals: 1 }) });
+            // A real, non-empty file must never render as "0,0 МБ" — the
+            // world's "never a silent 0" law (close-wave finish-review fix
+            // 1). bytesToMB(doc.size_bytes) rounded to 1 decimal floors any
+            // file under ~50KB to 0.0; below the smallest value that
+            // decimals:1 can distinguish from true zero, show an explicit
+            // "less than" label instead of a rounded number that reads as
+            // "empty".
+            const mb = bytesToMB(doc.size_bytes);
+            const sizeLabel = mb < 0.1
+              ? t("sizeUnderMb")
+              : t("sizeMb", { size: formatNumber(mb, { locale, decimals: 1 }) });
             // Row context for the delete action's accessible name — a bare
             // "Удалить" is ambiguous once there's more than one row, same
             // reasoning as my-analyses-table.tsx's ariaContext.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,22 @@ export function UploadStep({
   // not being there yet for something this optional.
   const { data: session, isPending: sessionPending } = useSession();
   const signedIn = !sessionPending && !!session;
+  const retainOffered = signedIn && vaultEnabled;
+
+  // Close-wave F4: a checked retain must not outlive the conditions that
+  // made the checkbox visible in the first place. Without this, a user who
+  // ticks retain and then signs out mid-flow (same tab — useSession is
+  // reactive, so `signedIn` flips without a remount) still has
+  // `state.retain === true` with the checkbox no longer rendered anywhere
+  // to uncheck — the eventual submit would send retain=1 anonymously and
+  // 401. Mirrors the same reset analyze-reducer.ts already does on
+  // file_cleared/back_to_upload: retain never survives past the moment its
+  // own precondition stops holding.
+  useEffect(() => {
+    if (retain && !retainOffered) {
+      onRetainChange(false);
+    }
+  }, [retain, retainOffered, onRetainChange]);
 
   const busy = uploadPhase !== "idle";
   const canSubmit = file !== null && industry !== "" && !busy;
@@ -223,7 +239,7 @@ export function UploadStep({
        * pattern, so behavior and screen-reader semantics stay on the real
        * control while the visible focus ring lands on its decorative
        * sibling. */}
-      {signedIn && vaultEnabled && (
+      {retainOffered && (
         <div className="grid-paper space-y-2 border border-line bg-panel p-4">
           <label htmlFor={retainId} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
             <span className="relative inline-flex h-4 w-8 shrink-0 items-center border border-line bg-panel">

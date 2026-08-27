@@ -526,6 +526,7 @@
         "date": "Дата",
         "size": "Размер",
         "sizeMb": "{size} МБ",
+        "sizeUnderMb": "<0,1 МБ",
         "actions": "Действия",
         "delete": "Удалить",
         "deleteAria": "Удалить документ: {filename}, {date}"

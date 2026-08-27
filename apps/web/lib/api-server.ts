@@ -53,7 +53,7 @@ export const getAnalysisServer = cache(async (id: string): Promise<AnalysisResul
 
   if (!response.ok) {
     const detail = await readDetail(response);
-    throw new ApiError(response.status, detail ?? fallbackKey(response.status));
+    throw new ApiError(response.status, detail.message ?? fallbackKey(response.status), detail.code);
   }
 
   try {
