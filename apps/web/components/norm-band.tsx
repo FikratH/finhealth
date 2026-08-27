@@ -23,6 +23,13 @@ export interface NormBandProps {
    * carried by the glyph, not the color). Pass the ratio's actual API
    * status ("attention" | "critical") when the caller has one. */
   tone?: "attention" | "critical";
+  /** Suppress the position-derived ▲/▼ flag entirely. The API's `status`
+   * is the source of truth for whether a value is a problem (e.g. a
+   * higher-is-better ratio can sit above its "good" band and still be
+   * status "good") — NormBand only sees low/high, so a caller whose ratio
+   * status is "good" passes this to keep the flag from contradicting the
+   * StatusPill next to it. */
+  suppressFlag?: boolean;
   className?: string;
 }
 
@@ -40,9 +47,10 @@ export function NormBand({
   belowLabel,
   naLabel,
   tone = "critical",
+  suppressFlag = false,
   className,
 }: NormBandProps) {
-  const outOfRange = value !== null && (value < low || value > high);
+  const outOfRange = !suppressFlag && value !== null && (value < low || value > high);
   const above = value !== null && value > high;
   const flagGlyph = above ? "▲" : "▼";
   const flagText = above ? aboveLabel : belowLabel;

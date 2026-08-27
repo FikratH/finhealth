@@ -66,8 +66,13 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
       <div className="grid gap-6 md:grid-cols-2">
         {altman && (
           <div className="border border-line p-4 print:break-inside-avoid">
+            {/* The API's own model name, verbatim — it carries a caveat
+             * that the generic "Альтман Z" label drops: this build always
+             * runs the private-company variant without X2 (see
+             * altman.warnings), which understates the score. That caveat
+             * belongs on the card, not buried in a details toggle. */}
             <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
-              {t("altmanHeading")}
+              {altman.name}
             </p>
             <div className="mt-2 flex items-baseline gap-3">
               <MetricNumber
@@ -79,6 +84,7 @@ export function RiskRadar({ riskRadar, locale }: RiskRadarProps) {
               />
               <StatusPill status={altman.status} label={tStatus(altman.status)} />
             </div>
+            <p className="mt-2 text-sm text-ink-muted">{altman.explanation}</p>
           </div>
         )}
 

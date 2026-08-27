@@ -356,6 +356,25 @@ describe("ResultsDocument", () => {
     expect(screen.getByText("Справочно")).toBeInTheDocument();
   });
 
+  it("renders the Altman model's full API name and its zone explanation, not a generic label", () => {
+    // Regression: the risk-radar card used to show the static, generic
+    // "Альтман Z" heading and dropped the API's own name/explanation
+    // entirely — which is where the private-company caveat (no X2
+    // component) lives. Scoped to the risk-radar section: the same
+    // altman_z ratio also renders in the main ratios list via RatioRow,
+    // which shows ratio.name too — an unscoped query would be ambiguous.
+    renderDocument(analysisFixture);
+    const radarSection = screen
+      .getByText(ruMessages.Results.riskRadar.heading)
+      .closest("section") as HTMLElement;
+    expect(
+      within(radarSection).getByText("Altman Z′ (частная компания, без X2)"),
+    ).toBeInTheDocument();
+    expect(
+      within(radarSection).getByText(analysisFixture.risk_radar!.altman!.explanation),
+    ).toBeInTheDocument();
+  });
+
   it("renders the Piotroski score as score/max", () => {
     renderDocument(analysisFixture);
     expect(screen.getByText("6/7")).toBeInTheDocument();

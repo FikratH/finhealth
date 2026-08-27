@@ -108,6 +108,22 @@ describe("VerifyTable", () => {
     expect(onEditLatest).not.toHaveBeenCalled();
   });
 
+  it("does not dispatch or corrupt a 3-decimal value on a plain focus+blur (regression: ×1000 corruption)", () => {
+    // Regression: draft was seeded with String(value) (e.g. "1234.567"),
+    // and parseTypedNumber reads a bare "1234.567" as thousands-grouped
+    // ("1.234" pattern) → 1234567. A focus+blur with zero keystrokes used
+    // to silently multiply a stored 3-decimal figure by 1000.
+    const { onEditLatest } = renderTable({
+      values: [extractedValue({ metric: "revenue", value: 1234.567 })],
+    });
+    const input = screen.getByLabelText("Выручка — Текущий период");
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+
+    expect(onEditLatest).not.toHaveBeenCalled();
+  });
+
   it("does not dispatch on a null -> null blur of an already-empty N/A cell", () => {
     const { onEditLatest } = renderTable();
     const input = screen.getByLabelText("EBITDA — Текущий период");

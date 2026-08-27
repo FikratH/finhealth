@@ -36,6 +36,10 @@ export function ValueInput({
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
+  // Set only by a real edit (the input's change event), never by focus —
+  // a blur with no edit must be a no-op regardless of what the seeded
+  // draft parses to (see commit()).
+  const [dirty, setDirty] = useState(false);
   const errorId = useId();
 
   // While invalid, keep showing the user's own (unparsed) draft even after
@@ -50,15 +54,25 @@ export function ValueInput({
 
   function commit() {
     setFocused(false);
+    // A plain keyboard tab-through (or a refocus of an already-invalid,
+    // untouched draft) must not flag manually_edited or overwrite
+    // anything. This is the fix for a real corruption bug: the draft is
+    // seeded with `String(value)` (e.g. "1234.567" for a 3-decimal
+    // figure), and parseTypedNumber reads a bare "1234.567" as
+    // thousands-grouped (mirroring how a document renders it) — 1234567.
+    // Without this dirty check, a focus+blur with zero keystrokes would
+    // silently multiply the stored value by 1000. Leave any existing
+    // invalid/error state exactly as it was — nothing changed, so there's
+    // nothing new to parse or report.
+    if (!dirty) {
+      return;
+    }
     const result = parseTypedNumber(draft);
     if (!result.ok) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    // A plain keyboard tab-through (no real edit) must not flag
-    // manually_edited or overwrite anything — only dispatch on an actual
-    // change, including the null → null "blurred an empty N/A cell" case.
     if (result.value !== value) {
       onChange(result.value);
     }
@@ -78,13 +92,17 @@ export function ValueInput({
         value={displayValue}
         onFocus={() => {
           setFocused(true);
+          setDirty(false);
           // Keep an invalid draft as-is so the user can keep fixing it
           // instead of it snapping back to the last committed value.
           if (!invalid) {
             setDraft(value === null ? "" : String(value));
           }
         }}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          setDirty(true);
+          setDraft(event.target.value);
+        }}
         onBlur={commit}
         className={cn(
           "w-full border bg-paper px-2 py-1 font-mono text-sm tabular-nums text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",

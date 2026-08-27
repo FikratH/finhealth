@@ -71,6 +71,11 @@ export function RatioRow({ ratio, locale, footnoteNumber }: RatioRowProps) {
           belowLabel={t("belowLabel")}
           naLabel={t("naLabel")}
           tone={ratio.status === "attention" ? "attention" : "critical"}
+          // Flags follow the API's status, not raw band position: a
+          // higher-is-better ratio can sit above its "good" band and still
+          // be status "good" — suppress the flag rather than show a red ▲
+          // next to a green StatusPill.
+          suppressFlag={ratio.status === "good"}
         />
       )}
 
