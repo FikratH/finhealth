@@ -150,8 +150,13 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
     // it only shows while this block is actually expanded (`details.
     // elevated-surface[open]`) — "floats read above the board" (finish
     // review, material_fixes 3) — rather than a permanent glow on every
-    // closed row.
-    <details className="group elevated-surface mt-1.5">
+    // closed row. No margin of its own: the single `space-y-1` wrapper
+    // in the return below is this module's one source of vertical rhythm
+    // (fix-wave verdict remainder — a `mt-*` here used to double up with
+    // that wrapper's own `space-y-*` whenever this rendered inside the
+    // traced-ticket block, silently keeping the gap twice its intended
+    // size and reading as a dead corridor no per-value tweak could close).
+    <details className="group elevated-surface">
       <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-xs text-ink-muted hover:text-brand [&::-webkit-details-marker]:hidden">
         <ChevronRightIcon className="transition-transform duration-150 group-open:rotate-90" />
         {t("detailsToggle")}
@@ -241,43 +246,55 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
         </div>
       </div>
 
-      {ratio.benchmark && (
-        <div className="mt-1.5 space-y-1">
-          <CalibrationScale
-            value={ratio.value}
-            low={ratio.benchmark.good[0]}
-            high={ratio.benchmark.good[1]}
-            unit={ratio.unit}
-            locale={locale}
-            label={t("benchmarkLabel")}
-            naLabel={t("naLabel")}
-            tone={CALIBRATION_TONE[ratio.status]}
-          />
-          {showFlag && (
-            <span
-              data-calibration-flag
-              className={cn("inline-flex items-center gap-1 font-mono text-xs", flagToneClass)}
-            >
-              {above ? <TriangleUpIcon /> : <TriangleDownIcon />}
-              <span className="sr-only">{above ? t("aboveLabel") : t("belowLabel")}</span>
-            </span>
-          )}
-        </div>
-      )}
+      {/* One composed instrument, not three floors with corridors
+       * (fix-wave verdict remainder on material_fixes 4): every gap below
+       * the header — header→scale, scale→ticket, ticket→details — comes
+       * from exactly one `space-y-1` source, this wrapper, matching
+       * CalibrationScale's own internal track→bound-labels rhythm (also
+       * `mt-1`) so the whole module reads as one density rather than a
+       * looser outer rhythm around a tighter inner one. Never crowds the
+       * ПРОСЛЕЖЕНО trace wire itself (border-l-2, pl-3) or the ghost
+       * grammar — this only closes dead air between blocks, the wire and
+       * the calibration scale's own ghost cells are untouched. */}
+      <div className="mt-1 space-y-1">
+        {ratio.benchmark && (
+          <div className="space-y-1">
+            <CalibrationScale
+              value={ratio.value}
+              low={ratio.benchmark.good[0]}
+              high={ratio.benchmark.good[1]}
+              unit={ratio.unit}
+              locale={locale}
+              label={t("benchmarkLabel")}
+              naLabel={t("naLabel")}
+              tone={CALIBRATION_TONE[ratio.status]}
+            />
+            {showFlag && (
+              <span
+                data-calibration-flag
+                className={cn("inline-flex items-center gap-1 font-mono text-xs", flagToneClass)}
+              >
+                {above ? <TriangleUpIcon /> : <TriangleDownIcon />}
+                <span className="sr-only">{above ? t("aboveLabel") : t("belowLabel")}</span>
+              </span>
+            )}
+          </div>
+        )}
 
-      {traces.length > 0 ? (
-        // The "visible seams" raise: the ticket is wired to its trace
-        // disclosure by a persistent left rule, always rendered (not
-        // hidden inside the <details> the way the trace list itself is) —
-        // the wire is always visible; the popover/disclosure keeps the
-        // details.
-        <div className="mt-1.5 space-y-1.5 border-l-2 border-brand/40 pl-3">
-          <OriginTicket tone="accent">{t("provenanceTraced")}</OriginTicket>
-          {detailsDisclosure}
-        </div>
-      ) : (
-        detailsDisclosure
-      )}
+        {traces.length > 0 ? (
+          // The "visible seams" raise: the ticket is wired to its trace
+          // disclosure by a persistent left rule, always rendered (not
+          // hidden inside the <details> the way the trace list itself is) —
+          // the wire is always visible; the popover/disclosure keeps the
+          // details.
+          <div className="space-y-1 border-l-2 border-brand/40 pl-3">
+            <OriginTicket tone="accent">{t("provenanceTraced")}</OriginTicket>
+            {detailsDisclosure}
+          </div>
+        ) : (
+          detailsDisclosure
+        )}
+      </div>
     </div>
   );
 }
