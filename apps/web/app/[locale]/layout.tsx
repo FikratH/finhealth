@@ -11,6 +11,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { DirectionContract } from "@/components/direction-contract";
 import { AuthBootstrap } from "@/components/auth-bootstrap";
+import { SITE_URL, TITLE_TEMPLATE } from "@/lib/seo";
 import "../globals.css";
 
 const inter = Inter({
@@ -62,7 +63,18 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "Header" });
 
   return {
-    title: t("wordmark"),
+    // Lets every URL-based field below this layout (openGraph.images,
+    // sitemap/robots — see lib/seo.ts) use a relative path instead of a
+    // required absolute URL.
+    metadataBase: new URL(SITE_URL),
+    title: {
+      template: TITLE_TEMPLATE,
+      // Only used when a child route defines no title of its own at all
+      // (the /dev/* routes, the 404) — not run through its own template,
+      // per Next's title-resolution contract, so this stays bare "Tonus"
+      // rather than "Tonus — Tonus".
+      default: t("wordmark"),
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { googleAuthEnabled } from "@/lib/auth";
 import { SectionHeading } from "@/components/section-heading";
 import { SigninForm } from "@/components/signin-form";
+import { pageMetadata } from "@/lib/seo";
 
 type SigninPageProps = {
   params: Promise<{ locale: string }>;
@@ -11,10 +12,7 @@ export async function generateMetadata({ params }: SigninPageProps) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "SignIn.meta" });
 
-  return {
-    title: t("title"),
-    description: t("description"),
-  };
+  return pageMetadata({ title: t("title"), description: t("description"), locale });
 }
 
 // Google availability is computed server-side (env vars aren't readable

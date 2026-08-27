@@ -12,7 +12,7 @@
   },
   "SignIn": {
     "meta": {
-      "title": "Tonus — sign in",
+      "title": "Sign in",
       "description": "Sign in with an email link to save your analyses."
     },
     "heading": "Sign in",
@@ -72,7 +72,7 @@
       "body": "Documents are deleted right after the numbers are extracted. Only the figures you confirmed during verification stay in the system — never the file itself."
     },
     "meta": {
-      "title": "Tonus — financial diagnosis for your company",
+      "title": "Financial diagnosis for your company",
       "description": "Upload your statements, verify the numbers, and get an objective read on your company's health: a score, ratios, and prioritized actions. Open methodology, deterministic calculations."
     }
   },
@@ -96,7 +96,7 @@
   },
   "Analyze": {
     "meta": {
-      "title": "Tonus — upload and verify your statements",
+      "title": "Upload and verify your statements",
       "description": "Upload your statements and verify the extracted figures before the diagnosis is calculated."
     },
     "stepIndicator": {
@@ -236,9 +236,9 @@
   },
   "Results": {
     "meta": {
-      "title": "Tonus — company diagnosis",
+      "title": "Company diagnosis",
       "description": "The company's health score, a ratio breakdown, the risk radar, and prioritized recommendations.",
-      "titleWithLabel": "Tonus — diagnosis: {label}"
+      "titleWithLabel": "Diagnosis: {label}"
     },
     "notFound": {
       "heading": "Diagnosis not found",
@@ -392,7 +392,7 @@
   },
   "Methodology": {
     "meta": {
-      "title": "Tonus — methodology",
+      "title": "Methodology",
       "description": "How Tonus computes scores, ratios, and risk models: formulas, thresholds, and industry benchmark sources — no AI in the math."
     },
     "heading": "Methodology",
@@ -475,7 +475,7 @@
   },
   "My": {
     "meta": {
-      "title": "Tonus — my analyses",
+      "title": "My analyses",
       "description": "Your saved company diagnostics."
     },
     "heading": "My analyses",
@@ -537,6 +537,12 @@
         "confirm": "Delete",
         "cancel": "Cancel"
       }
+    }
+  },
+  "Pricing": {
+    "meta": {
+      "title": "Pricing",
+      "description": "A free plan with the full company diagnosis, and a Pro plan with unlimited analyses, history, and export — launch pricing, subject to change."
     }
   },
   "NotFound": {
