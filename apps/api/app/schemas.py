@@ -47,6 +47,16 @@ class ExtractedValue(BaseModel):
     manually_edited: bool = False
 
 
+class PeriodSelectionMeta(BaseModel):
+    """Additive (P7.T3c): which periods were picked as latest/previous and
+    why. Exists so a verify-step can show provenance for the *period*
+    choice itself, the way ExtractedValue.source/snippet already does for
+    each value."""
+    chosen: list[str] = []
+    rejected: list[str] = []
+    reason: str = ""
+
+
 class ExtractionResult(BaseModel):
     upload_id: str
     periods: list[str] = []
@@ -59,6 +69,7 @@ class ExtractionResult(BaseModel):
     previous_values: list[ExtractedValue] = [] # previous period, when present
     warnings: list[str] = []
     suggested_industry: Optional[str] = None
+    period_selection: Optional[PeriodSelectionMeta] = None  # additive, P7.T3c
 
 
 class RatioStatus(str, Enum):

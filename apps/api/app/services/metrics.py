@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Optional
 
 from ..schemas import Scale
@@ -344,3 +345,114 @@ def detect_audited(text: str) -> bool:
     t = text.lower()
     return any(k in t for k in ["аудирован", "аудиторское заключение", "audited",
                                 "independent auditor"])
+
+
+# ---------------------------------------------------------------------------
+# Quarter / half-year period detection (P7.T3c). Complements the plain-year
+# detect_periods() above: recognizes RU/intl quarter markers and dd.mm.yyyy
+# quarter-end dates, producing a *canonical* label so the same real-world
+# period spelled differently across cells/tables still merges into one
+# column — "I кв. 2024", "1 квартал 2024", "Q1 2024" and "31.03.2024" all
+# canonicalize to "Q1 2024".
+#
+# Deliberately scoped: a dd.mm.yyyy date with mm == "12" is NEVER read as a
+# quarter marker, even though Q4 conventionally ends in December. A plain
+# annual year-end date ("31.12.2024") is far more common in real statements
+# (it is exactly what demo_company.csv and the existing golden fixtures use)
+# and must keep resolving through the untouched bare-year path below rather
+# than being reinterpreted as "Q4 2024".
+# ---------------------------------------------------------------------------
+_ROMAN_QUARTER = {"i": 1, "ii": 2, "iii": 3, "iv": 4}
+_ARABIC_QUARTER = {"1": 1, "2": 2, "3": 3, "4": 4}
+
+_QUARTER_WORD_RE = re.compile(
+    r"\b(?P<q>iv|iii|ii|i|[1-4])[\-\s]*(?:й|ой|ый)?\s*(?:кв\.?|квартал\w*|quarter)"
+    r"\D{0,12}?(?P<year>19\d{2}|20\d{2})",
+    re.IGNORECASE,
+)
+_Q_LETTER_RE = re.compile(r"\bQ(?P<q>[1-4])\D{0,12}?(?P<year>19\d{2}|20\d{2})", re.IGNORECASE)
+# dd.mm.yyyy, mm restricted to {03, 06, 09} — see scoping note above.
+_QUARTER_DATE_RE = re.compile(r"\b\d{1,2}\.(?P<m>03|06|09)\.(?P<year>(?:19|20)\d{2})\b")
+_DATE_MONTH_TO_QUARTER = {"03": 1, "09": 3}  # mm == "06" is handled as half-year below
+_HALF_YEAR_DATE_MONTHS = {"06"}
+
+# Looser marker (no year required) used only to recognize a *candidate*
+# stacked-header fragment row as period-bearing, e.g. "I квартал" on its own
+# row with the year supplied by a neighboring row (see extraction.py's
+# multi-row header merge, P7.T3b). Never used to build a canonical label.
+_QUARTER_MARKER_ONLY_RE = re.compile(
+    r"\b(?:iv|iii|ii|i|[1-4])[\-\s]*(?:й|ой|ый)?\s*(?:кв\.?|квартал\w*|quarter)\b|\bQ[1-4]\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class Period:
+    """A single detected reporting period: a canonical, format-independent
+    label plus enough structure to compare/group periods (P7.T3c)."""
+    label: str        # canonical display label: "2024", "Q1 2024", "H1 2024"
+    kind: str          # "annual" | "quarter" | "half-year"
+    sort_key: tuple    # chronologically comparable, newest = greatest
+
+
+# Tie-break at the same (year, end_month): an annual figure is the most
+# "complete" period covering that month, a half-year next, a quarter least.
+_KIND_RANK = {"quarter": 1, "half-year": 2, "annual": 3}
+
+
+def _make_period(year: str, kind: str, sub_label: str = "") -> Period:
+    year_i = int(year)
+    if kind == "annual":
+        return Period(label=year, kind="annual", sort_key=(year_i, 12, _KIND_RANK["annual"]))
+    if kind == "half-year":
+        end_month = 6 if sub_label == "H1" else 12
+        return Period(label=f"{sub_label} {year}", kind="half-year",
+                      sort_key=(year_i, end_month, _KIND_RANK["half-year"]))
+    q = int(sub_label[1])
+    return Period(label=f"Q{q} {year}", kind="quarter",
+                  sort_key=(year_i, q * 3, _KIND_RANK["quarter"]))
+
+
+def _detect_quarter_or_half(s: str) -> Optional[Period]:
+    m = _Q_LETTER_RE.search(s)
+    if m:
+        return _make_period(m.group("year"), "quarter", f"Q{m.group('q')}")
+    m = _QUARTER_WORD_RE.search(s)
+    if m:
+        q = _ROMAN_QUARTER.get(m.group("q").lower()) or _ARABIC_QUARTER.get(m.group("q").lower())
+        if q:
+            return _make_period(m.group("year"), "quarter", f"Q{q}")
+    m = _QUARTER_DATE_RE.search(s)
+    if m:
+        mm = m.group("m")
+        if mm in _HALF_YEAR_DATE_MONTHS:
+            return _make_period(m.group("year"), "half-year", "H1")
+        return _make_period(m.group("year"), "quarter", f"Q{_DATE_MONTH_TO_QUARTER[mm]}")
+    return None
+
+
+def detect_period_objects(cells: list[str]) -> list[Period]:
+    """Return unique Period objects found across header cells, newest first.
+    Recognizes plain years (via the same _YEAR_RE as detect_periods, so
+    year-only headers behave identically) plus quarter/half-year markers
+    (P7.T3c). Each cell contributes at most one period."""
+    seen: dict[str, Period] = {}
+    for c in cells:
+        s = str(c)
+        p = _detect_quarter_or_half(s)
+        if p is None:
+            years = _YEAR_RE.findall(s)
+            if years:
+                p = _make_period(years[0], "annual")
+        if p is not None and p.label not in seen:
+            seen[p.label] = p
+    return sorted(seen.values(), key=lambda p: p.sort_key, reverse=True)
+
+
+def has_period_marker(text: str) -> bool:
+    """Looser than detect_period_objects: true for a bare year OR a
+    quarter/half-year word marker even without an accompanying year in the
+    same cell — used by extraction._has_period_fragment to recognize a
+    candidate stacked-header row (P7.T3b), never to build a final label."""
+    s = str(text)
+    return bool(_YEAR_RE.search(s) or _QUARTER_MARKER_ONLY_RE.search(s))
