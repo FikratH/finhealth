@@ -17,6 +17,18 @@ vi.mock("@/lib/api-server", () => ({
   getAnalysisServer: vi.fn(),
 }));
 
+// P7.T2: the page now also reads next/headers' headers() to forward an
+// incoming X-Request-ID (see page.tsx's _incomingRequestId). Real Next
+// only allows headers() inside an actual request-render context, which
+// this plain-function-call harness never establishes — same reasoning as
+// the next-intl/server mock below, standing in for infrastructure this
+// test doesn't exercise. Empty Headers() == the common case (no incoming
+// id to forward), matching every assertion below (none of them care about
+// requestId).
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+}));
+
 vi.mock("next-intl/server", () => ({
   getTranslations: async ({ locale, namespace }: { locale: string; namespace: string }) => {
     const messages = locale === "en" ? enMessages : ruMessages;

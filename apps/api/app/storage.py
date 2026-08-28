@@ -89,6 +89,11 @@ def _bootstrap_schema(engine: Engine) -> None:
     cfg = Config(str(_ALEMBIC_INI))
     cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
     cfg.set_main_option("sqlalchemy.url", str(engine.url))
+    # alembic/env.py itself saves/restores the root logger's handlers
+    # around its `fileConfig(...)` call + the actual migration run — see
+    # that module's comment — so an in-process bootstrap here (the
+    # documented "dev/fresh-db convenience") doesn't clobber the app's own
+    # logging setup (app/logging_setup.py, P7.T2).
     command.upgrade(cfg, "head")
 
 

@@ -21,6 +21,9 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import auth, entitlements, storage, waitlist as waitlist_service
+from .body_limit import MAX_BODY_BYTES, BodySizeLimitMiddleware
+from .logging_setup import configure_logging
+from .middleware import RequestIDMiddleware
 from .ratelimit import rate_limit
 from .routers import my as my_router
 from .schemas import (
@@ -37,8 +40,10 @@ from .services import narrative as narrative_service
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# Deliberately runs AFTER (and overrides) uvicorn's own startup-time
+# logging config rather than racing it — see app/logging_setup.py's module
+# docstring for why that ordering is guaranteed, not assumed.
+configure_logging()
 log = logging.getLogger("finhealth")
 
 MAX_FILE_SIZE = int(os.environ.get("MAX_FILE_SIZE_MB", "15")) * 1024 * 1024
@@ -127,6 +132,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+# Order matters (P7.T2): `add_middleware` prepends to Starlette's internal
+# list, and the stack is built by wrapping in reverse — so the LAST call
+# here ends up OUTERMOST, wrapping every middleware added before it
+# (verified against this repo's pinned Starlette, not assumed — see
+# app/middleware.py's docstring). Registered in this order so the final
+# wrap, outer to inner, is: RequestIDMiddleware, BodySizeLimitMiddleware,
+# CORSMiddleware, the router — a request id on every response (even a CORS
+# preflight or a 413) and the body-size cap enforced before CORS or
+# routing ever see the request.
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
+app.add_middleware(RequestIDMiddleware)
 # `/api/my/*` — analysis history (P5.T4) + the document vault (P5.T7) — is
 # split into its own router (P5.T8) to keep this module under the 500-line
 # ceiling; paths and behavior are unchanged by the move (app/routers/my.py).

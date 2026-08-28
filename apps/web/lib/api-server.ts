@@ -28,10 +28,23 @@ function isAbortError(err: unknown): boolean {
  * node_modules/next/dist/docs/01-app/03-api-reference/04-functions/fetch.md).
  * Without `cache()` here, the results route's `generateMetadata` and its
  * page body each independently re-fetch the same analysis. `cache()`
- * memoizes by argument (`id`) for the lifetime of one server render pass,
- * so both call sites share a single request; the timeout/abort behavior
- * stays inside the cached function so every caller still gets it. */
-export const getAnalysisServer = cache(async (id: string): Promise<AnalysisResult> => {
+ * memoizes by BOTH arguments (`id`, `requestId`) for the lifetime of one
+ * server render pass, so both call sites — which read the same incoming
+ * request's headers, see the caller — share a single request; the
+ * timeout/abort behavior stays inside the cached function so every caller
+ * still gets it.
+ *
+ * `requestId` (P7.T2, optional): forwarded as `X-Request-ID` when the
+ * caller has one to pass through — see the API's request-id middleware
+ * (apps/api/app/middleware.py), which generates its own id when this
+ * header is absent. This function deliberately never generates one
+ * itself: the API is the id authority for a fetch it can already trace on
+ * its own; this parameter only exists so an id already established
+ * upstream of this server (e.g. a proxy/CDN header on the incoming page
+ * request — see the results page's own call site) can be carried through
+ * rather than starting a second, disconnected trace for the same page
+ * load. */
+export const getAnalysisServer = cache(async (id: string, requestId?: string): Promise<AnalysisResult> => {
   const apiUrl = process.env.API_URL ?? "http://localhost:8000";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
@@ -41,6 +54,7 @@ export const getAnalysisServer = cache(async (id: string): Promise<AnalysisResul
     response = await fetch(`${apiUrl}/api/analysis/${encodeURIComponent(id)}`, {
       signal: controller.signal,
       cache: "no-store",
+      ...(requestId ? { headers: { "X-Request-ID": requestId } } : {}),
     });
   } catch (err) {
     if (isAbortError(err)) {

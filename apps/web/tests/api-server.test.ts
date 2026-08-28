@@ -109,4 +109,32 @@ describe("getAnalysisServer", () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 0, message: "errors.network" });
   });
+
+  // P7.T2: an incoming X-Request-ID, when the caller has one, rides along
+  // on this fetch so both legs of one page load trace under the same id
+  // (see this function's own doc comment for why it's never GENERATED
+  // here — only forwarded when already present).
+  it("forwards a caller-supplied requestId as the X-Request-ID header", async () => {
+    const payload = analysis({ analysis_id: "abc123" });
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), { status: 200 }),
+    );
+
+    await getAnalysisServer("abc123", "trace-me-123");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://api.test/api/analysis/abc123",
+      expect.objectContaining({ headers: { "X-Request-ID": "trace-me-123" } }),
+    );
+  });
+
+  it("sends no X-Request-ID header when no requestId is given", async () => {
+    const payload = analysis({ analysis_id: "abc123" });
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(payload), { status: 200 }),
+    );
+
+    await getAnalysisServer("abc123");
+    const [, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(init.headers).toBeUndefined();
+  });
 });
