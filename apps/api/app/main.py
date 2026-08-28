@@ -27,6 +27,7 @@ from .middleware import RequestIDMiddleware
 from .ratelimit import rate_limit
 from .routers import my as my_router
 from .schemas import (
+    BENCHMARK_SOURCES_DISCLAIMER,
     AnalysisRequest,
     ExtractRequest,
     ExtractionResult,
@@ -211,9 +212,7 @@ def health():
 @app.get("/api/industries")
 def industries():
     return {"industries": list_industries(),
-            "disclaimer": "Часть отраслевых ориентиров основана на данных Damodaran "
-                          "(NYU Stern, янв. 2026); остальные являются демонстрационными "
-                          "и помечены соответствующим образом."}
+            "disclaimer": BENCHMARK_SOURCES_DISCLAIMER}
 
 
 @app.get("/api/industries/{industry_id}/benchmarks")
@@ -223,9 +222,7 @@ def industry_benchmarks(industry_id: str):
     except KeyError:
         raise HTTPException(status_code=404, detail="Отрасль не найдена.")
     return {"industry": industry_id, **cfg,
-            "disclaimer": "Часть отраслевых ориентиров основана на данных Damodaran "
-                          "(NYU Stern, янв. 2026); остальные являются демонстрационными "
-                          "и помечены соответствующим образом."}
+            "disclaimer": BENCHMARK_SOURCES_DISCLAIMER}
 
 
 @app.post("/api/upload", response_model=UploadedDocument, dependencies=[Depends(rate_limit)])

@@ -6,6 +6,19 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
+# The one source-of-truth sentence about where benchmark figures come from.
+# Rendered in the analysis payload's disclaimer AND returned verbatim by the
+# /api/industries endpoints (main.py) — the P7 finish review caught those two
+# endpoints drifting to an older two-category wording that contradicted the
+# analysis payload; a single constant keeps every consumer telling one story.
+BENCHMARK_SOURCES_DISCLAIMER = (
+    "Часть отраслевых ориентиров основана на данных Damodaran (NYU Stern, "
+    "янв. 2026); для Казахстана дополнительно показан ориентир по данным "
+    "Нацбанка РК / МВФ (Индикаторы финансовой устойчивости), где для этого "
+    "нашёлся официальный публичный источник; остальные ориентиры являются "
+    "демонстрационными и помечены соответствующим образом."
+)
+
 
 class Scale(str, Enum):
     units = "units"
@@ -243,11 +256,7 @@ class AnalysisResult(BaseModel):
     source_values: list[ExtractedValue] = []
     disclaimer: str = (
         "Сервис не заменяет профессиональную финансовую консультацию. "
-        "Часть отраслевых ориентиров основана на данных Damodaran (NYU Stern, "
-        "янв. 2026); для Казахстана дополнительно показан ориентир по данным "
-        "Нацбанка РК / МВФ (Индикаторы финансовой устойчивости), где для этого "
-        "нашёлся официальный публичный источник; остальные ориентиры являются "
-        "демонстрационными и помечены соответствующим образом."
+        + BENCHMARK_SOURCES_DISCLAIMER
     )
 
 
