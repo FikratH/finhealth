@@ -20,6 +20,7 @@ requests most worth tracing (a misbehaving or hostile client).
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 # Bound by name, not `import time` + `time.monotonic()`: lets a test
 # monkeypatch just this module's own `monotonic` reference (simulating
@@ -42,6 +43,19 @@ _RESPONSE_HEADER_BYTES = b"x-request-id"
 # level=WARNING logger=finhealth.request) without knowing a numeric
 # threshold to compare duration_ms against by hand.
 SLOW_REQUEST_MS = 5_000
+
+# An inbound X-Request-ID must look like one of OUR generated ids to be
+# trusted verbatim (P7.T2 round 1, L6): a caller-supplied value is echoed
+# back as a response header and stamped onto every log line for the
+# request unvalidated otherwise, and `TextFormatter` (the dev default)
+# embeds it raw rather than JSON-escaped — not exploitable as CR/LF can't
+# survive header parsing, but an arbitrarily long or control-character-
+# laden value would still ride into every line of that request's logs.
+# 64 chars comfortably covers this codebase's own `uuid4().hex` (32) with
+# headroom for a proxy's own longer scheme; anything failing the check is
+# treated the same as absent — regenerated, not rejected, since a
+# malformed trace id is never worth failing the actual request over.
+_VALID_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def _new_request_id() -> str:
@@ -72,11 +86,12 @@ class RequestIDMiddleware:
             return
 
         incoming = Headers(scope=scope).get(REQUEST_ID_HEADER)
-        # An incoming id that's present but blank/whitespace-only is
-        # treated the same as absent — a proxy that sends an empty header
-        # must not result in every log line for this request being
-        # stamped with "" instead of a real, traceable id.
-        request_id = incoming.strip() if incoming and incoming.strip() else _new_request_id()
+        stripped = incoming.strip() if incoming else ""
+        # Blank/whitespace-only (a proxy sending an empty header) and
+        # anything failing the charset/length check above (L6) both
+        # collapse to "generate a fresh one" — the request must not end up
+        # traced under an empty or untrustworthy id either way.
+        request_id = stripped if _VALID_REQUEST_ID_RE.match(stripped) else _new_request_id()
 
         token = set_request_id(request_id)
         status_box: dict[str, int | None] = {"status": None}
@@ -94,6 +109,23 @@ class RequestIDMiddleware:
         start = monotonic()
         try:
             await self.app(scope, receive, send_wrapper)
+        except BaseException:
+            # An unhandled exception past this point means no response was
+            # ever sent through `send_wrapper` (P7.T2 round 1, L1) — most
+            # such exceptions are eventually turned into a 500 by
+            # Starlette's `ServerErrorMiddleware`, OUTSIDE this middleware
+            # (see app/main.py's own comment on that gap), so
+            # `status_box["status"]` would otherwise stay `None` and both
+            # formatters omit a `None` request field entirely — the
+            # summary line for exactly the request most worth finding in
+            # the logs would carry no `status` at all. Only set when still
+            # unset: a response that already started (e.g. a
+            # StreamingResponse failing mid-body) keeps its real status
+            # rather than being overwritten to a status the client never
+            # actually received.
+            if status_box["status"] is None:
+                status_box["status"] = 500
+            raise
         finally:
             duration_ms = round((monotonic() - start) * 1000, 1)
             slow = duration_ms > SLOW_REQUEST_MS

@@ -39,6 +39,22 @@ from .request_context import RequestIDLogFilter
 _REQUEST_FIELDS = ("path", "method", "status", "duration_ms")
 
 
+def _format_ts(formatter: logging.Formatter, record: logging.LogRecord) -> str:
+    """ISO-8601 with millisecond precision and a timezone offset (P7.T2
+    round 1, L5): `formatTime(record, "...%z")` alone has no sub-second
+    component, so two lines logged within the same second — normal at this
+    app's INFO-level request-summary throughput — are unorderable in a log
+    viewer, undermining the "trace one user's report" use case
+    docs/founder-todo.md's Railway note sells. `%z` has to be formatted
+    separately and spliced in AFTER the milliseconds (`record.msecs`,
+    already computed by the stdlib at record-creation time) — one
+    `strftime` call can't place free text between seconds and an offset
+    without also matching literal `.` characters as directive text."""
+    base = formatter.formatTime(record, "%Y-%m-%dT%H:%M:%S")
+    offset = formatter.formatTime(record, "%z")
+    return f"{base}.{int(record.msecs):03d}{offset}"
+
+
 class JsonFormatter(logging.Formatter):
     """One JSON object per line. `ensure_ascii=False` — this app's log
     messages are routinely Cyrillic (RU error text embedded in %-args,
@@ -48,7 +64,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, object] = {
-            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+            "ts": _format_ts(self, record),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -74,6 +90,11 @@ class TextFormatter(logging.Formatter):
             f"{field}={getattr(record, field)}" for field in _REQUEST_FIELDS
             if getattr(record, field, None) is not None
         )
+        # Space-separated, no timezone offset (unlike JsonFormatter's `ts` —
+        # see `_format_ts`): this is the local-dev-only rendering, read by
+        # a human on the one machine that produced it, not parsed by a log
+        # viewer ordering lines across a fleet — the extra precision/offset
+        # `_format_ts` exists for (P7.T2 round 1, L5) has no reader here.
         line = (f"{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} {record.levelname} "
                 f"{record.name} [{request_id}]: {record.getMessage()}")
         if extras:

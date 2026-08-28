@@ -160,3 +160,97 @@ def test_middleware_is_wired_below_request_id_and_above_cors():
     names = [m.cls.__name__ for m in app.user_middleware]
     assert names.index("RequestIDMiddleware") < names.index("BodySizeLimitMiddleware") \
         < names.index("CORSMiddleware")
+
+
+# ---------------------------------------------------------------------
+# P7.T2 round 1, H1/H2: the streaming (no-Content-Length) cap path, driven
+# through the REAL `app.main:app` — not the `_echo_app` stub every test
+# above uses. That stub reads `receive()` in a bare loop with no exception
+# handling, so `_BodyTooLarge` propagates to this middleware's own
+# `except` cleanly no matter what type it is — a property of the stub, not
+# of the app, and it is exactly what let the H1 regression through
+# undetected: for a real FastAPI route, `_BodyTooLarge` is raised from
+# INSIDE FastAPI's own body-parsing (`fastapi/routing.py`), and a
+# plain-`Exception` version of it was silently caught there and rewritten
+# into a bare-string 400 `{"detail": "There was an error parsing the
+# body"}` — wrong status, broken `{code, message}` envelope — before ever
+# reaching this middleware. Confirmed by hand that this exact test fails
+# that way against the pre-fix `_BodyTooLarge(Exception)`: reverting
+# app/body_limit.py's `_BodyTooLarge` to subclass plain `Exception` (its
+# round-0 shape) turns this test's 413 assertion into `assert 400 == 413`,
+# and the envelope assertion never even runs.
+#
+# Driven via a raw ASGI call directly against `app.main.app` (not
+# `TestClient`): httpx's transport always computes and sends
+# `Content-Length` for any body it can see the length of up front, so
+# there is no way to make a real "no Content-Length" request through it —
+# the omission has to be constructed at the ASGI-message level, exactly as
+# a chunked-transfer-encoding client (curl -T -, or fetch() with a
+# ReadableStream body) would arrive at this server.
+
+def _multipart_body(big: bytes) -> bytes:
+    boundary = b"----pytestboundary"
+    return (b"--" + boundary + b"\r\n"
+            b'Content-Disposition: form-data; name="file"; filename="big.csv"\r\n'
+            b"Content-Type: text/csv\r\n\r\n" + big + b"\r\n--" + boundary + b"--\r\n")
+
+
+async def _post_without_content_length(path: str, body: bytes) -> tuple[int, dict, bytes]:
+    scope = {
+        "type": "http", "method": "POST", "path": path, "query_string": b"",
+        "client": ("127.0.0.1", 12345),
+        # deliberately NO content-length header — the adversarial path.
+        "headers": [(b"content-type", b"multipart/form-data; boundary=----pytestboundary")],
+    }
+    # Split into chunks (real chunked transfer never arrives as one
+    # `http.request` message either) so the streaming counter, not a
+    # single-message shortcut, is what's actually exercised.
+    chunk_size = 65536
+    messages = [
+        {"type": "http.request", "body": body[i:i + chunk_size], "more_body": True}
+        for i in range(0, len(body), chunk_size)
+    ]
+    messages.append({"type": "http.request", "body": b"", "more_body": False})
+    it = iter(messages)
+
+    async def receive():
+        return next(it)
+
+    sent: list[dict] = []
+
+    async def send(message):
+        sent.append(message)
+
+    await app(scope, receive, send)
+    start = next(m for m in sent if m["type"] == "http.response.start")
+    status = start["status"]
+    headers = {k.decode(): v.decode() for k, v in start["headers"]}
+    resp_body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    return status, headers, resp_body
+
+
+def test_oversize_chunked_upload_through_the_real_app_returns_413_with_the_envelope():
+    """The one test H1/H2 asked for: an oversize body, no Content-Length,
+    through the real, fully-wired app (routing, FastAPI body parsing,
+    every middleware) — not a stub."""
+    big = b"x" * (MAX_BODY_BYTES + 1000)
+    status, headers, body = asyncio.run(
+        _post_without_content_length("/api/upload", _multipart_body(big)))
+    assert status == 413
+    assert json.loads(body) == {
+        "detail": {"code": "payload_too_large", "message": "Тело запроса больше 16 МБ."}
+    }
+    # The fix rides the normal HTTPException path, so it still gets a
+    # request id like every other error response — worth pinning here too
+    # since it's the same code path H1 was about.
+    assert "x-request-id" in headers
+
+
+def test_undersize_chunked_upload_through_the_real_app_is_unaffected():
+    """Companion sanity check: the H1 fix must not turn a normal,
+    under-the-cap streaming upload into an error."""
+    small = b"Show;2024\nA;1\n"
+    status, _headers, body = asyncio.run(
+        _post_without_content_length("/api/upload", _multipart_body(small)))
+    assert status == 200
+    assert json.loads(body)["detected_kind"] == "csv"

@@ -50,6 +50,38 @@ def test_blank_incoming_request_id_is_treated_as_absent():
     assert _HEX32.match(request_id)
 
 
+def test_invalid_charset_incoming_request_id_is_regenerated():
+    """P7.T2 round 1, L6: a caller-supplied id that fails the
+    charset/length check is treated the same as absent — regenerated, not
+    echoed verbatim. Space is not in `[A-Za-z0-9_-]`, so this also stands
+    in for "anything a proxy might pass through unsanitized"."""
+    resp = client.get("/api/health", headers={"X-Request-ID": "has a space"})
+    assert resp.status_code == 200
+    request_id = resp.headers["x-request-id"]
+    assert request_id != "has a space"
+    assert _HEX32.match(request_id)
+
+
+def test_overlong_incoming_request_id_is_regenerated():
+    """P7.T2 round 1, L6: length is bounded even for an otherwise
+    valid-charset value — an 8KB id would otherwise ride into every line
+    of TextFormatter's (the dev default) raw, unescaped output."""
+    resp = client.get("/api/health", headers={"X-Request-ID": "a" * 65})
+    assert resp.status_code == 200
+    request_id = resp.headers["x-request-id"]
+    assert request_id != "a" * 65
+    assert _HEX32.match(request_id)
+
+
+def test_valid_custom_charset_incoming_request_id_is_still_echoed():
+    """The L6 guard must not be so strict it rejects a legitimate
+    non-uuid4 id a proxy might mint (e.g. a shorter alphanumeric scheme) —
+    only length/charset are checked, not "looks like our own uuid4 hex"."""
+    resp = client.get("/api/health", headers={"X-Request-ID": "trace_ABC-123"})
+    assert resp.status_code == 200
+    assert resp.headers["x-request-id"] == "trace_ABC-123"
+
+
 def test_id_is_stamped_onto_a_log_line_from_an_existing_call_site(caplog):
     """No app log call site was rewritten for this feature — the id
     reaches app/main.py's pre-existing `log.info("upload accepted ...")`
@@ -64,6 +96,37 @@ def test_id_is_stamped_onto_a_log_line_from_an_existing_call_site(caplog):
     upload_record = next(r for r in caplog.records if r.name == "finhealth"
                          and "upload accepted" in r.getMessage())
     assert upload_record.request_id == "trace-me"
+
+
+def test_id_reaches_a_sync_def_route_via_run_in_threadpool(caplog):
+    """P7.T2 round 1, L2: the plan explicitly names /api/extract,
+    /api/analyze, and /api/analysis/{id}/narrative as needing traceable
+    failure logs — all three are `def` (sync), not `async def`, so FastAPI
+    runs them via `run_in_threadpool`/anyio's `to_thread.run_sync`, a
+    DIFFERENT propagation path than the one
+    `test_id_is_stamped_onto_a_log_line_from_an_existing_call_site` above
+    already pins (that one posts to /api/upload, main.py's only `async
+    def` route). Without this test, an anyio version bump that stopped
+    copying the calling context into the worker thread would silently drop
+    request_id from exactly the extraction/narrative failure lines the
+    plan asked to be traceable, and nothing in the suite would notice.
+
+    Drives /api/extract (a genuine sync `def` route) and checks the
+    `upload deleted id=...` line main.py's `extract()` logs unconditionally
+    in its own `finally` block, on every call regardless of outcome."""
+    up = client.post("/api/upload", files={"file": ("r.csv", b"Show;2024\nA;1\n", "text/csv")})
+    assert up.status_code == 200
+    upload_id = up.json()["upload_id"]
+
+    with caplog.at_level(logging.INFO):
+        resp = client.post(
+            "/api/extract", json={"upload_id": upload_id},
+            headers={"X-Request-ID": "sync-route-id"},
+        )
+    assert resp.status_code == 200
+    deleted_record = next(r for r in caplog.records if r.name == "finhealth"
+                          and "upload deleted" in r.getMessage())
+    assert deleted_record.request_id == "sync-route-id"
 
 
 def test_request_summary_line_carries_the_documented_fields(caplog):
@@ -108,14 +171,15 @@ def test_fast_request_logs_at_info(monkeypatch, caplog):
 
 
 # ---------------------------------------------------------------------
-# Contextvar isolation under concurrent requests.
+# Tests below drive RequestIDMiddleware directly over raw ASGI rather than
+# through `client`/the real app — needed for two different reasons:
 #
-# TestClient's transport runs one call at a time, which would never
-# actually exercise overlap even if the contextvar were leaking — so this
-# drives the middleware directly over raw ASGI, with two requests
-# in flight on the same event loop via asyncio.gather and an artificial
-# await between each request's two `get_request_id()` reads to force
-# interleaving.
+# - the L1 status-500 tests need a downstream that raises unconditionally,
+#   which no real route in this app does today;
+# - the concurrency test at the bottom needs two requests genuinely IN
+#   FLIGHT at once — TestClient's transport runs one call at a time, which
+#   would never actually exercise overlap even if the contextvar were
+#   leaking.
 # ---------------------------------------------------------------------
 
 def _http_scope(path: str) -> dict:
@@ -130,6 +194,63 @@ def _http_scope(path: str) -> dict:
 
 async def _once_receive() -> dict:
     return {"type": "http.request", "body": b"", "more_body": False}
+
+
+def test_unhandled_exception_logs_status_500(caplog):
+    """P7.T2 round 1, L1: an exception that unwinds past this middleware
+    without ANY response ever having started (the shape a genuine bug
+    takes — eventually turned into a 500 by Starlette's
+    `ServerErrorMiddleware`, which sits OUTSIDE this one, see app/main.py's
+    own comment on that gap) used to leave `status_box["status"]` at
+    `None` forever, and both formatters omit a `None`-valued request
+    field entirely — so the summary line for exactly the request most
+    worth finding in the logs carried no `status` at all. Driven directly
+    at the middleware (not through the real app, which has no route that
+    raises unhandled today) with a downstream that raises before sending
+    anything."""
+    async def broken_downstream(scope, receive, send):
+        raise RuntimeError("boom")
+
+    wrapped = RequestIDMiddleware(broken_downstream)
+
+    async def send(message):
+        raise AssertionError("no response should ever be sent on this path")
+
+    with caplog.at_level(logging.INFO, logger="finhealth.request"):
+        try:
+            asyncio.run(wrapped(_http_scope("/broken"), _once_receive, send))
+        except RuntimeError:
+            pass  # re-raised deliberately — see the middleware's own comment
+        else:
+            raise AssertionError("RuntimeError should have propagated")
+
+    record = next(r for r in caplog.records if r.name == "finhealth.request")
+    assert record.status == 500
+
+
+def test_exception_after_response_started_keeps_the_real_status(caplog):
+    """The `status_box["status"] is None` guard (L1's fix) must not
+    overwrite a status the client actually received — e.g. a streaming
+    response that fails mid-body after already sending 200 headers."""
+    async def fails_mid_stream(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise RuntimeError("boom mid-stream")
+
+    wrapped = RequestIDMiddleware(fails_mid_stream)
+
+    async def send(message):
+        pass
+
+    with caplog.at_level(logging.INFO, logger="finhealth.request"):
+        try:
+            asyncio.run(wrapped(_http_scope("/broken"), _once_receive, send))
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("RuntimeError should have propagated")
+
+    record = next(r for r in caplog.records if r.name == "finhealth.request")
+    assert record.status == 200  # not overwritten to 500
 
 
 async def _run_request(path: str) -> tuple[str | None, str | None, int | None]:
