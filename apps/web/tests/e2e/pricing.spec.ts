@@ -45,6 +45,53 @@ test("round-2 regression guard (N1): the footer's Pricing link actually carries 
   await expect(footerLink).toHaveClass(/text-ink-muted/);
 });
 
+test("finish-wave fixes 1+3: both tier prices render in the segment voice and actually ignite in a real browser", async ({
+  page,
+}) => {
+  await page.goto("/pricing");
+
+  // Fix 1: the price is a SegmentDisplay (role="img"), not plain Inter
+  // text — $ and /мес stay outside the mask as plain PT Mono adjuncts.
+  const freePrice = page.getByRole("img", { name: "0 — Цена" });
+  const proPrice = page.getByRole("img", { name: "19 — Цена" });
+  await expect(freePrice).toBeVisible();
+  await expect(proPrice).toBeVisible();
+  await expect(page.getByText("$", { exact: true })).toBeVisible();
+  await expect(page.getByText("/мес", { exact: true })).toBeVisible();
+
+  // Fix 3: each figure ignites on mount via the real gsap timeline (not
+  // jsdom's polyfilled ticker). Checked two ways, deliberately not just
+  // "no segment reports data-lit='false'" — SegmentDisplay's own SSR/
+  // no-JS baseline renders active segments as data-lit="true" BEFORE
+  // ignite() ever runs (see segment-display.tsx: "[data-lit]=true by
+  // default"), so a bare "zero unlit" poll can pass trivially on the very
+  // first check without ever proving the cascade actually ran. Instead:
+  // (a) explicit toHaveAttribute("data-lit", "true") on every active
+  // segment once settled, and (b) the CSS the app ships actually applies
+  // — [data-lit="true"] resolves to the real accent teal (rgb(25, 194,
+  // 176), full opacity), not the 10%-opacity ghost tone — verified
+  // against getComputedStyle, not just the attribute, since a CSS
+  // specificity/load-order bug could leave the right attribute with the
+  // wrong paint.
+  const freeSegments = freePrice.locator("[data-segment-on]");
+  const proSegments = proPrice.locator("[data-segment-on]");
+  await expect(freeSegments.first()).toHaveAttribute("data-lit", "true", { timeout: 3000 });
+
+  const freeCount = await freeSegments.count();
+  const proCount = await proSegments.count();
+  expect(freeCount).toBeGreaterThan(0);
+  expect(proCount).toBeGreaterThan(0);
+  for (let i = 0; i < freeCount; i++) {
+    await expect(freeSegments.nth(i)).toHaveAttribute("data-lit", "true");
+  }
+  for (let i = 0; i < proCount; i++) {
+    await expect(proSegments.nth(i)).toHaveAttribute("data-lit", "true");
+  }
+
+  const litColor = await freeSegments.first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(litColor).toBe("rgb(25, 194, 176)");
+});
+
 test("Free tier's CTA links to /analyze", async ({ page }) => {
   await page.goto("/pricing");
 

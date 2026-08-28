@@ -552,6 +552,7 @@
     },
     "heading": "Pricing",
     "intro": "Free already includes the full company diagnosis. Pro will add unlimited use and tools for ongoing work — billing isn't connected yet, so the waitlist is open.",
+    "priceCaption": "Price",
     "free": {
       "title": "Free",
       "price": "0",
@@ -562,7 +563,8 @@
     },
     "pro": {
       "title": "Pro",
-      "price": "$19",
+      "priceCurrency": "$",
+      "price": "19",
       "pricePeriod": "/mo",
       "priceNote": "Launch pricing, subject to change",
       "intro": "Pro hasn't launched yet. Leave your email and we'll write when it opens.",

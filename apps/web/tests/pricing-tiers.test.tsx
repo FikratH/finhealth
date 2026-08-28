@@ -30,10 +30,16 @@ describe("PricingTiers", () => {
     expect(headings[0]).toHaveTextContent(ruMessages.Pricing.heading);
   });
 
-  it("renders the Free tier's price and every feature line verbatim from messages", () => {
+  it("renders the Free tier's price as a segment figure (finish-wave fix 1) and every feature line verbatim from messages", () => {
     renderTiers();
     expect(screen.getByText(free.title)).toBeInTheDocument();
-    expect(screen.getByText(free.price)).toBeInTheDocument();
+    // The price is a SegmentDisplay now, not a plain text node — its
+    // accessible name combines the formatted value with the shared
+    // priceCaption ("Цена"), the same "{value} — {caption}" pattern
+    // score-header.tsx's own SegmentDisplay usage follows.
+    expect(
+      screen.getByRole("img", { name: `${free.price} — ${ruMessages.Pricing.priceCaption}` }),
+    ).toBeInTheDocument();
     expect(screen.getByText(free.feature1)).toBeInTheDocument();
     expect(screen.getByText(free.feature2)).toBeInTheDocument();
     expect(screen.getByText(free.feature3)).toBeInTheDocument();
@@ -45,10 +51,17 @@ describe("PricingTiers", () => {
     expect(link).toHaveAttribute("href", "/analyze");
   });
 
-  it("renders the Pro tier's price, launch-pricing note, and every feature line", () => {
+  it("renders the Pro tier's price as a segment figure with its currency/period as plain adjuncts, the launch-pricing note, and every feature line", () => {
     renderTiers();
     expect(screen.getByText(pro.title)).toBeInTheDocument();
-    expect(screen.getByText(pro.price)).toBeInTheDocument();
+    // $ and /мес stay plain PT Mono text OUTSIDE the segment mask — only
+    // the bare numeral goes into SegmentDisplay (DESIGN.md: "a segment
+    // mask carries numeric figures only").
+    expect(screen.getByText(pro.priceCurrency)).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: `${pro.price} — ${ruMessages.Pricing.priceCaption}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(pro.pricePeriod)).toBeInTheDocument();
     expect(screen.getByText(pro.priceNote)).toBeInTheDocument();
     expect(screen.getByText(pro.feature1)).toBeInTheDocument();
     expect(screen.getByText(pro.feature2)).toBeInTheDocument();

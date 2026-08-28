@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { OriginTicket } from "@/components/origin-ticket";
 import { CheckIcon } from "@/components/icons";
 import { WaitlistForm } from "@/components/pricing/waitlist-form";
+import { PriceFigure } from "@/components/pricing/price-figure";
 import { PHYSICAL_BUTTON_CLASS } from "@/components/pricing/physical-button-class";
 
 // Static content + the Free tier's navigation CTA render as a plain server
@@ -47,7 +48,20 @@ export function PricingTiers() {
           <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
             {tFree("title")}
           </p>
-          <p className="mt-2 font-display text-4xl text-ink">{tFree("price")}</p>
+          {/* finish-wave material_fix 1: the price is a real, headline
+           * figure ("every headline figure" per DESIGN.md's typography
+           * hierarchy, and the North Star's own "price totem" rendition)
+           * — the segment voice, not Inter. A lit segment zero is correct
+           * here: Free's price is genuinely 0, a real value, not designed
+           * absence («Н/Д» is reserved for missing data, which this
+           * isn't). */}
+          <p className="mt-2">
+            <PriceFigure
+              value={Number(tFree("price"))}
+              className="text-4xl"
+              caption={t("priceCaption")}
+            />
+          </p>
 
           <FeatureList items={freeFeatures} />
 
@@ -63,8 +77,17 @@ export function PricingTiers() {
           <p className="font-mono text-xs uppercase tracking-wide text-ink-muted">
             {tPro("title")}
           </p>
+          {/* Currency symbol and period are PT Mono adjuncts OUTSIDE the
+           * segment mask — DESIGN.md: "a SegmentDisplay/DSEG7 mask
+           * carries numeric figures only." Same pattern InstrumentModule
+           * uses for its own figure+unit row. */}
           <div className="mt-2 flex items-baseline gap-1">
-            <span className="font-display text-4xl text-ink">{tPro("price")}</span>
+            <span className="font-mono text-lg text-ink-muted">{tPro("priceCurrency")}</span>
+            <PriceFigure
+              value={Number(tPro("price"))}
+              className="text-4xl"
+              caption={t("priceCaption")}
+            />
             <span className="font-mono text-sm text-ink-muted">{tPro("pricePeriod")}</span>
           </div>
           <OriginTicket tone="attention" className="mt-3">
