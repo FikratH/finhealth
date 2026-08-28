@@ -136,6 +136,16 @@ export function RatioRow({
   const t = useTranslations("Results.ratios");
   const tStatus = useTranslations("Status");
   const isMoney = ratio.unit === "money";
+  // Round-1 fix, Finding 1: an "economy_wide" KZ mark (the "all" bucket —
+  // an aggregate across Kazakhstan's whole non-financial corporate
+  // sector, not this ratio's own industry) gets a visibly different label
+  // from a genuinely industry-specific one (e.g. banking's own entries),
+  // so the scope caveat reaches the row itself, not only a document-level
+  // footnote a reader can easily skim past.
+  const kzLabel =
+    ratio.benchmark_kz?.scope === "economy_wide"
+      ? t("benchmarkKzEconomyWideLabel")
+      : t("benchmarkKzLabel");
   // Absent entirely (not just empty) on analyses stored before source_values
   // existed — traces stay empty in that case, and the section below simply
   // doesn't render. No crash: traceRatioInputs only ever reads sourceValues.
@@ -289,23 +299,24 @@ export function RatioRow({
               label={t("benchmarkLabel")}
               naLabel={t("naLabel")}
               tone={CALIBRATION_TONE[ratio.status]}
-              kz={
-                ratio.benchmark_kz
-                  ? { value: ratio.benchmark_kz.value, label: t("benchmarkKzLabel") }
-                  : undefined
-              }
+              kz={ratio.benchmark_kz ? { value: ratio.benchmark_kz.value, label: kzLabel } : undefined}
             />
             {ratio.benchmark_kz && (
-              // The screen-visible twin of the diamond mark itself — the
-              // gauge's aria-label and print text twin both carry this
-              // same fact, but only for screen readers / paper; a sighted
-              // screen reader needs the diamond explained too, hence a
-              // real (non-print-only) line here, in the same font-mono
-              // ink-muted register as the bound labels above it.
+              // The screen-visible twin of the square mark itself, and
+              // (round-1 fix, Findings 4/5) the SOLE print register for
+              // this fact — no print:hidden here, so it prints exactly
+              // once, carrying `as_of` (which CalibrationScale's own
+              // props alone can't). A sighted screen reader needs the
+              // mark explained too, hence a real always-rendered line
+              // here, in the same font-mono ink-muted register as the
+              // bound labels above it. Label is scope-aware (round-1 fix,
+              // Finding 1): an "economy_wide" mark says so in the label
+              // itself, not only in a document-level footnote — a SaaS
+              // row must not read as if this were a SaaS-specific figure.
               <p className="flex items-baseline gap-1.5 font-mono text-xs text-ink-muted">
-                <span aria-hidden="true" className="inline-block size-2 rotate-45 border border-brand bg-panel" />
+                <span aria-hidden="true" className="inline-block size-2 border border-brand bg-panel" />
                 <span>
-                  {t("benchmarkKzLabel")}:{" "}
+                  {kzLabel}:{" "}
                   <MetricNumber
                     value={ratio.benchmark_kz.value}
                     unit={ratio.unit}

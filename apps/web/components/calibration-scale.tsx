@@ -12,10 +12,12 @@ const CURSOR_CLASS: Record<CalibrationScaleTone, string> = {
 
 /** Additive (Phase 7 Task 5): a second, KZ-sourced reference point — a
  * single value, never a band, placed on the SAME track as the норма band
- * via the same headroom-extended axis. Rendered as a hollow brand-teal
- * diamond (shape, not color, is what distinguishes it from the round LED
- * cursor — see the Accent-Surface Trap note in DESIGN.md on why "brand",
- * never a new hue, is the only real-teal reach). */
+ * via the same headroom-extended axis. Rendered as a small hollow
+ * brand-teal square, sitting just above the track (shape and position,
+ * not color, are what distinguish it from the round LED cursor — see the
+ * Accent-Surface Trap note in DESIGN.md on why "brand", never a new hue,
+ * is the only real-teal reach; round-1 fix, Finding 7, on why unrotated
+ * and offset rather than a rotated diamond sharing the cursor's line). */
 export interface CalibrationScaleKZMark {
   value: number;
   /** Accessible/print label naming this mark, e.g. «ориентир КЗ». */
@@ -118,16 +120,23 @@ export function CalibrationScale({
             />
           )}
           {kzPct !== null && (
-            // A distinct SHAPE (hollow diamond), not a new color — a
-            // second color would either collide with tone's good/
+            // A distinct SHAPE (a small hollow square), not a new color —
+            // a second color would either collide with tone's good/
             // attention/critical vocabulary or require inventing a hue
             // this system doesn't have (see the Accent-Surface Trap note:
-            // "brand" is the only real-teal reach). Sits at the same
-            // vertical center as the LED cursor and bound ticks — one
-            // more mark on the same track, not a second row.
+            // "brand" is the only real-teal reach). Unrotated: DESIGN.md's
+            // shape grammar retired the tilted-stamp idiom (round-1 fix,
+            // Finding 7 — an earlier version of this mark used rotate-45,
+            // reintroducing exactly that retired tilt). Sits ABOVE the
+            // track's center line (bottom-full, not top-1/2) rather than
+            // on it — offset stacking, not z-order/opacity tricks — so it
+            // can never occlude the LED cursor even when both pin at the
+            // same horizontal position (round-1 fix, Finding 7's related
+            // point: this happens for real on the banking bucket, where a
+            // reading and its KZ mark can both sit at the track's edge).
             <div
               data-calibration-kz-mark
-              className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-brand bg-panel"
+              className="absolute bottom-full mb-0.5 size-2 -translate-x-1/2 border border-brand bg-panel"
               style={{ left: `${kzPct}%` }}
             />
           )}
@@ -154,21 +163,12 @@ export function CalibrationScale({
           {label} {rangeText}
         </span>
       </p>
-      {/* The KZ mark's own print-safe twin — same "norm-band print" idiom
-       * as the paragraph above, on its own line so it reads as a second,
-       * separately-sourced fact rather than part of the норма sentence.
-       * aria-hidden for the same reason: the role="img" above's aria-label
-       * already appends this mark's value/label for screen readers. */}
-      {kz && (
-        <p
-          aria-hidden="true"
-          className="hidden font-mono text-sm print:inline-flex print:items-baseline print:gap-2"
-        >
-          <span className="text-ink">{kzValueText}</span>
-          <span className="text-ink-muted">·</span>
-          <span className="text-ink-muted">{kz.label}</span>
-        </p>
-      )}
+      {/* No print twin of its own here (round-1 fix, Findings 4/5): a KZ
+       * mark's print register is owned entirely by ratio-row.tsx's own
+       * screen-visible provenance line, which — unlike a twin built from
+       * this component's own props alone — also carries `as_of` and
+       * renders unconditionally (no print:hidden), so there is exactly
+       * one place on paper the KZ fact appears, not two. */}
     </div>
   );
 }

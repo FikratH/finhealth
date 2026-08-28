@@ -189,6 +189,12 @@ export interface IndustryBenchmarkKZ {
   /** e.g. "2024Q1" — the source's own last-populated quarter, not today's date. */
   as_of: string;
   method: string;
+  /** Additive (round-1 fix, Finding 1): "economy_wide" when this is an
+   * aggregate across Kazakhstan's whole non-financial corporate sector
+   * (not specific to the ratio's own industry — the UI renders a
+   * distinct label for this case) or "industry" when it genuinely is
+   * sector-specific (e.g. the banking entries). */
+  scope: string;
 }
 
 export interface RatioResult {

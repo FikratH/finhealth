@@ -155,14 +155,17 @@ test("landing → analyze → verify → results → public share", async ({ pag
   expect(kzFootnoteHref).toBeTruthy();
   await expect(page.locator(kzFootnoteHref!)).toContainText("Нацбанк");
 
-  // The KZ mark itself: a diamond on net_margin's CalibrationScale, plus
-  // its screen-visible provenance line («ориентир КЗ: … (2024Q1)»).
+  // The KZ mark itself: a square on net_margin's CalibrationScale, plus
+  // its screen-visible provenance line — the SOLE print register for this
+  // fact post round-1 fix (Findings 4/5). net_margin resolves via the
+  // "all" (economy-wide) bucket, so the label is the economy-wide variant
+  // («ориентир РК (экономика в целом): … (2024Q1)»), not the bare
+  // industry-scoped one — round-1 fix, Finding 1.
   const netMarginRow = netMarginName.locator("xpath=ancestor::div[contains(@class,'border-line')][1]");
   await expect(netMarginRow.locator("[data-calibration-kz-mark]")).toBeAttached();
-  // Colon disambiguates this (screen-visible) provenance line from
-  // CalibrationScale's own print-only twin, whose label span reads
-  // "ориентир КЗ" with no trailing colon.
-  await expect(netMarginRow.getByText("ориентир КЗ:", { exact: false })).toBeVisible();
+  await expect(
+    netMarginRow.getByText("ориентир РК (экономика в целом):", { exact: false }),
+  ).toBeVisible();
 
   // The Footnotes section's honest "partial coverage" line for the KZ
   // overlay — shown once, not per-row.

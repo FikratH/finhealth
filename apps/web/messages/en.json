@@ -295,6 +295,7 @@
       "warningsLabel": "Warnings",
       "sourceFootnoteAria": "Benchmark source — footnote {n}",
       "benchmarkKzLabel": "KZ benchmark",
+      "benchmarkKzEconomyWideLabel": "KZ benchmark (economy-wide)",
       "sourceFootnoteAriaKz": "KZ benchmark source — footnote {n}",
       "provenanceHeading": "Provenance",
       "provenanceTraced": "Traced",
@@ -385,7 +386,7 @@
     "footnotes": {
       "heading": "Benchmark sources",
       "methodologyLinkLabel": "Full methodology →",
-      "kzPartialCoverageNote": "KZ benchmarks: partial coverage. Shown only where an honest public source exists (National Bank of Kazakhstan / IMF) — every other ratio and industry still relies on the global (Damodaran) benchmark alone."
+      "kzPartialCoverageNote": "KZ benchmarks: partial coverage. Shown only where an honest public source exists (National Bank of Kazakhstan / IMF) — every other ratio and industry still relies on the global (Damodaran) benchmark alone. Marks labeled \"economy-wide\" are an aggregate across all of Kazakhstan's non-financial corporations, not a figure specific to that industry."
     },
     "disclaimer": {
       "heading": "Disclaimer"

@@ -110,7 +110,7 @@ describe("buildFootnoteIndex", () => {
       ratio({
         key: "a",
         benchmark: { ratio: "a", weight: 1, direction: "higher", good: [0, 1], acceptable: [0, 1], note: "", source: "Damodaran" },
-        benchmark_kz: { ratio: "a", value: 5, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1" },
+        benchmark_kz: { ratio: "a", value: 5, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1", scope: "economy_wide" },
       }),
     ];
     const index = buildFootnoteIndex(ratios);
@@ -122,7 +122,7 @@ describe("buildFootnoteIndex", () => {
   });
 
   it("shares a footnote number across ratios whose benchmark_kz cites the same source", () => {
-    const kz = { ratio: "x", value: 1, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1" };
+    const kz = { ratio: "x", value: 1, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1", scope: "economy_wide" };
     const ratios = [
       ratio({ key: "a", benchmark_kz: { ...kz, ratio: "a" } }),
       ratio({ key: "b", benchmark_kz: { ...kz, ratio: "b" } }),

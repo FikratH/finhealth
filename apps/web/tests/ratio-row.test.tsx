@@ -263,7 +263,7 @@ describe("RatioRow — KZ benchmark overlay (Phase 7 Task 5)", () => {
       note: "ROE (аннуализировано источником), нефинансовые организации РК, 2024 Q1.",
       source: "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
       source_url: "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
-      as_of: "2024Q1", method: "kz-official-point-v1",
+      as_of: "2024Q1", method: "kz-official-point-v1", scope: "economy_wide",
     },
     explanation: "",
     applicable: true,
@@ -280,11 +280,54 @@ describe("RatioRow — KZ benchmark overlay (Phase 7 Task 5)", () => {
     expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
   });
 
-  it("shows a screen-visible KZ provenance line with the label and as_of quarter", () => {
+  it("shows a screen-visible KZ provenance line with the economy-wide label and as_of quarter", () => {
+    // scope: "economy_wide" on this fixture — must render the
+    // economy-wide-specific label, not the bare industry one (round-1
+    // fix, Finding 1).
     const { container } = renderRatioRow(roeWithKz);
     const text = container.textContent ?? "";
-    expect(text).toContain(ruMessages.Results.ratios.benchmarkKzLabel);
+    expect(text).toContain(ruMessages.Results.ratios.benchmarkKzEconomyWideLabel);
     expect(text).toContain("2024Q1");
+  });
+
+  it("shows the plain (non-economy-wide) label for an industry-scoped KZ mark", () => {
+    const bankingRoe: RatioResult = {
+      ...roeWithKz,
+      benchmark_kz: { ...roeWithKz.benchmark_kz!, scope: "industry" },
+    };
+    const { container } = renderRatioRow(bankingRoe);
+    const text = container.textContent ?? "";
+    expect(text).toContain(ruMessages.Results.ratios.benchmarkKzLabel);
+    expect(text).not.toContain(ruMessages.Results.ratios.benchmarkKzEconomyWideLabel);
+  });
+
+  it("passes the scope-aware label through to the calibration scale's kz mark too", () => {
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow ratio={roeWithKz} locale="ru" />
+      </NextIntlClientProvider>,
+    );
+    const gauge = screen.getByRole("img");
+    expect(gauge.getAttribute("aria-label")).toContain(
+      ruMessages.Results.ratios.benchmarkKzEconomyWideLabel,
+    );
+  });
+
+  // Round-1 fix, Findings 4/5/6: this line is now the SOLE print register
+  // for the KZ fact (CalibrationScale no longer ships its own twin) — it
+  // must render unconditionally, with no print:hidden/hidden class, so it
+  // appears on paper exactly once, carrying as_of (which the removed
+  // CalibrationScale twin never did).
+  it("renders the KZ provenance line with no print-hiding class (it is the paper register)", () => {
+    const { container } = renderRatioRow(roeWithKz);
+    const text = container.textContent ?? "";
+    const provenanceP = Array.from(container.querySelectorAll("p")).find((p) =>
+      p.textContent?.includes("2024Q1"),
+    );
+    expect(provenanceP).toBeDefined();
+    expect(provenanceP!.className).not.toMatch(/print:hidden/);
+    expect(provenanceP!.className).not.toMatch(/\bhidden\b/);
+    expect(text).toContain("15,32");
   });
 
   it("renders a second footnote marker for the kz source when kzFootnoteNumber is given", () => {
