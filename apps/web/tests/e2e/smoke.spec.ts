@@ -155,17 +155,37 @@ test("landing → analyze → verify → results → public share", async ({ pag
   expect(kzFootnoteHref).toBeTruthy();
   await expect(page.locator(kzFootnoteHref!)).toContainText("Нацбанк");
 
-  // The KZ mark itself: a square on net_margin's CalibrationScale, plus
-  // its screen-visible provenance line — the SOLE print register for this
-  // fact post round-1 fix (Findings 4/5). net_margin resolves via the
-  // "all" (economy-wide) bucket, so the label is the economy-wide variant
+  // The KZ provenance line — the SOLE print register for this fact post
+  // round-1 fix (Findings 4/5). net_margin resolves via the "all"
+  // (economy-wide) bucket, so the label is the economy-wide variant
   // («ориентир РК (экономика в целом): … (2024Q1)»), not the bare
   // industry-scoped one — round-1 fix, Finding 1.
   const netMarginRow = netMarginName.locator("xpath=ancestor::div[contains(@class,'border-line')][1]");
-  await expect(netMarginRow.locator("[data-calibration-kz-mark]")).toBeAttached();
   await expect(
     netMarginRow.getByText("ориентир РК (экономика в целом):", { exact: false }),
   ).toBeVisible();
+  // Final wave, material_fixes 1: net_margin's real KZ value (14,98%) sits
+  // well outside manufacturing's global good band's headroom-extended
+  // axis — off-axis, so the on-track square must NOT render, and the
+  // provenance line must name the absence instead of silently clamping.
+  await expect(netMarginRow.locator("[data-calibration-kz-mark]")).not.toBeAttached();
+  await expect(
+    netMarginRow.getByText("за пределами шкалы", { exact: false }),
+  ).toBeVisible();
+
+  // On-axis counter-example, same document: interest_coverage's real KZ
+  // value (5,05×) sits inside manufacturing's axis, so its square DOES
+  // render — proves the suppression above is genuinely value-dependent,
+  // not a blanket "marks never render" regression.
+  const interestCoverageName = page.locator("span", { hasText: "Interest Coverage" }).first();
+  await expect(interestCoverageName).toBeVisible();
+  const interestCoverageRow = interestCoverageName.locator(
+    "xpath=ancestor::div[contains(@class,'border-line')][1]",
+  );
+  await expect(interestCoverageRow.locator("[data-calibration-kz-mark]")).toBeAttached();
+  await expect(
+    interestCoverageRow.getByText("за пределами шкалы", { exact: false }),
+  ).not.toBeVisible();
 
   // The Footnotes section's honest "partial coverage" line for the KZ
   // overlay — shown once, not per-row.

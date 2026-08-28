@@ -65,14 +65,14 @@ describe("CalibrationScale", () => {
 // --- KZ mark (Phase 7 Task 5) ------------------------------------------
 
 describe("CalibrationScale — kz mark", () => {
-  it("renders no diamond mark when kz is absent", () => {
+  it("renders no square mark when kz is absent", () => {
     const { container } = render(
       <CalibrationScale value={2} low={1.5} high={3.0} label="L" />,
     );
     expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
   });
 
-  it("renders a diamond mark at the kz value's position when kz is present", () => {
+  it("renders a square mark at the kz value's position when kz is on-axis", () => {
     const { container } = render(
       <CalibrationScale value={2} low={1.5} high={3.0} label="L" kz={{ value: 2.5, label: "ориентир КЗ" }} />,
     );
@@ -83,14 +83,54 @@ describe("CalibrationScale — kz mark", () => {
     expect(left).toBeLessThan(100);
   });
 
-  it("clamps a kz value far outside the band onto the same headroom-extended track", () => {
+  // Finish review, material_fixes 1: a far-outside kz value used to CLAMP
+  // onto the track at 100% — landing the mark against the value numeral
+  // (desktop) or floating as debris (mobile), and silently asserting a
+  // false on-track position. Suppressing the mark entirely for an
+  // off-axis kz value (a designed absence, named in ratio-row.tsx's
+  // provenance line instead) replaces that clamp.
+  it("suppresses the mark entirely when kz is off-axis (far outside the headroom-extended axis)", () => {
     const { container } = render(
       <CalibrationScale value={2} low={1.5} high={3.0} label="L" kz={{ value: 9999, label: "ориентир КЗ" }} />,
     );
-    const mark = container.querySelector("[data-calibration-kz-mark]") as HTMLElement;
-    const left = Number.parseFloat(mark.style.left);
-    expect(left).toBeLessThanOrEqual(100);
-    expect(left).toBeGreaterThanOrEqual(0);
+    expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
+  });
+
+  it("still renders the mark right at the axis boundary (on-axis, not yet off)", () => {
+    // low=1.5, high=3.0, default headroom 0.4 -> spanHigh = 3.0 + 1.5*0.4 = 3.6
+    const { container } = render(
+      <CalibrationScale value={2} low={1.5} high={3.0} label="L" kz={{ value: 3.6, label: "ориентир КЗ" }} />,
+    );
+    expect(container.querySelector("[data-calibration-kz-mark]")).not.toBeNull();
+  });
+
+  it("suppresses the mark just past the axis boundary", () => {
+    const { container } = render(
+      <CalibrationScale value={2} low={1.5} high={3.0} label="L" kz={{ value: 3.7, label: "ориентир КЗ" }} />,
+    );
+    expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
+  });
+
+  it("keeps the kz value in the accessible name even when off-axis (aria retains the value either way)", () => {
+    render(
+      <CalibrationScale
+        value={2}
+        low={1.5}
+        high={3.0}
+        unit="x"
+        locale="ru"
+        label="норма"
+        kz={{ value: 9999, label: "ориентир РК" }}
+      />,
+    );
+    // Off-axis: no on-track square mark...
+    expect(document.querySelector("[data-calibration-kz-mark]")).toBeNull();
+    // ...but the accessible name still names the kz label and carries its
+    // formatted value (9 999,00×, per formatNumber's RU grouping).
+    const gauge = screen.getByRole("img");
+    expect(gauge.getAttribute("aria-label")).toMatch(/норма/);
+    expect(gauge.getAttribute("aria-label")).toContain("ориентир РК");
+    expect(gauge.getAttribute("aria-label")).toContain("999");
   });
 
   it("appends the kz label and value to the accessible name", () => {

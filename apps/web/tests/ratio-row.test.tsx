@@ -270,7 +270,7 @@ describe("RatioRow — KZ benchmark overlay (Phase 7 Task 5)", () => {
     warnings: [],
   };
 
-  it("renders the kz diamond mark on the calibration scale when benchmark_kz is present", () => {
+  it("renders the kz square mark on the calibration scale when benchmark_kz is present and on-axis", () => {
     const { container } = renderRatioRow(roeWithKz);
     expect(container.querySelector("[data-calibration-kz-mark]")).not.toBeNull();
   });
@@ -328,6 +328,59 @@ describe("RatioRow — KZ benchmark overlay (Phase 7 Task 5)", () => {
     expect(provenanceP!.className).not.toMatch(/print:hidden/);
     expect(provenanceP!.className).not.toMatch(/\bhidden\b/);
     expect(text).toContain("15,32");
+  });
+
+  // Finish review, material_fixes 1: off-scale KZ marks used to clamp
+  // silently onto the track at 100%, landing against the value numeral or
+  // floating as debris, and asserting a false position. Off-axis now
+  // suppresses the on-track mark and names the absence on the provenance
+  // line instead — this fixture (good=[10,25], default headroom 0.4 ->
+  // axis [4,31]) puts a kz value of 60 well outside it.
+  describe("off-axis KZ mark (finish review, material_fixes 1)", () => {
+    const offAxisRoe: RatioResult = {
+      ...roeWithKz,
+      benchmark_kz: { ...roeWithKz.benchmark_kz!, value: 60 },
+    };
+
+    it("renders no on-track square mark when the kz value is off-axis", () => {
+      const { container } = renderRatioRow(offAxisRoe);
+      expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
+    });
+
+    it("appends the off-scale annotation to the provenance line", () => {
+      const { container } = renderRatioRow(offAxisRoe);
+      const text = container.textContent ?? "";
+      expect(text).toContain(ruMessages.Results.ratios.benchmarkKzOffScale);
+      // The value itself still renders — only the on-track mark is
+      // suppressed, never the fact.
+      expect(text).toContain("60");
+    });
+
+    it("keeps the gauge's accessible name carrying the kz value even off-axis", () => {
+      render(
+        <NextIntlClientProvider locale="ru" messages={ruMessages}>
+          <RatioRow ratio={offAxisRoe} locale="ru" />
+        </NextIntlClientProvider>,
+      );
+      const gauge = screen.getByRole("img");
+      expect(gauge.getAttribute("aria-label")).toContain(
+        ruMessages.Results.ratios.benchmarkKzEconomyWideLabel,
+      );
+    });
+
+    it("omits the decorative legend swatch when off-axis (nothing on the gauge for it to point at)", () => {
+      const { container } = renderRatioRow(offAxisRoe);
+      // The on-axis case renders an aria-hidden square swatch right before
+      // the provenance text; confirm it's gone here.
+      const swatch = container.querySelector('p span[aria-hidden="true"].border-brand');
+      expect(swatch).toBeNull();
+    });
+
+    it("still renders the on-axis case's legend swatch for comparison", () => {
+      const { container } = renderRatioRow(roeWithKz);
+      const swatch = container.querySelector('p span[aria-hidden="true"].border-brand');
+      expect(swatch).not.toBeNull();
+    });
   });
 
   it("renders a second footnote marker for the kz source when kzFootnoteNumber is given", () => {

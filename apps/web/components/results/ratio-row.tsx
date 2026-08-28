@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
-import { CalibrationScale, type CalibrationScaleTone } from "@/components/calibration-scale";
+import { CalibrationScale, isKzOffAxis, type CalibrationScaleTone } from "@/components/calibration-scale";
 import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ChevronRightIcon, TriangleDownIcon, TriangleUpIcon } from "@/components/icons";
@@ -146,6 +146,15 @@ export function RatioRow({
     ratio.benchmark_kz?.scope === "economy_wide"
       ? t("benchmarkKzEconomyWideLabel")
       : t("benchmarkKzLabel");
+  // Finish review, material_fixes 1: same off-axis test CalibrationScale
+  // runs internally to decide whether to render its on-track mark at all
+  // (default headroom, since this call site never overrides it) — computed
+  // here too so the provenance line can name the absence in text instead
+  // of leaving a silently-suppressed mark unexplained.
+  const kzOffAxis =
+    ratio.benchmark != null &&
+    ratio.benchmark_kz != null &&
+    isKzOffAxis(ratio.benchmark.good[0], ratio.benchmark.good[1], ratio.benchmark_kz.value);
   // Absent entirely (not just empty) on analyses stored before source_values
   // existed — traces stay empty in that case, and the section below simply
   // doesn't render. No crash: traceRatioInputs only ever reads sourceValues.
@@ -314,7 +323,14 @@ export function RatioRow({
               // itself, not only in a document-level footnote — a SaaS
               // row must not read as if this were a SaaS-specific figure.
               <p className="flex items-baseline gap-1.5 font-mono text-xs text-ink-muted">
-                <span aria-hidden="true" className="inline-block size-2 border border-brand bg-panel" />
+                {/* No swatch when off-axis (finish review, material_fixes
+                 * 1): the little square here is a visual pointer to the
+                 * real square on the gauge above — showing it when that
+                 * gauge deliberately renders no mark would dangle a
+                 * reference to nothing. */}
+                {!kzOffAxis && (
+                  <span aria-hidden="true" className="inline-block size-2 border border-brand bg-panel" />
+                )}
                 <span>
                   {kzLabel}:{" "}
                   <MetricNumber
@@ -324,6 +340,13 @@ export function RatioRow({
                     className="text-xs text-ink-muted"
                   />
                   {" "}({ratio.benchmark_kz.as_of})
+                  {kzOffAxis && (
+                    // The prescribed fix: a clamped-and-silent mark used
+                    // to assert a false on-track position (≈22% for a real
+                    // 28,34% benchmark); naming the absence in text, right
+                    // where the number already lives, is honest instead.
+                    <span> — {t("benchmarkKzOffScale")}</span>
+                  )}
                 </span>
               </p>
             )}

@@ -50,6 +50,27 @@ function clampPercent(n: number): number {
   return Math.min(100, Math.max(0, n));
 }
 
+/** The same headroom-extended axis the track itself uses — factored out so
+ * `isKzOffAxis` (below) and the component body compute it identically;
+ * there is exactly one definition of "the axis," never two that could
+ * drift apart. */
+function computeSpan(low: number, high: number, headroom: number): { spanLow: number; spanHigh: number } {
+  const range = high - low;
+  const span = range === 0 ? Math.max(Math.abs(high), 1) : range;
+  return { spanLow: low - span * headroom, spanHigh: high + span * headroom };
+}
+
+/** Whether a kz value falls outside the track's own headroom-extended axis
+ * — exported so ratio-row.tsx can decide, with the exact same math this
+ * component uses internally, whether to append the off-scale annotation to
+ * its provenance line (finish review, material_fixes 1). `headroom`
+ * defaults to the same 0.4 CalibrationScaleProps does; pass the real value
+ * if a caller ever overrides it there. */
+export function isKzOffAxis(low: number, high: number, kzValue: number, headroom = 0.4): boolean {
+  const { spanLow, spanHigh } = computeSpan(low, high, headroom);
+  return kzValue < spanLow || kzValue > spanHigh;
+}
+
 // The норма-band evolved: a calibration-instrument track with tick marks
 // at the reference interval's bounds and an LED cursor at the current
 // reading — the gauge idiom, not a bracketed text range. NormBand (the
@@ -69,10 +90,7 @@ export function CalibrationScale({
   className,
   kz,
 }: CalibrationScaleProps) {
-  const range = high - low;
-  const span = range === 0 ? Math.max(Math.abs(high), 1) : range;
-  const spanLow = low - span * headroom;
-  const spanHigh = high + span * headroom;
+  const { spanLow, spanHigh } = computeSpan(low, high, headroom);
   const spanWidth = spanHigh - spanLow || 1;
 
   const toPercent = (n: number) => clampPercent(((n - spanLow) / spanWidth) * 100);
@@ -80,10 +98,16 @@ export function CalibrationScale({
   const highPct = toPercent(high);
   const hasValue = value !== null;
   const valuePct = hasValue ? toPercent(value) : null;
-  // Clamped onto the SAME headroom-extended axis as the норма band and the
-  // reading cursor — a KZ point far outside the global band still reads as
-  // a position on this track rather than escaping it.
-  const kzPct = kz ? toPercent(kz.value) : null;
+  // Finish review, material_fixes 1: a kz value far OUTSIDE the axis used
+  // to still clamp onto the track at 100%, landing the mark against the
+  // value numeral (desktop) or floating as debris (mobile) — and silently
+  // asserting a false position (≈22% for a real 28,34% benchmark). An
+  // off-axis kz mark is now a designed absence instead: no on-track mark
+  // at all; ratio-row.tsx's provenance line names the absence in text
+  // where the number already lives. The aria-label below still carries
+  // the KZ value either way, on-axis or off.
+  const kzOffAxis = kz != null && isKzOffAxis(low, high, kz.value, headroom);
+  const kzPct = kz && !kzOffAxis ? toPercent(kz.value) : null;
 
   const rangeText = `${formatNumber(low, { locale, unit })}–${formatNumber(high, { locale, unit })}`;
   const valueText = hasValue ? formatNumber(value, { locale, unit }) : (naLabel ?? formatNumber(null));
