@@ -442,21 +442,18 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
                 if matrix:
                     tables.append(_rows_from_matrix(matrix, f"PDF, стр. {page_no} (текст)"))
     full_text = "\n".join(text_parts)
-    if not full_text.strip():
-        # No text layer (scan) -- byte-identical to pre-P7.T4 when OCR isn't usable.
+    if not full_text.strip():  # no text layer (scan); byte-identical to pre-P7.T4 when OCR is off
         if not OCR.ocr_enabled():
             raise ScannedPdfError(
                 "PDF не содержит текстового слоя (вероятно, это скан). "
                 "Загрузите Excel/CSV либо PDF более высокого качества."
             )
+        ocr_failed_message = ("OCR не смог распознать данные в этом PDF. "
+                              "Загрузите Excel/CSV либо PDF более высокого качества.")
         ocr_texts, ocr_warnings = EO.ocr_pdf_pages(data)
         ocr_full_text = "\n".join(ocr_texts)
-        if not ocr_full_text.strip():
-            # Blank/poor-quality scan or a rasterization failure alike.
-            raise ScannedPdfError(
-                "OCR не смог распознать текст в этом PDF. "
-                "Загрузите Excel/CSV либо PDF более высокого качества."
-            )
+        if not ocr_full_text.strip():  # blank scan / poor quality / rasterization failure
+            raise ScannedPdfError(ocr_failed_message)
         ocr_tables = [
             _rows_from_matrix(matrix, f"PDF, стр. {page_no} (распознано OCR)")
             for page_no, page_text in enumerate(ocr_texts, start=1)
@@ -465,6 +462,9 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
         result = _extract_from_tables(
             ocr_tables, ocr_full_text, base_confidence_penalty=15.0,
             confidence_cap=EO.CONFIDENCE_CAP)
+        # Round-1: raw text can be non-empty GARBAGE (partial install -> eng-only).
+        if not any(v.value is not None for v in result.values):
+            raise ScannedPdfError(ocr_failed_message)
         result.warnings.append(EO.WARNING)
         result.warnings.extend(ocr_warnings)
         return result
