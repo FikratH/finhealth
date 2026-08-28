@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 // Full-flow smoke test against the real engine (real API, real extraction,
 // real scoring — no mocks): landing → analyze → upload → verify → results
@@ -25,6 +26,28 @@ test.beforeAll(() => {
   fs.mkdirSync(SDD_SCREENS_DIR, { recursive: true });
   fs.mkdirSync(IMPECCABLE_DIR, { recursive: true });
 });
+
+// Settles Lenis's own smooth-scroll animation before the next wheel input
+// or poll (see the mini-nav wheel-scroll loop below, and the CI-flake
+// postmortem in its own comment, for why this exists). "Settled" is two
+// consecutive animation frames reading the same *rounded* scrollY — Lenis's
+// easing can keep nudging by sub-pixel amounts right at the tail of its
+// animation, so exact equality across frames isn't the right bar. Bounded
+// by maxWaitMs rather than waiting indefinitely: a safety net, not a
+// requirement that the animation fully complete (a caller mid-sequence
+// just needs *a* stable read, not necessarily the final one).
+async function waitForScrollSettle(page: Page, maxWaitMs = 400) {
+  await page.evaluate(async (maxWait) => {
+    const start = performance.now();
+    let last = Math.round(window.scrollY);
+    while (performance.now() - start < maxWait) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const current = Math.round(window.scrollY);
+      if (current === last) return;
+      last = current;
+    }
+  }, maxWaitMs);
+}
 
 // Set by the main flow test below, reused by the reduced-motion test that
 // follows it in the same file — this suite runs single-worker,
@@ -183,6 +206,7 @@ test("landing → analyze → verify → results → public share", async ({ pag
 
   const recommendationsHeading = page.getByRole("heading", { name: "Рекомендации" });
   const recommendationsLink = nav.getByRole("link", { name: "Рекомендации" });
+  const lastNavLink = nav.getByRole("link").last();
   // Real wheel input, not a scripted scrollIntoView — Lenis intercepts
   // wheel/touch to drive its own smooth scroll, so this is what actually
   // exercises the ScrollTrigger callbacks the mini-nav's highlight depends
@@ -190,10 +214,30 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // Polls aria-current itself, not Playwright's isVisible() — that check
   // only cares about display/visibility, not computed opacity, so it
   // would report "visible" even at this section's pre-reveal opacity: 0.
+  //
+  // CI-flake postmortem: the original loop fired wheel events back-to-back
+  // with only a getAttribute round-trip between them — no settle-wait.
+  // Locally, each Playwright round-trip happened to give Lenis's rAF loop
+  // enough real time to catch up; on a loaded shared runner it didn't.
+  // Lenis smooths toward the *accumulated sum* of wheel deltas, it doesn't
+  // scroll instantly per event, so up to 40 wheels of 800px could pile up
+  // faster than the animation consumed them — tens of thousands of pixels
+  // of target, blowing straight past Рекомендации to whatever section was
+  // last in the document before the loop ever saw the right link's
+  // aria-current turn true. Fixed three ways: a smaller per-step delta
+  // (less to overshoot with per event), a real settle-wait after each step
+  // (every poll reads a stable position, never a mid-flight one), and an
+  // overshoot-safe correction — if a step already landed on the LAST nav
+  // section, that's unambiguous proof of having gone too far, so wheel
+  // back up a step instead of continuing to pile on downward delta.
   await page.mouse.move(720, 450);
-  for (let i = 0; i < 40; i++) {
+  const WHEEL_DELTA = 400;
+  const MAX_WHEEL_STEPS = 80;
+  for (let i = 0; i < MAX_WHEEL_STEPS; i++) {
     if ((await recommendationsLink.getAttribute("aria-current")) === "true") break;
-    await page.mouse.wheel(0, 800);
+    const overshot = (await lastNavLink.getAttribute("aria-current")) === "true";
+    await page.mouse.wheel(0, overshot ? -WHEEL_DELTA : WHEEL_DELTA);
+    await waitForScrollSettle(page);
   }
   await expect(recommendationsLink).toHaveAttribute("aria-current", "true");
   await expect(recommendationsHeading).toBeVisible();
