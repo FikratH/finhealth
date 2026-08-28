@@ -56,6 +56,31 @@ describe("SigninForm", () => {
     expect(screen.queryByLabelText(ruMessages.SignIn.emailLabel)).not.toBeInTheDocument();
   });
 
+  it("P7 T1b: the role=status live region is present from first render, not just once sent — the more reliable shape for AT announcements", () => {
+    renderForm();
+
+    const region = screen.getByRole("status");
+    expect(region).toBeInTheDocument();
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it("P7 T1b: the same live region node (not a new one) gains the confirmation content once sent", async () => {
+    magicLink.mockResolvedValue({ data: { status: true }, error: null });
+    renderForm();
+
+    const region = screen.getByRole("status");
+    expect(region).toBeEmptyDOMElement();
+
+    fireEvent.change(screen.getByLabelText(ruMessages.SignIn.emailLabel), {
+      target: { value: "founder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: ruMessages.SignIn.submitButton }));
+
+    await screen.findByText(ruMessages.SignIn.sentTitle);
+    expect(screen.getByRole("status")).toBe(region);
+    expect(region).toHaveTextContent(ruMessages.SignIn.sentTitle);
+  });
+
   it("shows a visible retryable error when Better Auth's endpoint returns an error, and keeps the form", async () => {
     magicLink.mockResolvedValue({ data: null, error: { message: "rate limited" } });
     renderForm();

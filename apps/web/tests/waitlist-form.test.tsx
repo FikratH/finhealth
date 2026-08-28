@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import ruMessages from "@/messages/ru.json";
 import { ApiError } from "@/lib/api";
@@ -61,9 +61,39 @@ describe("WaitlistForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
 
-    const region = await screen.findByRole("status");
+    // P7 T1b: wait on the actual confirmation TEXT arriving, not on
+    // `findByRole("status")` — the region itself is present from mount now
+    // (that's the whole point of the fix), so querying it by role alone
+    // resolves instantly and proves nothing about whether the async submit
+    // has actually completed yet.
+    await screen.findByText(pro.successTitle);
+    const region = screen.getByRole("status");
     expect(region).toHaveTextContent(pro.successTitle);
     expect(region).toHaveTextContent(pro.successChip);
+  });
+
+  it("P7 T1b: the role=status live region is present from first render, empty, not popped into existence already-populated once terminal", () => {
+    renderForm();
+
+    const region = screen.getByRole("status");
+    expect(region).toBeInTheDocument();
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it("P7 T1b: the same live region node (not a new one) gains the confirmation content once terminal", async () => {
+    joinWaitlist.mockResolvedValue({ status: "joined" });
+    renderForm();
+
+    const region = screen.getByRole("status");
+    expect(region).toBeEmptyDOMElement();
+
+    fireEvent.change(screen.getByLabelText(pro.formLabel), {
+      target: { value: "founder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
+
+    await screen.findByText(pro.successTitle);
+    expect(screen.getByRole("status")).toBe(region);
   });
 
   it("round-2 residual: moves focus to the confirmation panel, since the submit button that had it just unmounted", async () => {
@@ -75,8 +105,14 @@ describe("WaitlistForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
 
-    const region = await screen.findByRole("status");
-    expect(region).toHaveFocus();
+    // Same P7 T1b timing note as above, plus one more: the focus() call
+    // itself happens in a useEffect, which the DOM content update this
+    // waits on doesn't guarantee has already run by the time it resolves —
+    // wrapping the focus assertion in its own waitFor absorbs that gap
+    // instead of assuming the effect landed in the same tick as the text.
+    await screen.findByText(pro.successTitle);
+    const region = screen.getByRole("status");
+    await waitFor(() => expect(region).toHaveFocus());
   });
 
   it("shows the honest \"already on the list\" confirmation on a duplicate — not an error", async () => {
@@ -101,7 +137,8 @@ describe("WaitlistForm", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: pro.submitButton }));
 
-    const region = await screen.findByRole("status");
+    await screen.findByText(pro.alreadyTitle);
+    const region = screen.getByRole("status");
     expect(region).toHaveTextContent(pro.alreadyTitle);
     expect(region).toHaveTextContent(pro.alreadyChip);
   });

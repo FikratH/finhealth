@@ -64,82 +64,95 @@ export function WaitlistForm() {
     }
   }
 
-  if (status === "joined" || status === "already_joined") {
-    const joined = status === "joined";
-    return (
-      // role="status" (not a bezel of its own — AnnunciatorCell below
-      // already IS the one bezel; wrapping it in a second `border
-      // border-line bg-panel` frame would be the "nested cards"
-      // anti-pattern the craft floor bans): a live region so the whole
-      // subtree is announced the moment it replaces the form — round-1
-      // review finding (F2), the form's earlier version swapped the DOM
-      // silently, with nothing to tell a screen-reader user that
-      // submitting actually did anything. The headline above the cell
-      // mirrors SigninForm's own sent-state shape (chip/headline/
-      // description) and gives the live region an immediate opening line.
-      <div ref={confirmationRef} tabIndex={-1} role="status">
-        <p className="font-display text-xl text-ink">
-          {joined ? t("successTitle") : t("alreadyTitle")}
-        </p>
-        <AnnunciatorCell
-          className="mt-4"
-          status="good"
-          label={joined ? t("successChip") : t("alreadyChip")}
-          description={joined ? t("successDescription", { email }) : t("alreadyDescription")}
-        />
-      </div>
-    );
-  }
+  const terminal = status === "joined" || status === "already_joined";
+  const joined = status === "joined";
 
   return (
-    <form onSubmit={handleSubmit} noValidate>
-      <label
-        htmlFor={emailId}
-        className="block font-mono text-xs uppercase tracking-wide text-ink-muted"
-      >
-        {t("formLabel")}
-      </label>
-      <input
-        id={emailId}
-        type="email"
-        inputMode="email"
-        autoComplete="email"
-        required
-        value={email}
-        onChange={(event) => {
-          setEmail(event.target.value);
-          setValidationError(null);
-        }}
-        placeholder={t("formPlaceholder")}
-        aria-invalid={Boolean(validationError)}
-        aria-describedby={validationError ? emailErrorId : undefined}
-        className={cn(
-          // Celebrated-editability grammar, same discipline as
-          // SigninForm's own email field.
-          "mt-2 w-full border bg-panel px-3 py-2 font-mono text-sm text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-          validationError
-            ? "border-critical"
-            : "border-line focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)]",
-        )}
-      />
-      {validationError && (
-        <p id={emailErrorId} role="alert" className="mt-2 text-xs text-critical">
-          {validationError}
-        </p>
-      )}
-      {status === "error" && (
-        <p role="alert" className="mt-2 text-xs text-critical">
-          {t("genericError")}
-        </p>
+    <>
+      {!terminal && (
+        <form onSubmit={handleSubmit} noValidate>
+          <label
+            htmlFor={emailId}
+            className="block font-mono text-xs uppercase tracking-wide text-ink-muted"
+          >
+            {t("formLabel")}
+          </label>
+          <input
+            id={emailId}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setValidationError(null);
+            }}
+            placeholder={t("formPlaceholder")}
+            aria-invalid={Boolean(validationError)}
+            aria-describedby={validationError ? emailErrorId : undefined}
+            className={cn(
+              // Celebrated-editability grammar, same discipline as
+              // SigninForm's own email field.
+              "mt-2 w-full border bg-panel px-3 py-2 font-mono text-sm text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              validationError
+                ? "border-critical"
+                : "border-line focus-visible:border-brand focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--accent)_20%,transparent)]",
+            )}
+          />
+          {validationError && (
+            <p id={emailErrorId} role="alert" className="mt-2 text-xs text-critical">
+              {validationError}
+            </p>
+          )}
+          {status === "error" && (
+            <p role="alert" className="mt-2 text-xs text-critical">
+              {t("genericError")}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            disabled={status === "pending"}
+            className={cn("mt-4", PHYSICAL_BUTTON_CLASS)}
+          >
+            {status === "pending" ? t("submitPending") : t("submitButton")}
+          </Button>
+        </form>
       )}
 
-      <Button
-        type="submit"
-        disabled={status === "pending"}
-        className={cn("mt-4", PHYSICAL_BUTTON_CLASS)}
-      >
-        {status === "pending" ? t("submitPending") : t("submitButton")}
-      </Button>
-    </form>
+      {/* round-1 review finding (F2): role="status" so the whole subtree is
+          announced once it gains content — the form's earlier version
+          swapped the DOM silently, with nothing to tell a screen-reader
+          user that submitting actually did anything. P7 T1b hardens that
+          further: this div is unconditionally in the tree from first
+          render (not just once terminal), empty until then, so it's
+          already a registered live region by the time its content changes
+          rather than arriving already-populated — the more reliable
+          announcement shape for AT. Not a bezel of its own even once
+          populated — AnnunciatorCell below already IS the one bezel;
+          wrapping it in a second `border border-line bg-panel` frame would
+          be the "nested cards" anti-pattern the craft floor bans. The
+          headline above the cell mirrors SigninForm's own sent-state shape
+          (chip/headline/description) and gives the live region an
+          immediate opening line. tabIndex={-1} stays unconditional too, so
+          the round-2 focus-move effect below always has a stable node to
+          focus. */}
+      <div ref={confirmationRef} tabIndex={-1} role="status">
+        {terminal && (
+          <>
+            <p className="font-display text-xl text-ink">
+              {joined ? t("successTitle") : t("alreadyTitle")}
+            </p>
+            <AnnunciatorCell
+              className="mt-4"
+              status="good"
+              label={joined ? t("successChip") : t("alreadyChip")}
+              description={joined ? t("successDescription", { email }) : t("alreadyDescription")}
+            />
+          </>
+        )}
+      </div>
+    </>
   );
 }
