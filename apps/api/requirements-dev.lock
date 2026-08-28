@@ -103,15 +103,22 @@ openai==3.5.0
 openpyxl==3.1.5
     # via -r requirements.txt
 packaging==26.3
-    # via pytest
+    # via
+    #   pytesseract
+    #   pytest
 pandas==3.0.5
     # via -r requirements.txt
+pdf2image==1.17.0
+    # via -r requirements-dev.txt
 pdfminer-six==20260107
     # via pdfplumber
 pdfplumber==0.11.10
     # via -r requirements.txt
 pillow==12.3.0
-    # via pdfplumber
+    # via
+    #   pdf2image
+    #   pdfplumber
+    #   pytesseract
 pluggy==1.6.0
     # via pytest
 psycopg==3.3.4
@@ -135,6 +142,8 @@ pyjwt==2.13.0
     # via -r requirements.txt
 pypdfium2==5.13.0
     # via pdfplumber
+pytesseract==0.3.13
+    # via -r requirements-dev.txt
 pytest==9.1.1
     # via -r requirements-dev.txt
 python-dateutil==2.9.0.post0

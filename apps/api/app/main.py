@@ -35,7 +35,7 @@ from .schemas import (
     WaitlistRequest,
     WaitlistResponse,
 )
-from .services import extraction, vault
+from .services import extraction, ocr, vault
 from .services import narrative as narrative_service
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
@@ -200,7 +200,12 @@ def health():
     # the checkbox — see components/analyze/upload-step.tsx. Cheap (one env
     # read, see services.vault.vault_enabled) and safe to poll from an
     # unauthenticated route.
-    return {"status": "ok", "vault_enabled": vault.vault_enabled()}
+    # `ocr_enabled` (additive, P7.T4): whether a scanned PDF (no text layer)
+    # will actually be routed through OCR instead of erroring — see
+    # services.ocr.ocr_enabled and extraction.py's extract_from_pdf. Same
+    # capability-report shape as vault_enabled: env-gated AND, here,
+    # binary-presence-gated (shutil.which, cached after the first call).
+    return {"status": "ok", "vault_enabled": vault.vault_enabled(), "ocr_enabled": ocr.ocr_enabled()}
 
 
 @app.get("/api/industries")
@@ -298,7 +303,14 @@ def extract(payload: ExtractRequest):
         future = pool.submit(extraction.extract, data, kind)
         result = future.result(timeout=EXTRACT_TIMEOUT_SECONDS)
     except extraction.ScannedPdfError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        # `code` (additive, P7.T4, mirrors vault_unavailable's shape below):
+        # lets the frontend show its OCR hint precisely on THIS 422, not on
+        # every 422 (a general parse failure or an extraction timeout also
+        # 422s but has nothing to do with OCR) — see
+        # lib/analyze-errors.ts's errorHintKey. The human message text
+        # itself is unchanged from pre-P7.T4 either way (`str(e)` — see
+        # extraction.ScannedPdfError's two raise sites).
+        raise HTTPException(status_code=422, detail={"code": "scanned_pdf", "message": str(e)})
     except concurrent.futures.TimeoutError:
         # NB: concurrent.futures.TimeoutError aliases the builtin TimeoutError
         # on Python 3.11+; this except must precede the generic Exception

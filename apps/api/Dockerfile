@@ -24,6 +24,16 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.lock
 
+# ---- OCR (P7.T4, OPTIONAL, off by default) ----
+# pytesseract/pdf2image are deliberately NOT in requirements.lock (see
+# app/services/extraction.py's lazy imports and requirements-dev.txt's own
+# comment on why) — an operator who wants scanned-PDF OCR uncomments this
+# line (pinning versions to match requirements-dev.lock) in addition to the
+# runtime-stage apt layer below, then sets OCR_ENABLED=1 in the API env.
+# Both layers must be present together — OCR_ENABLED=1 alone is not enough
+# (see app/services/ocr.py: env AND both binaries required).
+# RUN /opt/venv/bin/pip install --no-cache-dir pytesseract==0.3.13 pdf2image==1.17.0
+
 # ---- runtime: slim image, non-root, only what's needed to serve ----
 FROM python:3.12-slim AS runtime
 
@@ -31,6 +41,18 @@ FROM python:3.12-slim AS runtime
 # root: no privileged ports, no runtime package installs).
 RUN groupadd --system finhealth \
     && useradd --system --gid finhealth --home-dir /app --no-create-home finhealth
+
+# ---- OCR (P7.T4, OPTIONAL, off by default) ----
+# tesseract-ocr (+ its rus language pack) and poppler-utils (pdftoppm, via
+# the pip pdf2image layer above) are what app/services/ocr.py's
+# ocr_enabled() checks for on PATH. Commented out to keep the default image
+# lean — uncomment together with the builder-stage pip install above, then
+# set OCR_ENABLED=1 in the API env, to turn scanned-PDF OCR on. See
+# docs/founder-todo.md's OCR entry for the full checklist.
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends \
+#        tesseract-ocr tesseract-ocr-rus poppler-utils \
+#     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

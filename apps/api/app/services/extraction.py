@@ -13,7 +13,9 @@ from typing import Optional
 
 from ..schemas import ExtractedValue, ExtractionResult, PeriodSelectionMeta, Scale
 from . import extraction_headers as H
+from . import extraction_ocr as EO
 from . import metrics as M
+from . import ocr as OCR
 
 # Resource caps: a hostile or pathological file (e.g. a 40k-row "sheet of
 # junk") must not be fully materialized in memory or take minutes to parse.
@@ -144,7 +146,8 @@ def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
 
 
 def _extract_from_tables(tables: list[_Table], full_text: str,
-                         base_confidence_penalty: float = 0.0) -> ExtractionResult:
+                         base_confidence_penalty: float = 0.0,
+                         confidence_cap: Optional[float] = None) -> ExtractionResult:
     scale = M.detect_scale(full_text)
     currency = M.detect_currency(full_text)
     audited = M.detect_audited(full_text)
@@ -257,6 +260,8 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
             conf = max(0.0, conf - base_confidence_penalty)
             if safety_net_active:
                 conf = min(conf, 50.0)
+            if confidence_cap is not None:
+                conf = min(conf, confidence_cap)  # P7.T4: e.g. an OCR misread ("8" vs "3")
             values: dict[str, float | None] = {}
             for idx, raw in enumerate(row.cells):
                 if idx in t.code_col_idxs:
@@ -432,22 +437,38 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
             for t_no, raw_table in enumerate(page_tables, start=1):
                 tables.append(_rows_from_matrix(
                     raw_table, f"PDF, стр. {page_no}, таблица {t_no}"))
-            # line-based fallback: "Label ....  1 234  5 678"
             if not page_tables:
-                matrix = []
-                for line in page_text.splitlines():
-                    parts = [p for p in line.replace("\u00a0", " ").rsplit("  ") if p.strip()]
-                    if len(parts) >= 2:
-                        matrix.append([parts[0].strip(), *[p.strip() for p in parts[1:]]])
+                matrix = EO.lines_to_matrix(page_text)
                 if matrix:
-                    t = _rows_from_matrix(matrix, f"PDF, стр. {page_no} (текст)")
-                    tables.append(t)
+                    tables.append(_rows_from_matrix(matrix, f"PDF, стр. {page_no} (текст)"))
     full_text = "\n".join(text_parts)
     if not full_text.strip():
-        raise ScannedPdfError(
-            "PDF не содержит текстового слоя (вероятно, это скан). "
-            "Загрузите Excel/CSV либо PDF более высокого качества."
-        )
+        # No text layer (scan) -- byte-identical to pre-P7.T4 when OCR isn't usable.
+        if not OCR.ocr_enabled():
+            raise ScannedPdfError(
+                "PDF не содержит текстового слоя (вероятно, это скан). "
+                "Загрузите Excel/CSV либо PDF более высокого качества."
+            )
+        ocr_texts, ocr_warnings = EO.ocr_pdf_pages(data)
+        ocr_full_text = "\n".join(ocr_texts)
+        if not ocr_full_text.strip():
+            # Blank/poor-quality scan or a rasterization failure alike.
+            raise ScannedPdfError(
+                "OCR не смог распознать текст в этом PDF. "
+                "Загрузите Excel/CSV либо PDF более высокого качества."
+            )
+        ocr_tables = [
+            _rows_from_matrix(matrix, f"PDF, стр. {page_no} (распознано OCR)")
+            for page_no, page_text in enumerate(ocr_texts, start=1)
+            for matrix in [EO.lines_to_matrix(page_text)] if matrix
+        ]
+        result = _extract_from_tables(
+            ocr_tables, ocr_full_text, base_confidence_penalty=15.0,
+            confidence_cap=EO.CONFIDENCE_CAP)
+        result.warnings.append(EO.WARNING)
+        result.warnings.extend(ocr_warnings)
+        return result
+
     result = _extract_from_tables(tables, full_text, base_confidence_penalty=15.0)
     if truncated:
         result.warnings.append(TRUNCATION_WARNING)
