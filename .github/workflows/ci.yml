@@ -58,6 +58,14 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      # Order is load-bearing, not incidental: tests/first-load-budget.
+      # test.ts (P7 T1c) parses .next's own build manifests to prove gsap/
+      # lenis never reach signin/my/methodology's first-load JS, and
+      # self-skips with a clear reason when .next doesn't exist yet — so it
+      # only actually runs (and only actually guards anything) here, after
+      # `npm run build` above and inside `npm run test`'s normal vitest
+      # suite. Reordering these two steps silently turns the guard into a
+      # no-op rather than failing loud, so don't.
       - run: npm run test
 
   e2e:
