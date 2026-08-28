@@ -6,11 +6,15 @@ import ruMessages from "@/messages/ru.json";
 
 const { getLenis } = vi.hoisted(() => ({ getLenis: vi.fn() }));
 
-// MiniNav calls into MotionProvider's Lenis accessor to decide whether a
-// click should smooth-scroll or fall through to the native #id anchor
-// jump — mock just that export, same pattern as tests/site-header.test.tsx
-// mocking a single named export of a larger module.
-vi.mock("@/components/motion-provider", () => ({ getLenis }));
+// MiniNav calls into the shared lenis-slot module (written by
+// MotionProvider, read here) to decide whether a click should smooth-scroll
+// or fall through to the native #id anchor jump — mock just that export,
+// same pattern as tests/site-header.test.tsx mocking a single named export
+// of a larger module. Mocking lenis-slot.ts directly (not motion-
+// provider.tsx, which no longer exports getLenis at all) mirrors the real
+// import: mini-nav.tsx's static edge now terminates at the tiny slot
+// module, never at the gsap/lenis-importing provider itself.
+vi.mock("@/components/lenis-slot", () => ({ getLenis }));
 
 const ITEMS: MiniNavItem[] = [
   { id: "score", label: "Заключение" },

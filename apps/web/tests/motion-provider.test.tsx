@@ -42,7 +42,14 @@ const { LenisMock, lenisInstances } = vi.hoisted(() => {
 // requested way to assert "the constructor was never called".
 vi.mock("lenis", () => ({ default: LenisMock }));
 
-const { MotionProvider, getLenis } = await import("@/components/motion-provider");
+const { MotionProvider } = await import("@/components/motion-provider");
+// getLenis() itself now lives in the shared slot module (components/lenis-
+// slot.ts) — MotionProvider only ever writes to it (setLenis), same as
+// mini-nav.tsx only ever reads from it. Importing the accessor from there
+// rather than re-exporting it off motion-provider.tsx is the whole point of
+// the split: nothing should still have a reason to statically import the
+// gsap/lenis-heavy provider module just to read this value.
+const { getLenis } = await import("@/components/lenis-slot");
 
 function mockMatchMedia(matches: boolean) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({

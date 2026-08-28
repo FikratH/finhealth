@@ -3,7 +3,7 @@
 import type { MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { getLenis } from "@/components/motion-provider";
+import { getLenis } from "@/components/lenis-slot";
 import { MOTION } from "@/lib/motion";
 
 export interface MiniNavItem {

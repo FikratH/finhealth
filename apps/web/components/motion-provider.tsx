@@ -7,6 +7,7 @@ import Lenis from "lenis";
 import { usePathname } from "@/i18n/navigation";
 import { getPrefersReducedMotion, usePrefersReducedMotion } from "@/lib/motion";
 import { RESULTS_ROUTE_SEGMENT } from "@/lib/motion-routes";
+import { setLenis } from "@/components/lenis-slot";
 
 // Register once per module load, not once per mount — mounted at the
 // locale layout it only ever runs once anyway, but this guard keeps a
@@ -27,20 +28,6 @@ function registerScrollTriggerOnce() {
 // session.
 const GSAP_DEFAULT_LAG_SMOOTHING_THRESHOLD = 500;
 const GSAP_DEFAULT_LAG_SMOOTHING_ADJUSTED_LAG = 33;
-
-let activeLenis: Lenis | null = null;
-
-/**
- * The Lenis instance this provider is currently driving, or `null` when
- * none exists (non-results routes, reduced motion, or before the effect
- * below has run). Read-only accessor for descendants that need to trigger
- * a smooth scroll (the results mini-nav's click-to-navigate) — they call
- * this rather than constructing their own Lenis, and fall back to a plain
- * anchor jump when it returns `null`.
- */
-export function getLenis(): Lenis | null {
-  return activeLenis;
-}
 
 /**
  * The scroll layer of the one metronome. Registers ScrollTrigger once for
@@ -88,7 +75,7 @@ export function MotionProvider() {
     }
 
     const lenis = new Lenis();
-    activeLenis = lenis;
+    setLenis(lenis);
     const onScroll = () => ScrollTrigger.update();
     lenis.on("scroll", onScroll);
 
@@ -114,7 +101,7 @@ export function MotionProvider() {
         GSAP_DEFAULT_LAG_SMOOTHING_THRESHOLD,
         GSAP_DEFAULT_LAG_SMOOTHING_ADJUSTED_LAG,
       );
-      activeLenis = null;
+      setLenis(null);
       lenis.off("scroll", onScroll);
       lenis.destroy();
     };
