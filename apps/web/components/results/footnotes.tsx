@@ -6,9 +6,14 @@ export interface FootnotesProps {
   /** source string -> 1-based footnote number, from lib/results.ts's
    * buildFootnoteIndex. */
   sources: Map<string, number>;
+  /** Additive (Phase 7 Task 5): whether any ratio in this analysis carries
+   * a `benchmark_kz` mark — when true, shows a single, honest "partial
+   * coverage" note once here rather than repeating it on every KZ-marked
+   * ratio row. */
+  hasKzOverlay?: boolean;
 }
 
-export function Footnotes({ sources }: FootnotesProps) {
+export function Footnotes({ sources, hasKzOverlay = false }: FootnotesProps) {
   const t = useTranslations("Results.footnotes");
 
   if (sources.size === 0) return null;
@@ -25,6 +30,7 @@ export function Footnotes({ sources }: FootnotesProps) {
           </li>
         ))}
       </ol>
+      {hasKzOverlay && <p className="text-sm text-ink-muted">{t("kzPartialCoverageNote")}</p>}
       <p className="font-mono text-sm">
         <Link href="/methodology" className="text-brand no-underline hover:underline">
           {t("methodologyLinkLabel")}

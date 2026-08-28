@@ -20,16 +20,23 @@ export function sortRecommendationsByPriority(
     .map(({ rec }) => rec);
 }
 
-/** Assigns each distinct non-empty `benchmark.source` a 1-based footnote
- * number, in first-appearance order across `ratios` — the lab-report's
- * "source citation footnote marker" grammar. Ratios sharing a source share
- * a number. */
+/** Assigns each distinct non-empty `benchmark.source` OR `benchmark_kz.source`
+ * a 1-based footnote number, in first-appearance order across `ratios` —
+ * the lab-report's "source citation footnote marker" grammar, shared
+ * across both the global and the KZ overlay so a KZ citation gets the same
+ * treatment as a Damodaran one (Phase 7 Task 5), not a separate scheme.
+ * Ratios sharing a source share a number; within one ratio, the global
+ * source is indexed before its KZ source when both are new. */
 export function buildFootnoteIndex(ratios: RatioResult[]): Map<string, number> {
   const index = new Map<string, number>();
   for (const ratio of ratios) {
     const source = ratio.benchmark?.source;
     if (source && !index.has(source)) {
       index.set(source, index.size + 1);
+    }
+    const kzSource = ratio.benchmark_kz?.source;
+    if (kzSource && !index.has(kzSource)) {
+      index.set(kzSource, index.size + 1);
     }
   }
   return index;

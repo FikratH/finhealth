@@ -109,6 +109,13 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
   // to redo on renders that don't touch `analysis` (e.g. the narrative
   // state changes below).
   const footnoteIndex = useMemo(() => buildFootnoteIndex(analysis.ratios), [analysis.ratios]);
+  // Additive (Phase 7 Task 5): drives Footnotes' single, honest "KZ
+  // coverage is partial" note — computed once here rather than re-scanning
+  // per render inside Footnotes itself.
+  const hasKzOverlay = useMemo(
+    () => analysis.ratios.some((r) => r.benchmark_kz != null),
+    [analysis.ratios],
+  );
   const whatIfMatchesBaseline = useMemo(
     () => simulationMatchesBaseline(analysis),
     [analysis],
@@ -280,7 +287,7 @@ export function ResultsDocument({ analysis, locale }: ResultsDocumentProps) {
     {
       key: "footnotes",
       show: footnoteIndex.size > 0,
-      content: <Footnotes sources={footnoteIndex} />,
+      content: <Footnotes sources={footnoteIndex} hasKzOverlay={hasKzOverlay} />,
     },
     {
       key: "disclaimer",

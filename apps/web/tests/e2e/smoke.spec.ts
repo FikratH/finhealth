@@ -140,14 +140,35 @@ test("landing → analyze → verify → results → public share", async ({ pag
   ).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Сильное состояние");
 
-  // net_margin row: name + Damodaran-sourced footnote marker
+  // net_margin row: name + Damodaran-sourced footnote marker, PLUS
+  // (Phase 7 Task 5) a second, KZ-sourced footnote marker — manufacturing
+  // resolves net_margin's KZ overlay via the "all" (economy-wide) bucket.
+  // Two <sup a> links now share this span, in that order (global first).
   const netMarginName = page.locator("span", { hasText: "Net Profit Margin" }).first();
   await expect(netMarginName).toBeVisible();
-  const footnoteLink = netMarginName.locator("sup a");
-  await expect(footnoteLink).toBeVisible();
-  const footnoteHref = await footnoteLink.getAttribute("href");
+  const footnoteLinks = netMarginName.locator("sup a");
+  await expect(footnoteLinks).toHaveCount(2);
+  const footnoteHref = await footnoteLinks.nth(0).getAttribute("href");
   expect(footnoteHref).toBeTruthy();
   await expect(page.locator(footnoteHref!)).toContainText("Damodaran");
+  const kzFootnoteHref = await footnoteLinks.nth(1).getAttribute("href");
+  expect(kzFootnoteHref).toBeTruthy();
+  await expect(page.locator(kzFootnoteHref!)).toContainText("Нацбанк");
+
+  // The KZ mark itself: a diamond on net_margin's CalibrationScale, plus
+  // its screen-visible provenance line («ориентир КЗ: … (2024Q1)»).
+  const netMarginRow = netMarginName.locator("xpath=ancestor::div[contains(@class,'border-line')][1]");
+  await expect(netMarginRow.locator("[data-calibration-kz-mark]")).toBeAttached();
+  // Colon disambiguates this (screen-visible) provenance line from
+  // CalibrationScale's own print-only twin, whose label span reads
+  // "ориентир КЗ" with no trailing colon.
+  await expect(netMarginRow.getByText("ориентир КЗ:", { exact: false })).toBeVisible();
+
+  // The Footnotes section's honest "partial coverage" line for the KZ
+  // overlay — shown once, not per-row.
+  await expect(
+    page.getByText("Ориентиры КЗ: частичное покрытие", { exact: false }),
+  ).toBeVisible();
 
   await page.screenshot({ path: path.join(SDD_SCREENS_DIR, "results-top.png") });
 
@@ -181,7 +202,6 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // already located above; its gauge hides and a print-only text line
   // («норма 3,73%–7,89%», CalibrationScale's own NormBand-grammar
   // fallback) takes its place. -------------------------------------------
-  const netMarginRow = netMarginName.locator("xpath=ancestor::div[contains(@class,'border-line')][1]");
   const ratioGauge = netMarginRow.locator('[role="img"]').first();
   const ratioNormText = netMarginRow.locator("p", { hasText: "норма" }).first();
   await expect(ratioGauge).toBeHidden();

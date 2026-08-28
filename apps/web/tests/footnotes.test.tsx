@@ -33,5 +33,26 @@ describe("Footnotes", () => {
       );
       expect(container).toBeEmptyDOMElement();
     });
+
+    it(`locale=${locale}: shows the KZ partial-coverage note only when hasKzOverlay is true (Phase 7 Task 5)`, () => {
+      const sources = new Map([["Нацбанк РК / МВФ", 1]]);
+      const { rerender } = render(
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Footnotes sources={sources} />
+        </NextIntlClientProvider>,
+      );
+      expect(
+        screen.queryByText(messages.Results.footnotes.kzPartialCoverageNote),
+      ).not.toBeInTheDocument();
+
+      rerender(
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Footnotes sources={sources} hasKzOverlay />
+        </NextIntlClientProvider>,
+      );
+      expect(
+        screen.getByText(messages.Results.footnotes.kzPartialCoverageNote),
+      ).toBeInTheDocument();
+    });
   }
 });

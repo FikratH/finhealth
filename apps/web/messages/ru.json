@@ -294,6 +294,8 @@
       "explanationLabel": "Пояснение",
       "warningsLabel": "Предупреждения",
       "sourceFootnoteAria": "Источник ориентира — сноска {n}",
+      "benchmarkKzLabel": "ориентир КЗ",
+      "sourceFootnoteAriaKz": "Источник ориентира КЗ — сноска {n}",
       "provenanceHeading": "Происхождение",
       "provenanceTraced": "Прослежено",
       "provenanceAsWrittenLabel": "В документе",
@@ -382,7 +384,8 @@
     },
     "footnotes": {
       "heading": "Источники ориентиров",
-      "methodologyLinkLabel": "Полная методика расчёта →"
+      "methodologyLinkLabel": "Полная методика расчёта →",
+      "kzPartialCoverageNote": "Ориентиры КЗ: частичное покрытие. Показаны только там, где нашёлся честный публичный источник (Нацбанк РК / МВФ) — для остальных показателей и отраслей вывод по-прежнему опирается только на глобальный (Damodaran) ориентир."
     },
     "disclaimer": {
       "heading": "Дисклеймер"

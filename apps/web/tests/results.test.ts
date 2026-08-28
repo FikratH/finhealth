@@ -104,6 +104,38 @@ describe("buildFootnoteIndex", () => {
     ];
     expect(buildFootnoteIndex(ratios).size).toBe(0);
   });
+
+  it("indexes benchmark_kz.source in the same shared numbering space (Phase 7 Task 5)", () => {
+    const ratios = [
+      ratio({
+        key: "a",
+        benchmark: { ratio: "a", weight: 1, direction: "higher", good: [0, 1], acceptable: [0, 1], note: "", source: "Damodaran" },
+        benchmark_kz: { ratio: "a", value: 5, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1" },
+      }),
+    ];
+    const index = buildFootnoteIndex(ratios);
+    // Global source indexed first (it's checked first within the ratio),
+    // KZ source gets the next number — both real, distinct citations.
+    expect(index.get("Damodaran")).toBe(1);
+    expect(index.get("Нацбанк РК")).toBe(2);
+    expect(index.size).toBe(2);
+  });
+
+  it("shares a footnote number across ratios whose benchmark_kz cites the same source", () => {
+    const kz = { ratio: "x", value: 1, note: "", source: "Нацбанк РК", source_url: "", as_of: "2024Q1", method: "kz-official-point-v1" };
+    const ratios = [
+      ratio({ key: "a", benchmark_kz: { ...kz, ratio: "a" } }),
+      ratio({ key: "b", benchmark_kz: { ...kz, ratio: "b" } }),
+    ];
+    const index = buildFootnoteIndex(ratios);
+    expect(index.size).toBe(1);
+    expect(index.get("Нацбанк РК")).toBe(1);
+  });
+
+  it("ignores a ratio with no benchmark_kz or an absent one", () => {
+    const ratios = [ratio({ key: "a", benchmark_kz: null })];
+    expect(buildFootnoteIndex(ratios).size).toBe(0);
+  });
 });
 
 function sourceValue(overrides: Partial<ExtractedValue>): ExtractedValue {

@@ -33,6 +33,10 @@ export interface RatioRowProps {
    * one — assigned by lib/results.ts's buildFootnoteIndex across the whole
    * document so a shared source keeps a shared number. */
   footnoteNumber?: number;
+  /** Same idea, for benchmark_kz.source (Phase 7 Task 5) — a separate
+   * number since the KZ overlay usually cites a different source than the
+   * global benchmark; shares the same footnote list/numbering space. */
+  kzFootnoteNumber?: number;
   /** The analysis's source_values — matched against this ratio's inputs to
    * render the provenance trace. Empty (default) on analyses stored before
    * that field existed, in which case the trace section renders nothing. */
@@ -122,7 +126,13 @@ function ProvenanceRow({ trace, locale }: { trace: RatioInputTrace; locale: Loca
 // score null) — a bare "Н/Д" pill would read as a data gap rather than the
 // deliberate "not scored" choice it is, so it gets its own «справочно»
 // marker instead of the status pill.
-export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: RatioRowProps) {
+export function RatioRow({
+  ratio,
+  locale,
+  footnoteNumber,
+  kzFootnoteNumber,
+  sourceValues = [],
+}: RatioRowProps) {
   const t = useTranslations("Results.ratios");
   const tStatus = useTranslations("Status");
   const isMoney = ratio.unit === "money";
@@ -228,6 +238,17 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
               </a>
             </sup>
           )}
+          {kzFootnoteNumber !== undefined && (
+            <sup className="ml-0.5 normal-case tracking-normal">
+              <a
+                href={`#fn-${kzFootnoteNumber}`}
+                aria-label={t("sourceFootnoteAriaKz", { n: kzFootnoteNumber })}
+                className="text-brand no-underline hover:underline"
+              >
+                [{kzFootnoteNumber}]
+              </a>
+            </sup>
+          )}
         </span>
         <div className="flex items-center gap-3">
           {isMoney ? (
@@ -268,7 +289,33 @@ export function RatioRow({ ratio, locale, footnoteNumber, sourceValues = [] }: R
               label={t("benchmarkLabel")}
               naLabel={t("naLabel")}
               tone={CALIBRATION_TONE[ratio.status]}
+              kz={
+                ratio.benchmark_kz
+                  ? { value: ratio.benchmark_kz.value, label: t("benchmarkKzLabel") }
+                  : undefined
+              }
             />
+            {ratio.benchmark_kz && (
+              // The screen-visible twin of the diamond mark itself — the
+              // gauge's aria-label and print text twin both carry this
+              // same fact, but only for screen readers / paper; a sighted
+              // screen reader needs the diamond explained too, hence a
+              // real (non-print-only) line here, in the same font-mono
+              // ink-muted register as the bound labels above it.
+              <p className="flex items-baseline gap-1.5 font-mono text-xs text-ink-muted">
+                <span aria-hidden="true" className="inline-block size-2 rotate-45 border border-brand bg-panel" />
+                <span>
+                  {t("benchmarkKzLabel")}:{" "}
+                  <MetricNumber
+                    value={ratio.benchmark_kz.value}
+                    unit={ratio.unit}
+                    locale={locale}
+                    className="text-xs text-ink-muted"
+                  />
+                  {" "}({ratio.benchmark_kz.as_of})
+                </span>
+              </p>
+            )}
             {showFlag && (
               <span
                 data-calibration-flag

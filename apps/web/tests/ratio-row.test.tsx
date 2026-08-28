@@ -241,3 +241,70 @@ describe("RatioRow — provenance trace fixes (review fix round 1)", () => {
     expect(screen.queryByText("working_capital")).not.toBeInTheDocument();
   });
 });
+
+describe("RatioRow — KZ benchmark overlay (Phase 7 Task 5)", () => {
+  const roeWithKz: RatioResult = {
+    key: "roe",
+    name: "Return on Equity",
+    category: "profitability",
+    formula: "net_income / average_shareholders_equity",
+    inputs: { net_income: 356400000, average_shareholders_equity: 1150000000 },
+    substitution: "",
+    value: 31.0,
+    unit: "%",
+    status: "good",
+    score: 88.0,
+    benchmark: {
+      ratio: "roe", weight: 1.0, direction: "higher", good: [10, 25], acceptable: [5, 35],
+      note: "", source: "Damodaran (NYU Stern), Jan 2026",
+    },
+    benchmark_kz: {
+      ratio: "roe", value: 15.32,
+      note: "ROE (аннуализировано источником), нефинансовые организации РК, 2024 Q1.",
+      source: "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+      source_url: "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+      as_of: "2024Q1", method: "kz-official-point-v1",
+    },
+    explanation: "",
+    applicable: true,
+    warnings: [],
+  };
+
+  it("renders the kz diamond mark on the calibration scale when benchmark_kz is present", () => {
+    const { container } = renderRatioRow(roeWithKz);
+    expect(container.querySelector("[data-calibration-kz-mark]")).not.toBeNull();
+  });
+
+  it("renders no kz mark when benchmark_kz is absent", () => {
+    const { container } = renderRatioRow({ ...roeWithKz, benchmark_kz: null });
+    expect(container.querySelector("[data-calibration-kz-mark]")).toBeNull();
+  });
+
+  it("shows a screen-visible KZ provenance line with the label and as_of quarter", () => {
+    const { container } = renderRatioRow(roeWithKz);
+    const text = container.textContent ?? "";
+    expect(text).toContain(ruMessages.Results.ratios.benchmarkKzLabel);
+    expect(text).toContain("2024Q1");
+  });
+
+  it("renders a second footnote marker for the kz source when kzFootnoteNumber is given", () => {
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow ratio={roeWithKz} locale="ru" footnoteNumber={1} kzFootnoteNumber={2} />
+      </NextIntlClientProvider>,
+    );
+    const link = screen.getByRole("link", {
+      name: ruMessages.Results.ratios.sourceFootnoteAriaKz.replace("{n}", "2"),
+    });
+    expect(link).toHaveAttribute("href", "#fn-2");
+  });
+
+  it("omits the kz footnote marker when kzFootnoteNumber is undefined", () => {
+    render(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <RatioRow ratio={roeWithKz} locale="ru" footnoteNumber={1} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText("[2]")).not.toBeInTheDocument();
+  });
+});

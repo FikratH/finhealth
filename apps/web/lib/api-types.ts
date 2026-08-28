@@ -174,6 +174,23 @@ export interface IndustryBenchmark {
   source: string;
 }
 
+/** Additive (Phase 7 Task 5): a second, Kazakhstan-sourced reference POINT
+ * — never a good/acceptable band, and never a factor in `status`/`score`
+ * (those are decided by `benchmark` alone, unchanged). Present only when
+ * apps/api/app/data/benchmarks_kz.json has an honestly citable entry for
+ * this (industry, ratio) — coverage is deliberately partial. */
+export interface IndustryBenchmarkKZ {
+  ratio: string;
+  value: number;
+  note: string;
+  /** Citation string, e.g. "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)". */
+  source: string;
+  source_url: string;
+  /** e.g. "2024Q1" — the source's own last-populated quarter, not today's date. */
+  as_of: string;
+  method: string;
+}
+
 export interface RatioResult {
   key: string;
   name: string;
@@ -189,6 +206,8 @@ export interface RatioResult {
   /** 0-100 inside its category; null when not scoreable. */
   score: number | null;
   benchmark?: IndustryBenchmark | null;
+  /** Additive (Phase 7 Task 5) — see IndustryBenchmarkKZ. */
+  benchmark_kz?: IndustryBenchmarkKZ | null;
   explanation: string;
   applicable: boolean;
   warnings: string[];

@@ -10,6 +10,18 @@ const CURSOR_CLASS: Record<CalibrationScaleTone, string> = {
   neutral: "bg-brand shadow-[0_0_5px_1px_var(--accent)]",
 };
 
+/** Additive (Phase 7 Task 5): a second, KZ-sourced reference point — a
+ * single value, never a band, placed on the SAME track as the норма band
+ * via the same headroom-extended axis. Rendered as a hollow brand-teal
+ * diamond (shape, not color, is what distinguishes it from the round LED
+ * cursor — see the Accent-Surface Trap note in DESIGN.md on why "brand",
+ * never a new hue, is the only real-teal reach). */
+export interface CalibrationScaleKZMark {
+  value: number;
+  /** Accessible/print label naming this mark, e.g. «ориентир КЗ». */
+  label: string;
+}
+
 export interface CalibrationScaleProps {
   value: number | null;
   /** The reference interval's lower/upper bounds — the «норма» band. */
@@ -28,6 +40,8 @@ export interface CalibrationScaleProps {
   label: string;
   naLabel?: string;
   className?: string;
+  /** Optional second reference point — see CalibrationScaleKZMark. */
+  kz?: CalibrationScaleKZMark;
 }
 
 function clampPercent(n: number): number {
@@ -51,6 +65,7 @@ export function CalibrationScale({
   label,
   naLabel,
   className,
+  kz,
 }: CalibrationScaleProps) {
   const range = high - low;
   const span = range === 0 ? Math.max(Math.abs(high), 1) : range;
@@ -63,10 +78,17 @@ export function CalibrationScale({
   const highPct = toPercent(high);
   const hasValue = value !== null;
   const valuePct = hasValue ? toPercent(value) : null;
+  // Clamped onto the SAME headroom-extended axis as the норма band and the
+  // reading cursor — a KZ point far outside the global band still reads as
+  // a position on this track rather than escaping it.
+  const kzPct = kz ? toPercent(kz.value) : null;
 
   const rangeText = `${formatNumber(low, { locale, unit })}–${formatNumber(high, { locale, unit })}`;
   const valueText = hasValue ? formatNumber(value, { locale, unit }) : (naLabel ?? formatNumber(null));
-  const ariaLabel = `${label}: ${valueText} (${rangeText})`;
+  const kzValueText = kz ? formatNumber(kz.value, { locale, unit }) : null;
+  const ariaLabel = kz
+    ? `${label}: ${valueText} (${rangeText}). ${kz.label}: ${kzValueText}`
+    : `${label}: ${valueText} (${rangeText})`;
 
   return (
     <div className={cn("w-full", className)}>
@@ -95,6 +117,20 @@ export function CalibrationScale({
               style={{ left: `${valuePct}%` }}
             />
           )}
+          {kzPct !== null && (
+            // A distinct SHAPE (hollow diamond), not a new color — a
+            // second color would either collide with tone's good/
+            // attention/critical vocabulary or require inventing a hue
+            // this system doesn't have (see the Accent-Surface Trap note:
+            // "brand" is the only real-teal reach). Sits at the same
+            // vertical center as the LED cursor and bound ticks — one
+            // more mark on the same track, not a second row.
+            <div
+              data-calibration-kz-mark
+              className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-brand bg-panel"
+              style={{ left: `${kzPct}%` }}
+            />
+          )}
         </div>
         <div className="mt-1 flex justify-between font-mono text-[0.65rem] text-ink-muted">
           <span>{formatNumber(low, { locale, unit })}</span>
@@ -118,6 +154,21 @@ export function CalibrationScale({
           {label} {rangeText}
         </span>
       </p>
+      {/* The KZ mark's own print-safe twin — same "norm-band print" idiom
+       * as the paragraph above, on its own line so it reads as a second,
+       * separately-sourced fact rather than part of the норма sentence.
+       * aria-hidden for the same reason: the role="img" above's aria-label
+       * already appends this mark's value/label for screen readers. */}
+      {kz && (
+        <p
+          aria-hidden="true"
+          className="hidden font-mono text-sm print:inline-flex print:items-baseline print:gap-2"
+        >
+          <span className="text-ink">{kzValueText}</span>
+          <span className="text-ink-muted">·</span>
+          <span className="text-ink-muted">{kz.label}</span>
+        </p>
+      )}
     </div>
   );
 }

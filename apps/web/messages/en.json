@@ -294,6 +294,8 @@
       "explanationLabel": "Explanation",
       "warningsLabel": "Warnings",
       "sourceFootnoteAria": "Benchmark source — footnote {n}",
+      "benchmarkKzLabel": "KZ benchmark",
+      "sourceFootnoteAriaKz": "KZ benchmark source — footnote {n}",
       "provenanceHeading": "Provenance",
       "provenanceTraced": "Traced",
       "provenanceAsWrittenLabel": "As written",
@@ -382,7 +384,8 @@
     },
     "footnotes": {
       "heading": "Benchmark sources",
-      "methodologyLinkLabel": "Full methodology →"
+      "methodologyLinkLabel": "Full methodology →",
+      "kzPartialCoverageNote": "KZ benchmarks: partial coverage. Shown only where an honest public source exists (National Bank of Kazakhstan / IMF) — every other ratio and industry still relies on the global (Damodaran) benchmark alone."
     },
     "disclaimer": {
       "heading": "Disclaimer"

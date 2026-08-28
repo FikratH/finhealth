@@ -40,6 +40,11 @@ export function RatioSection({
                 ? footnoteIndex.get(ratio.benchmark.source)
                 : undefined
             }
+            kzFootnoteNumber={
+              ratio.benchmark_kz?.source
+                ? footnoteIndex.get(ratio.benchmark_kz.source)
+                : undefined
+            }
             sourceValues={sourceValues}
           />
         ))}
