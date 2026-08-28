@@ -78,27 +78,37 @@ def _total_page_count(data: bytes, budget: float) -> int | None:
         return None
 
 
-def ocr_pdf_pages(data: bytes) -> tuple[list[str], list[str]]:
-    """Rasterizes up to MAX_PAGES pages (poppler's `pdftoppm`, via
-    `pdf2image`) and runs tesseract (rus+eng, via `pytesseract`) over each
-    page image. Returns `(per_page_texts, warnings)` — never raises: a
-    single slow/unreadable page degrades to `""` with a warning rather than
-    blanking the whole document, and a document-level rasterization
-    failure returns `([], [warning])` rather than propagating the
-    underlying exception.
+# Round-2 fix, NEW-1: tesseract's DEFAULT mode collapses inter-column
+# whitespace to a single space — a real, perfectly-recognized statement
+# line comes back as e.g. "Revenue 1500000 1200000", and lines_to_matrix
+# (which requires 2+ spaces to split columns at all) parses ZERO rows from
+# it. `preserve_interword_spaces=1` keeps the real gaps between columns
+# (measured: the same page goes from 0 rows to the correct 2). Without
+# this, the OCR path could recognize a page perfectly and still extract
+# nothing — round-1's productivity guard is what surfaced this (it was
+# equally broken in round 0, just hidden behind the missing-language bug).
+_TESSERACT_CONFIG = "-c preserve_interword_spaces=1"
 
-    Round-1 fix (Finding 2): `convert_from_bytes` previously rasterized
-    EVERY page of the source document into memory before MAX_PAGES ever
-    got a chance to slice the result — measured at ~36KB of decoded pixels
-    per page, so an ordinary 15MB scan could carry enough pages to exhaust
-    a container's memory well before any of this function's own bounds
-    had a chance to apply. `first_page=1, last_page=MAX_PAGES` now bounds
-    the rasterization call itself (poppler only rasterizes the requested
-    range), and the single wall-clock budget below covers rasterization
-    AND recognition together, not recognition alone — the `timeout=`
-    passed to `convert_from_bytes` is what finally makes the
-    already-imported `PDFPopplerTimeoutError` handler reachable (it could
-    never fire before, since nothing passed a timeout at all)."""
+
+def ocr_pdf_pages(data: bytes) -> tuple[list[str], list[str]]:
+    """Rasterizes up to MAX_PAGES pages ONE AT A TIME (poppler's
+    `pdftoppm`, via `pdf2image`) and runs tesseract (rus+eng, via
+    `pytesseract`) over each page image. Returns `(per_page_texts,
+    warnings)` — never raises: a single slow/unreadable page degrades to
+    `""` with a warning rather than blanking the whole document, and a
+    rasterization failure on the very first page returns `([], [warning])`
+    the same way a whole-document failure always has.
+
+    Round-1 fix (Finding 2) bounded rasterization to MAX_PAGES via
+    `first_page`/`last_page`, but still rasterized all of them into memory
+    in ONE `convert_from_bytes` call — round-2 residual fix (F2 residual):
+    on a small/constrained container (Railway's default is 512MB) even 15
+    pages at once can exceed available memory. Rasterizing `first_page=i,
+    last_page=i` inside the loop keeps peak memory at ONE decoded page,
+    the same wall-clock budget still covers rasterization AND recognition
+    together (both count against `start`), and the `timeout=` passed to
+    each per-page `convert_from_bytes` call is what keeps the
+    `PDFPopplerTimeoutError` handler reachable."""
     import pytesseract
     from pdf2image import convert_from_bytes
     from pdf2image.exceptions import (
@@ -113,37 +123,49 @@ def ocr_pdf_pages(data: bytes) -> tuple[list[str], list[str]]:
     start = time.monotonic()  # covers rasterization time too, not just recognition
 
     total_pages = _total_page_count(data, TOTAL_BUDGET_SECONDS - (time.monotonic() - start))
+    page_count = min(total_pages, MAX_PAGES) if total_pages is not None else MAX_PAGES
     if total_pages is not None and total_pages > MAX_PAGES:
         warnings.append(
             f"OCR ограничен первыми {MAX_PAGES} стр. из {total_pages} "
             "(скан слишком велик для полного распознавания за отведённое время)."
         )
 
-    remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
-    if remaining <= 1:
-        warnings.append("OCR остановлен по общему лимиту времени: распознано 0 стр.")
-        return [], warnings
-
-    try:
-        images = convert_from_bytes(
-            data, dpi=200, first_page=1, last_page=MAX_PAGES, timeout=int(remaining))
-    except (PDFInfoNotInstalledError, PopplerNotInstalledError, PDFPageCountError,
-           PDFSyntaxError, PDFPopplerTimeoutError):
-        warnings.append("Не удалось подготовить PDF для OCR-распознавания.")
-        return [], warnings
-
     texts: list[str] = []
-    for i, image in enumerate(images, start=1):
+    for i in range(1, page_count + 1):
         remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
         if remaining <= 1:
             warnings.append(
-                f"OCR остановлен по общему лимиту времени: распознано {i - 1} "
-                f"из {len(images)} стр."
+                f"OCR остановлен по общему лимиту времени: распознано {len(texts)} "
+                f"из {page_count} стр."
+            )
+            break
+        try:
+            page_images = convert_from_bytes(
+                data, dpi=200, first_page=i, last_page=i, timeout=int(remaining))
+        except (PDFInfoNotInstalledError, PopplerNotInstalledError, PDFPageCountError,
+               PDFSyntaxError, PDFPopplerTimeoutError):
+            if not texts:
+                warnings.append("Не удалось подготовить PDF для OCR-распознавания.")
+            else:
+                warnings.append(
+                    f"OCR остановлен: не удалось растеризовать стр. {i} "
+                    f"(распознано {len(texts)} стр.)."
+                )
+            break
+        if not page_images:
+            break  # past the real last page (total_pages was unknown/stale)
+
+        remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - start)
+        if remaining <= 1:
+            warnings.append(
+                f"OCR остановлен по общему лимиту времени: распознано {len(texts)} "
+                f"из {page_count} стр."
             )
             break
         try:
             text = pytesseract.image_to_string(
-                image, lang="rus+eng", timeout=min(PAGE_TIMEOUT_SECONDS, remaining))
+                page_images[0], lang="rus+eng", config=_TESSERACT_CONFIG,
+                timeout=min(PAGE_TIMEOUT_SECONDS, remaining))
         except (RuntimeError, OSError):
             # RuntimeError: pytesseract's own per-call timeout (or a
             # TesseractError — a RuntimeError subclass — from a bad exit

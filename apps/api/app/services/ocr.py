@@ -65,18 +65,28 @@ def _tesseract_langs(tesseract_path: str) -> set[str]:
     `tesseract --list-langs` — the only reliable way to ask (tessdata's
     location is configurable via `TESSDATA_PREFIX`, so guessing a fixed
     filesystem path for `rus.traineddata` would be fragile). Returns an
-    empty set on ANY failure (the binary vanishing, a non-zero exit, a
-    hang, unparseable output) — callers treat "unknown" the same as "not
-    installed," never crash the capability check over it."""
+    empty set on ANY failure — the binary vanishing, a non-zero exit code
+    (round-2 fix, Finding NEW-3: previously ignored — a weird tesseract
+    that exits non-zero while still printing a plausible-looking list was
+    read as success), a hang, or output that fails to decode (round-2
+    fix, same finding: `text=True` decodes under `errors="strict"`, so
+    non-UTF-8 bytes on stdout raised `UnicodeDecodeError` — a `ValueError`
+    the original `except (OSError, TimeoutExpired)` never caught, which
+    escaped `ocr_enabled()` and could 500 `GET /api/health`). A capability
+    probe behind a route the frontend polls and infra healthchecks hit
+    must fail closed no matter how oddly the binary misbehaves — never
+    raise, never trust output from a non-zero exit."""
     try:
         proc = subprocess.run(
             [tesseract_path, "--list-langs"], capture_output=True, text=True, timeout=5)
-    except (OSError, subprocess.TimeoutExpired):
+        if proc.returncode != 0:
+            return set()
+        # tesseract prints one header line ("List of available languages
+        # ...") then one language code per remaining line (5.x); tolerate
+        # trailing blank lines either way.
+        return {line.strip() for line in proc.stdout.splitlines()[1:] if line.strip()}
+    except Exception:
         return set()
-    # tesseract prints one header line ("List of available languages ...")
-    # then one language code per remaining line (5.x); tolerate trailing
-    # blank lines either way.
-    return {line.strip() for line in proc.stdout.splitlines()[1:] if line.strip()}
 
 
 def _check_capability() -> bool:
