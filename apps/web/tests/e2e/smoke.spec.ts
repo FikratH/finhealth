@@ -170,7 +170,7 @@ test("landing → analyze → verify → results → public share", async ({ pag
   // The Footnotes section's honest "partial coverage" line for the KZ
   // overlay — shown once, not per-row.
   await expect(
-    page.getByText("Ориентиры КЗ: частичное покрытие", { exact: false }),
+    page.getByText("Ориентиры РК: частичное покрытие", { exact: false }),
   ).toBeVisible();
 
   await page.screenshot({ path: path.join(SDD_SCREENS_DIR, "results-top.png") });

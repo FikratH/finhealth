@@ -11,7 +11,12 @@ import type Lenis from "lenis";
 // TypeScript type-only import emits no JS — so this module has no runtime
 // dependency on the `lenis` package at all, matching lib/motion-routes.ts's
 // own zero-dependency discipline (and, like that module, no "use client"
-// directive from the start: The Server-Boundary Constants Rule, DESIGN.md).
+// directive — moot either way here, since both of this module's importers
+// (motion-provider.tsx, mini-nav.tsx) are themselves client modules, so no
+// Server Component ever crosses this boundary; The Server-Boundary
+// Constants Rule, DESIGN.md, is about a Server Component silently
+// receiving a client *reference* for a shared string constant, a failure
+// mode that can't arise when nothing server-side ever imports this file).
 let activeLenis: Lenis | null = null;
 
 /** Called only by motion-provider.tsx: records (or clears) the Lenis

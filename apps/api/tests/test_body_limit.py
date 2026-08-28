@@ -254,3 +254,18 @@ def test_undersize_chunked_upload_through_the_real_app_is_unaffected():
         _post_without_content_length("/api/upload", _multipart_body(small)))
     assert status == 200
     assert json.loads(body)["detected_kind"] == "csv"
+
+
+def test_corrupt_multipart_under_the_cap_still_400s_not_413_over_capture_pin():
+    """Phase-7 close wave (T2 suggestion): the over-capture direction the
+    H1/H2 re-review verified by hand, now pinned. A genuinely corrupt
+    multipart body — well under MAX_BODY_BYTES, nothing to do with size —
+    must still surface as FastAPI's own ordinary parse-error 400
+    (`_BodyTooLarge` is a 413-only exception; this proves the streaming
+    cap's own exception handling never widens to swallow unrelated parse
+    failures and misreport them as "payload too large")."""
+    corrupt = b"--wrongboundary\r\nnot even a real multipart body, no closing boundary"
+    status, _headers, body = asyncio.run(
+        _post_without_content_length("/api/upload", corrupt))
+    assert status == 400
+    assert json.loads(body) == {"detail": "There was an error parsing the body"}

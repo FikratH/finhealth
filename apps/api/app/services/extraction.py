@@ -53,7 +53,10 @@ _LATEST_MARKERS = ("на конец", "end of")
 _PREVIOUS_MARKERS = ("на начало", "beginning of")
 _PERIOD_MARKER_PHRASES = _LATEST_MARKERS + _PREVIOUS_MARKERS + (
     "конец отчетного", "начало отчетного")
-_KOD_TOKEN = "код"
+_KOD_TOKEN = "код"  # _label_based_column_roles' no-year mapping only — untouched by NEW-J
+# Close wave (T3 NEW-J): «код» alone missed a «Строка 2025»-headed code
+# column below; broadened the same way in extraction_headers.py — sync by hand.
+_CODE_HEADER_TOKENS = ("код", "стр")
 
 
 def _find_header_index(rows: list[list[str]]) -> Optional[int]:
@@ -165,12 +168,10 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     # (round 2, NEW-2: round 1's restructure undeclaredly narrowed this,
     # silently dropping the period when a KZ statutory title embedded a
     # year in the label header, e.g. «Наименование показателя за 2024
-    # год»; reverted to match pre-P7.T3/round-0 behavior). The one
-    # exclusion kept from F3 — skip a cell whose normalized text contains
-    # «код» — is sufficient on its own to keep the phantom-period fix
-    # intact: anything genuinely code-like but NOT period-resolving
-    # contributes nothing to this scan regardless of any veto, since
-    # detect_period_objects simply finds nothing on it either way.
+    # год»; reverted to match pre-P7.T3/round-0 behavior). The exclusion
+    # kept from F3 — skip a cell whose text contains a code-header token
+    # (_CODE_HEADER_TOKENS, see NEW-J above) — keeps the phantom-period fix
+    # intact for anything code-like but not period-resolving anyway.
     table_header_info: list[tuple[list[str], dict[int, str]]] = []
     period_objs: dict[str, M.Period] = {}
     for t in tables:
@@ -180,11 +181,10 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
         header_data_cells = H.data_columns(t.header, t.label_col_idx) if t.header else []
         col_period: dict[int, str] = {}
         for idx, cell in enumerate(header_data_cells):
-            # F2/S1, F3: a code column never becomes a period column, even
-            # when its header text happens to contain a year («Код строки
-            # 2025») or when there is no header text to read «код» from at
-            # all (content-based veto, t.code_col_idxs, covers that case).
-            if idx in t.code_col_idxs or _KOD_TOKEN in M.normalize_label(cell):
+            # F2/S1, F3, NEW-J: never a period column despite a misleading
+            # header year («Код строки 2025» / «Строка 2025») or none at all.
+            normalized_cell = M.normalize_label(cell)
+            if idx in t.code_col_idxs or any(tok in normalized_cell for tok in _CODE_HEADER_TOKENS):
                 continue
             objs = M.detect_period_objects([cell])
             if objs:
@@ -192,7 +192,7 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
         table_header_info.append((header_data_cells, col_period))
 
         for cell in t.header:
-            if _KOD_TOKEN in M.normalize_label(cell):
+            if any(tok in M.normalize_label(cell) for tok in _CODE_HEADER_TOKENS):
                 continue
             for p in M.detect_period_objects([cell]):
                 period_objs.setdefault(p.label, p)

@@ -49,7 +49,13 @@ _LABEL_MARGIN = 0.15
 _MIN_ROWS_FOR_CLASSIFICATION = 3
 _CLASSIFY_SAMPLE_ROWS = 30
 _CODE_CONFIDENCE = 0.6  # same bar as the label gate (F2/S1)
-_KOD_TOKEN = "код"
+# Phase-7 close wave (T3 NEW-J): «код» alone missed a code column headed
+# «Строка 2025»/«Стр. 2025» — real RSBU forms label the line-code column
+# «Код», «Код строки», «Код стр.», OR bare «Строка»/«Стр.» — broadened to
+# both tokens, here AND in extraction.py's period-scan exclusion (the same
+# gap existed in both places; NEW-J's probe confirmed fixing only one
+# stops codes becoming values but leaves the phantom period behind).
+_CODE_HEADER_TOKENS = ("код", "стр")
 
 
 def column_content_scores(data_rows: list[list[str]], header: list[str],
@@ -122,17 +128,19 @@ def _code_column_relative_idxs(scores: list[dict[str, float]], header: list[str]
     cells simply stringify without thousands separators — content alone
     cannot tell them apart. The header can: if the column's own header
     cell already resolves to a complete period (`M.detect_period_objects`)
-    and doesn't itself say «код», the header is trustworthy and the veto
-    stands down — content-only vetoing here previously discarded an
-    entire statement (`{}`, no warning) on exactly this ordinary shape,
-    because the veto ran before the classifier's own period score (already
+    and doesn't itself say «код»/«стр» (close wave, T3 NEW-J — see
+    `_CODE_HEADER_TOKENS`), the header is trustworthy and the veto stands
+    down — content-only vetoing here previously discarded an entire
+    statement (`{}`, no warning) on exactly this ordinary shape, because
+    the veto ran before the classifier's own period score (already
     computed, already correct) was ever consulted."""
     idxs: set[int] = set()
     for i, s in enumerate(scores):
         if i == label_col_idx or s["non_empty"] == 0 or s["code"] < _CODE_CONFIDENCE:
             continue
         header_cell = header[i] if i < len(header) else ""
-        header_says_code = _KOD_TOKEN in M.normalize_label(header_cell)
+        normalized_header = M.normalize_label(header_cell)
+        header_says_code = any(tok in normalized_header for tok in _CODE_HEADER_TOKENS)
         header_is_period = bool(M.detect_period_objects([header_cell]))
         if header_is_period and not header_says_code:
             continue  # header text already trustworthily resolves this column

@@ -18,31 +18,51 @@ National Bank of Kazakhstan (Нацбанк РК) — "Индикаторы фи
 2019 FSI Guide and also filed with the IMF:
   https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti
   (EN mirror: https://nationalbank.kz/en/page/indikatory-finansovoy-ustoychivosti)
-Downloaded file (RU version — see round-1 fix note below):
-"Индикаторы финансовой устойчивости.xlsx", ~718KB,
-`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, sheets
-`Содержание`, `ИФУ`, `5.1 Депозитные учреждения`, `5.5 Нефинансовые
-корпорации`. Re-run candidate: if the National Bank publishes a newer FSI
-workbook at the same page, re-derive RAW_DATA from the two sheets below
-using the row/series codes cited inline (IMF-standard FS_* codes, stable
-across vintages of this same file).
+Downloaded file: "Индикаторы финансовой устойчивости.xlsx" (RU) /
+"Financial Soundness Indicators.xlsx" (EN mirror) — both are the SAME
+regulator data, sheets `Содержание`/`ИФУ`/`5.1 Депозитные
+учреждения`/`5.5 Нефинансовые корпорации` (RU) or `Content`/`FSI`/`5.1
+Deposit takers`/`5.5 Nonfinancial corporations` (EN); verified cell-for-
+cell identical on every series used below. Re-run candidate: if the
+National Bank publishes a newer FSI workbook at the same page, re-derive
+RAW_DATA from the two sheets below using the row/series codes cited
+inline (IMF-standard FS_* codes, stable across vintages of this same
+file) — but see the trap below before trusting "the last column."
 
-Round-1 fix note (review round 1, Finding 2): the FIRST version of this
-script used the EN mirror's download, whose "5.1 Deposit takers" sheet
-physically stops at 2023Q3 (149 columns total, no data past that point).
-The RU download used now is the SAME regulator table with more columns
-(282) and genuinely populated data through 1кв2024/2024Q1 on that same
-sheet — confirmed columns 62-66 (1кв2023 through 1кв2024) each satisfy the
+Round-1 fix note (review round 1, Finding 2; corrected again at the
+Phase-7 close wave, T5-N1, after the round-1 note itself misdiagnosed the
+root cause). THE ACTUAL LESSON: on the "5.1 Deposit takers" /
+"5.1 Депозитные учреждения" sheet, the highest-indexed populated column is
+NOT the latest quarter. Both language versions carry the real, continuous
+quarterly time series from 2008Q1 through 2024Q1 (columns 2-66 in the EN
+file, 2-66 in the RU file too) — 2024Q1 is the true last quarter, and it
+IS present, in both files, at that column. Then, after a long run of
+entirely blank columns, both files ALSO carry a short, disconnected
+3-column tail (EN: columns 146-148, header text "2023Q1"/"2023Q2"/
+"2023Q3"; RU: columns 279-281, header text "1кв2023"/"2кв2023"/"3кв2023",
+formatted WITHOUT the main series' spaces — "1 кв 2023" vs "1кв2023") that
+has nothing to do with the main series and is three-plus quarters stale by
+construction. A naive scan for "the last populated column" (or simply
+indexing the last N columns, which is what this script's first version
+did) lands on that orphan tail — 2023Q3 — and silently reports it as the
+freshest data, when 2024Q1 was sitting right there earlier in the row the
+whole time. This is a property of the WORKBOOK FORMAT itself, reproduced
+identically in the EN mirror; it has nothing to do with RU vs EN, or one
+mirror having "more" data than the other — re-checked directly: every
+series used below (FSNERA, FSNERAB, FSDERA, FSDERE, Обязательства/
+Liabilities, Капитал и резервы/Capital and reserves, Совокупные активы/
+Total assets) has byte-identical values at the true 2024Q1 column in both
+files. All four banking entries below are sourced from that column
+(1кв2024/2024Q1) — one consistent quarter across the whole banking bucket,
+the same methodology already used for the "all" bucket — verified via the
 balance-sheet identity Обязательства + Капитал и резервы = Совокупные
-активы to within float rounding (e.g. at 1кв2024: 46,463,766,360.63 +
-7,511,585,568.16 = 53,975,351,928.79 vs reported assets
-53,975,351,928.82 — diff 0.00013, i.e. genuine reported data, not a
-stray/interpolated cell). All four banking entries below are therefore
-now sourced from 1кв2024/2024Q1, not a 2023Q3/2024Q1 mixed vintage — using
-one consistent quarter across the whole banking bucket, the same
-methodology already used for the "all" bucket. (Columns 279-281 of that
-sheet are an unrelated, disconnected 3-column tail with an incompatible
-header format — not part of the main quarterly series; ignore them.)
+активы holding to within float rounding at that column (46,463,766,360.63
++ 7,511,585,568.16 = 53,975,351,928.79 vs. reported assets
+53,975,351,928.82, diff 0.00013 — genuine reported data, not a stray or
+interpolated cell). If re-deriving this file again, scan for the header
+TEXT of the quarter you want rather than trusting `df.iloc[:, -1]` or "the
+last populated column" — the orphan tail will fool exactly that shortcut
+again.
 
 Two sheets, two scopes:
   - "5.5 Нефинансовые корпорации" (IMF Table 5.5) — an economy-wide

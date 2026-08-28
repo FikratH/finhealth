@@ -282,6 +282,34 @@ def test_kod_header_with_embedded_year_does_not_leak_codes_as_a_period_f3():
     assert res.latest_period == "2024"
 
 
+def test_kod_header_without_the_kod_token_does_not_leak_codes_new_j():
+    """Phase-7 close wave, T3 NEW-J: F3's fix only excluded a code header
+    that literally says «код» — a real RSBU form can label the same column
+    «Строка 2025» or «Стр. 2025» (no «код» token at all), which used to
+    slip through BOTH the whole-header period scan (leaking a phantom
+    latest_period of "2025") and the content-based veto's header-text
+    trust check (extraction_headers._code_column_relative_idxs), landing
+    the line codes themselves as extracted values at full confidence.
+    Fixed by broadening the token set to ("код", "стр") in both places —
+    this is the adversarial fixture the review round-2 probe (which only
+    exercised the veto half) called for."""
+    csv = (
+        "Наименование показателя;Строка 2025;31.12.2024;31.12.2023\n"
+        "Запасы;1210;312 600;289 400\n"
+        "Итого активы;1600;2 456 800;2 298 500\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["total_assets"] == 2456800
+    assert not (set(vals.values()) & {1210, 1600})
+    # The phantom period the review's probe found: "2025" must never
+    # appear anywhere in the detected periods, and the real dated columns
+    # must be picked instead.
+    assert "2025" not in res.periods
+    assert res.latest_period == "2024"
+
+
 def test_three_periods_prefers_same_kind_quarter_pair_and_rejects_the_odd_annual_f4():
     """F4: golden/quarterly_three_periods_prefers_same_kind.csv carries
     THREE periods — Q1 2024, annual 2023, Q1 2023 — where naive
