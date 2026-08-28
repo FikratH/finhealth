@@ -46,9 +46,24 @@ const HINT_KEY_BY_STATUS: Partial<Record<number, string>> = {
  * own `code:"vault_unavailable"` instead (carried on `ApiError`/
  * `AnalyzeError` since the P5 close wave — see their own comments),
  * which only this exact failure ever sets. */
-export function errorHintKey(error: Pick<AnalyzeError, "status" | "code">): string | null {
+/** `ocrEnabled` (P7.T4, additive, default false so every existing call site
+ * keeps working unmodified): GET /api/health's `ocr_enabled` capability
+ * signal. A scanned-PDF 422 (backend `code:"scanned_pdf"`) gets an extra
+ * hint pointing at OCR — but ONLY while OCR is NOT currently available
+ * server-side. When it IS on, this exact error means OCR itself already
+ * ran and still found nothing recognizable (see extraction.py's
+ * extract_from_pdf), so telling the user to "enable OCR" would be actively
+ * wrong; the plain "unprocessable" hint (export Excel/CSV) still applies
+ * in that case, unchanged. */
+export function errorHintKey(
+  error: Pick<AnalyzeError, "status" | "code">,
+  ocrEnabled = false,
+): string | null {
   if (error.status === 503) {
     return error.code === "vault_unavailable" ? "vaultUnavailable" : null;
+  }
+  if (error.status === 422 && error.code === "scanned_pdf" && !ocrEnabled) {
+    return "unprocessableOcrOff";
   }
   return HINT_KEY_BY_STATUS[error.status] ?? null;
 }

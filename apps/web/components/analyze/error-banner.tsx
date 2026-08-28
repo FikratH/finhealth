@@ -8,6 +8,11 @@ export interface ErrorBannerProps {
    * (`Analyze.upload.hints`) — 413/415/422 show an extra next-step hint
    * alongside the backend's already-human RU detail. */
   hintT?: (key: string) => string;
+  /** GET /api/health's `ocr_enabled` (P7.T4) — gates whether a scanned-PDF
+   * 422 shows the "or enable OCR" hint (see errorHintKey). Optional,
+   * default false: only UploadStep (where a scanned-PDF error can occur)
+   * needs to pass this; every other ErrorBanner call site is unaffected. */
+  ocrEnabled?: boolean;
 }
 
 // Every ApiError renders as a human message: the backend's RU detail passes
@@ -20,10 +25,10 @@ export interface ErrorBannerProps {
 // the verify table, sitting inline in the document rather than floating
 // over it. role="alert" and the message text are unchanged, so a
 // screen-reader announcement is identical to before this re-skin.
-export function ErrorBanner({ error, hintT }: ErrorBannerProps) {
+export function ErrorBanner({ error, hintT, ocrEnabled = false }: ErrorBannerProps) {
   const t = useTranslations();
   const message = isTranslationKey(error.message) ? t(error.message) : error.message;
-  const hintKey = errorHintKey(error);
+  const hintKey = errorHintKey(error, ocrEnabled);
   const hint = hintKey && hintT ? hintT(hintKey) : null;
 
   return (

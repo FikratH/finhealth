@@ -31,6 +31,10 @@ export interface UploadStepProps {
    * (vault-disabled) configuration never sees a control that would 503 the
    * whole upload — see analyze-flow.tsx for where this is fetched. */
   vaultEnabled: boolean;
+  /** GET /api/health's `ocr_enabled` (P7.T4) — whether a scanned-PDF
+   * upload error should show the "or enable OCR" hint (ErrorBanner, gated
+   * off when OCR is already on — see errorHintKey's own comment). */
+  ocrEnabled: boolean;
   onFileSelected: (file: File) => void;
   onFileCleared: () => void;
   onIndustryChange: (industry: string) => void;
@@ -51,6 +55,7 @@ export function UploadStep({
   error,
   retain,
   vaultEnabled,
+  ocrEnabled,
   onFileSelected,
   onFileCleared,
   onIndustryChange,
@@ -134,7 +139,7 @@ export function UploadStep({
         <p className="mt-1 max-w-prose text-ink-muted">{t("lede")}</p>
       </div>
 
-      {displayError && <ErrorBanner error={displayError} hintT={hintT} />}
+      {displayError && <ErrorBanner error={displayError} hintT={hintT} ocrEnabled={ocrEnabled} />}
 
       {/* The docking bay: an empty bezel awaiting media. Idle = a plain
        * instrument slot (solid 1px border, ghost-cell perforation texture

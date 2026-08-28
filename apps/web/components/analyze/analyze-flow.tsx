@@ -46,7 +46,14 @@ export function AnalyzeFlow() {
     // direction (see analyze-reducer.ts's own comment on the field).
     getHealth()
       .then((res) => {
-        if (!cancelled) dispatch({ type: "vault_enabled_loaded", vaultEnabled: res.vault_enabled });
+        if (!cancelled) {
+          dispatch({ type: "vault_enabled_loaded", vaultEnabled: res.vault_enabled });
+          // ocr_enabled (P7.T4) rides the same health fetch, same
+          // fail-closed posture as vaultEnabled above: a failed/slow check
+          // just leaves state.ocrEnabled at false, so the scanned-PDF error
+          // hint stays at its plain (no-OCR-mention) form.
+          dispatch({ type: "ocr_enabled_loaded", ocrEnabled: res.ocr_enabled });
+        }
       })
       .catch(() => {
         // Silently ignored — see the comment above.
@@ -117,6 +124,7 @@ export function AnalyzeFlow() {
             error={state.error}
             retain={state.retain}
             vaultEnabled={state.vaultEnabled}
+            ocrEnabled={state.ocrEnabled}
             onFileSelected={(file) => dispatch({ type: "file_selected", file })}
             onFileCleared={() => dispatch({ type: "file_cleared" })}
             onIndustryChange={(industry) => dispatch({ type: "industry_selected", industry })}

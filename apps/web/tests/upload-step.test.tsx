@@ -23,6 +23,7 @@ function renderStep(overrides: Partial<React.ComponentProps<typeof UploadStep>> 
         error={null}
         retain={false}
         vaultEnabled={true}
+        ocrEnabled={false}
         onFileSelected={vi.fn()}
         onFileCleared={vi.fn()}
         onIndustryChange={vi.fn()}
@@ -122,6 +123,7 @@ describe("UploadStep — retain checkbox", () => {
         error: null,
         retain: true,
         vaultEnabled: true,
+        ocrEnabled: false,
         onFileSelected: vi.fn(),
         onFileCleared: vi.fn(),
         onIndustryChange: vi.fn(),
@@ -186,5 +188,44 @@ describe("UploadStep — retain checkbox", () => {
 
       expect(onRetainChange).not.toHaveBeenCalled();
     });
+  });
+});
+
+// P7.T4: a scanned-PDF 422 (backend code "scanned_pdf") gets an extra "or
+// enable OCR" hint, but ONLY while the server doesn't already offer OCR
+// (ocrEnabled=false) — see lib/analyze-errors.ts's errorHintKey for why
+// the polarity runs this direction (telling a user to "enable OCR" when
+// it's already on would be wrong: that error means OCR already ran).
+describe("UploadStep — scanned-PDF OCR hint", () => {
+  const scannedPdfError = {
+    message: "PDF не содержит текстового слоя (вероятно, это скан).",
+    status: 422,
+    code: "scanned_pdf",
+  };
+
+  it("ocrEnabled=false: shows the OCR-mention hint", () => {
+    useSession.mockReturnValue({ data: null, isPending: false });
+    renderStep({ error: scannedPdfError, ocrEnabled: false });
+
+    expect(
+      screen.getByText(ruMessages.Analyze.upload.hints.unprocessableOcrOff),
+    ).toBeInTheDocument();
+  });
+
+  it("ocrEnabled=true: shows the plain hint, no OCR mention (OCR already ran and still failed)", () => {
+    useSession.mockReturnValue({ data: null, isPending: false });
+    renderStep({ error: scannedPdfError, ocrEnabled: true });
+
+    expect(screen.getByText(ruMessages.Analyze.upload.hints.unprocessable)).toBeInTheDocument();
+    expect(
+      screen.queryByText(ruMessages.Analyze.upload.hints.unprocessableOcrOff),
+    ).not.toBeInTheDocument();
+  });
+
+  it("a non-scanned-PDF 422 never shows the OCR hint even with ocrEnabled=false", () => {
+    useSession.mockReturnValue({ data: null, isPending: false });
+    renderStep({ error: { message: "too complex", status: 422 }, ocrEnabled: false });
+
+    expect(screen.getByText(ruMessages.Analyze.upload.hints.unprocessable)).toBeInTheDocument();
   });
 });

@@ -22,10 +22,15 @@ export type Scale = "units" | "thousands" | "millions" | "billions";
  * opt-in document retention — read before ever showing the retain checkbox
  * (components/analyze/upload-step.tsx), so a signed-in user in the default
  * (vault-disabled) configuration never sees a control that would 503 the
- * whole upload. */
+ * whole upload.
+ * `ocr_enabled` (P7.T4, additive): whether a scanned PDF (no text layer)
+ * is actually routed through OCR server-side instead of erroring — read
+ * before deciding whether to show the "or enable OCR" hint on a scanned-
+ * PDF upload error (lib/analyze-errors.ts's errorHintKey). */
 export interface HealthResponse {
   status: string;
   vault_enabled: boolean;
+  ocr_enabled: boolean;
 }
 
 // ---------------------------------------------------------------------------

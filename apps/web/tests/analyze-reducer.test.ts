@@ -276,6 +276,17 @@ describe("analyzeReducer", () => {
     expect(disabled.vaultEnabled).toBe(false);
   });
 
+  it("ocrEnabled defaults to false (fail-closed) and is set by ocr_enabled_loaded", () => {
+    const initial = initialAnalyzeState();
+    expect(initial.ocrEnabled).toBe(false);
+
+    const enabled = analyzeReducer(initial, { type: "ocr_enabled_loaded", ocrEnabled: true });
+    expect(enabled.ocrEnabled).toBe(true);
+
+    const disabled = analyzeReducer(enabled, { type: "ocr_enabled_loaded", ocrEnabled: false });
+    expect(disabled.ocrEnabled).toBe(false);
+  });
+
   it("retain defaults to false and is toggled by retain_changed", () => {
     const initial = initialAnalyzeState();
     expect(initial.retain).toBe(false);

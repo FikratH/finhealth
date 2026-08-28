@@ -131,6 +131,7 @@
         "payloadTooLarge": "Try exporting the statement as CSV or XLSX — they're far more compact than a scanned PDF.",
         "unsupportedType": "Make sure the file's extension actually matches its format.",
         "unprocessable": "If this is a scan, export the report as Excel or CSV directly from your accounting system — extraction is far more accurate that way.",
+        "unprocessableOcrOff": "If this is a scan, export the report as Excel or CSV directly from your accounting system — extraction is far more accurate that way. Or enable OCR.",
         "vaultUnavailable": "Uncheck \"Save this document to my vault\" and try again."
       }
     },

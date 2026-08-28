@@ -403,12 +403,14 @@ describe("lib/api", () => {
       expect(body.has("retain")).toBe(false);
     });
 
-    it("returns the health/vault_enabled response from getHealth()", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(200, { status: "ok", vault_enabled: true }));
+    it("returns the health/vault_enabled/ocr_enabled response from getHealth()", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        jsonResponse(200, { status: "ok", vault_enabled: true, ocr_enabled: false }),
+      );
 
       const result = await getHealth();
 
-      expect(result).toEqual({ status: "ok", vault_enabled: true });
+      expect(result).toEqual({ status: "ok", vault_enabled: true, ocr_enabled: false });
       const [path, init] = vi.mocked(fetch).mock.calls[0];
       expect(path).toBe("/api/health");
       expect(init?.method).toBe("GET");

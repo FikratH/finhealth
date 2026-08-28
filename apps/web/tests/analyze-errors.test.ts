@@ -27,6 +27,26 @@ describe("errorHintKey", () => {
   it("503 with no code at all (e.g. an infra/proxy 503) returns null, not the vault hint", () => {
     expect(errorHintKey({ status: 503 })).toBeNull();
   });
+
+  // P7.T4: a scanned-PDF 422 (code "scanned_pdf") gets the OCR-mention hint
+  // ONLY while OCR is not already on — see errorHintKey's own comment on
+  // why the polarity runs this direction.
+  it("422 scanned_pdf with ocrEnabled=false returns the OCR-mention hint", () => {
+    expect(errorHintKey({ status: 422, code: "scanned_pdf" }, false)).toBe("unprocessableOcrOff");
+  });
+
+  it("422 scanned_pdf with ocrEnabled=true returns the plain hint, not the OCR one", () => {
+    expect(errorHintKey({ status: 422, code: "scanned_pdf" }, true)).toBe("unprocessable");
+  });
+
+  it("422 scanned_pdf with ocrEnabled omitted defaults to false (shows the OCR hint)", () => {
+    expect(errorHintKey({ status: 422, code: "scanned_pdf" })).toBe("unprocessableOcrOff");
+  });
+
+  it("a plain 422 with no code is unaffected by ocrEnabled either way", () => {
+    expect(errorHintKey({ status: 422 }, false)).toBe("unprocessable");
+    expect(errorHintKey({ status: 422 }, true)).toBe("unprocessable");
+  });
 });
 
 describe("toAnalyzeError", () => {

@@ -63,6 +63,13 @@ export interface AnalyzeState {
    * ever showing a control the server would 503. Gates UploadStep's
    * checkbox alongside `signedIn` — see analyze-flow.tsx. */
   vaultEnabled: boolean;
+  /** GET /api/health's `ocr_enabled` (P7.T4) — whether a scanned PDF is
+   * actually routed through OCR server-side instead of erroring. Starts
+   * false (fail-closed, same convention as vaultEnabled) and flips true
+   * once the mount-time health fetch resolves; a failed/slow check just
+   * leaves it false. Gates the "or enable OCR" hint on a scanned-PDF
+   * upload error — see UploadStep/ErrorBanner. */
+  ocrEnabled: boolean;
   error: AnalyzeError | null;
   analysisId: string | null;
 }
@@ -85,6 +92,7 @@ export function initialAnalyzeState(): AnalyzeState {
     audited: false,
     retain: false,
     vaultEnabled: false,
+    ocrEnabled: false,
     error: null,
     analysisId: null,
   };
@@ -93,6 +101,7 @@ export function initialAnalyzeState(): AnalyzeState {
 export type AnalyzeAction =
   | { type: "industries_loaded"; industries: Industry[] }
   | { type: "vault_enabled_loaded"; vaultEnabled: boolean }
+  | { type: "ocr_enabled_loaded"; ocrEnabled: boolean }
   | { type: "file_selected"; file: File }
   | { type: "file_cleared" }
   | { type: "industry_selected"; industry: string }
@@ -162,6 +171,9 @@ export function analyzeReducer(state: AnalyzeState, action: AnalyzeAction): Anal
 
     case "vault_enabled_loaded":
       return { ...state, vaultEnabled: action.vaultEnabled };
+
+    case "ocr_enabled_loaded":
+      return { ...state, ocrEnabled: action.ocrEnabled };
 
     case "file_selected":
       return { ...state, file: action.file, error: null };
