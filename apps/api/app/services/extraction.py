@@ -11,7 +11,7 @@ import io
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..schemas import ExtractedValue, ExtractionResult, PeriodSelectionMeta, Scale
+from ..schemas import ExtractedValue, ExtractionResult, PeriodSelectionMeta
 from . import extraction_headers as H
 from . import extraction_ocr as EO
 from . import metrics as M
@@ -29,7 +29,11 @@ TRUNCATION_WARNING = ("Файл усечён при разборе: обрабо
 
 
 class ScannedPdfError(Exception):
-    """PDF contains no extractable text (likely a scan)."""
+    """PDF has no extractable text. `ocr_warnings` (close wave, W4) carries
+    OCR-path diagnostics for main.py's except branch to log."""
+    def __init__(self, message: str, ocr_warnings: Optional[list[str]] = None):
+        super().__init__(message)
+        self.ocr_warnings = ocr_warnings or []
 
 
 @dataclass
@@ -54,8 +58,7 @@ _PREVIOUS_MARKERS = ("на начало", "beginning of")
 _PERIOD_MARKER_PHRASES = _LATEST_MARKERS + _PREVIOUS_MARKERS + (
     "конец отчетного", "начало отчетного")
 _KOD_TOKEN = "код"  # _label_based_column_roles' no-year mapping only — untouched by NEW-J
-# Close wave (T3 NEW-J): «код» alone missed a «Строка 2025»-headed code
-# column below; broadened the same way in extraction_headers.py — sync by hand.
+# T3 NEW-J: «код» alone missed «Строка 2025»; sync with extraction_headers.py.
 _CODE_HEADER_TOKENS = ("код", "стр")
 
 
@@ -157,10 +160,8 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
 
     # col_period (per table) is the single source of truth for "which
     # columns carry which period" used below for row value-assignment
-    # (round 1, F3: scanning the raw header text separately here used to
-    # let a misleading code-column header, e.g. «Код строки 2025», leak a
-    # phantom period even though the F2/S1 veto correctly kept every data
-    # column from ever being assigned to it).
+    # (round 1, F3: «Код строки 2025» used to leak a phantom period here
+    # despite the F2/S1 veto correctly excluding that column from data).
     #
     # period_objs (the overall latest/previous scan) is DELIBERATELY a
     # separate, wider scan of the table's WHOLE header — including the
@@ -168,10 +169,9 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     # (round 2, NEW-2: round 1's restructure undeclaredly narrowed this,
     # silently dropping the period when a KZ statutory title embedded a
     # year in the label header, e.g. «Наименование показателя за 2024
-    # год»; reverted to match pre-P7.T3/round-0 behavior). The exclusion
-    # kept from F3 — skip a cell whose text contains a code-header token
-    # (_CODE_HEADER_TOKENS, see NEW-J above) — keeps the phantom-period fix
-    # intact for anything code-like but not period-resolving anyway.
+    # год»; reverted to match pre-P7.T3/round-0 behavior). The F3 exclusion
+    # (a code-header token, _CODE_HEADER_TOKENS — see NEW-J above) keeps
+    # the phantom-period fix intact for anything code-like but not period-resolving.
     table_header_info: list[tuple[list[str], dict[int, str]]] = []
     period_objs: dict[str, M.Period] = {}
     for t in tables:
@@ -453,7 +453,7 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
         ocr_texts, ocr_warnings = EO.ocr_pdf_pages(data)
         ocr_full_text = "\n".join(ocr_texts)
         if not ocr_full_text.strip():  # blank scan / poor quality / rasterization failure
-            raise ScannedPdfError(ocr_failed_message)
+            raise ScannedPdfError(ocr_failed_message, ocr_warnings=ocr_warnings)
         ocr_tables = [
             _rows_from_matrix(matrix, f"PDF, стр. {page_no} (распознано OCR)")
             for page_no, page_text in enumerate(ocr_texts, start=1)
@@ -464,7 +464,7 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
             confidence_cap=EO.CONFIDENCE_CAP)
         # Round-1: raw text can be non-empty GARBAGE (partial install -> eng-only).
         if not any(v.value is not None for v in result.values):
-            raise ScannedPdfError(ocr_failed_message)
+            raise ScannedPdfError(ocr_failed_message, ocr_warnings=ocr_warnings)
         result.warnings.append(EO.WARNING)
         result.warnings.extend(ocr_warnings)
         return result

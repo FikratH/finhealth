@@ -31,7 +31,9 @@ RUN python -m venv /opt/venv \
 # line (pinning versions to match requirements-dev.lock) in addition to the
 # runtime-stage apt layer below, then sets OCR_ENABLED=1 in the API env.
 # Both layers must be present together — OCR_ENABLED=1 alone is not enough
-# (see app/services/ocr.py: env AND both binaries required).
+# (see app/services/ocr.py: env AND both binaries AND the rus+eng
+# traineddata, which the runtime-stage tesseract-ocr-rus package below
+# provides, are all required).
 # RUN /opt/venv/bin/pip install --no-cache-dir pytesseract==0.3.13 pdf2image==1.17.0
 
 # ---- runtime: slim image, non-root, only what's needed to serve ----

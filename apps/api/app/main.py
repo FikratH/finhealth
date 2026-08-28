@@ -310,6 +310,12 @@ def extract(payload: ExtractRequest):
         # lib/analyze-errors.ts's errorHintKey. The human message text
         # itself is unchanged from pre-P7.T4 either way (`str(e)` — see
         # extraction.ScannedPdfError's two raise sites).
+        # Close wave (W4): before this, `extract()`'s scanned-PDF failure
+        # was the one path with no log call — a founder tracing an OCR
+        # complaint dead-ended at the bare 422 summary. `e.ocr_warnings`
+        # (empty when OCR never even ran — OCR_ENABLED off) names WHY:
+        # budget exhausted, rasterization failure, genuinely unrecognizable.
+        log.info("scanned pdf id=%s kind=%s ocr_warnings=%s", upload_id, kind, e.ocr_warnings)
         raise HTTPException(status_code=422, detail={"code": "scanned_pdf", "message": str(e)})
     except concurrent.futures.TimeoutError:
         # NB: concurrent.futures.TimeoutError aliases the builtin TimeoutError

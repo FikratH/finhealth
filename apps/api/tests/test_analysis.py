@@ -156,6 +156,11 @@ def test_default_disclaimer_leads_with_professional_advice_notice():
         "Сервис не заменяет профессиональную финансовую консультацию.")
     assert "Damodaran" in res.disclaimer
     assert "демонстрационными" in res.disclaimer
+    # Phase-7 final wave, MF2: the disclaimer used to name only Damodaran-
+    # or-demo, silently omitting the third source category (KZ marks)
+    # the Phase 7 delta introduced — a skeptical reader would conclude
+    # every «ориентир РК» figure is demo data. Now names it explicitly.
+    assert "Нацбанк" in res.disclaimer
 
 
 # --- Provenance: source_values (Plan 4 / Task 3) ----------------------------

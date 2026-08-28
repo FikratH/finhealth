@@ -34,6 +34,7 @@ worker is a fresh Python interpreter that re-imports everything, so a
 `sys.modules` injection made in the TEST process has no effect on it.
 """
 import io
+import logging
 import shutil
 import subprocess
 import sys
@@ -416,7 +417,7 @@ def test_disabled_path_scanned_pdf_error_message_unchanged(monkeypatch):
     assert str(exc_info.value) == _SCAN_MESSAGE
 
 
-def test_disabled_path_via_real_http_and_process_pool():
+def test_disabled_path_via_real_http_and_process_pool(caplog):
     """Same regression, end to end through POST /api/upload + POST
     /api/extract — the real spawned ProcessPoolExecutor. Deliberately NOT
     mocking `shutil.which` here: a spawned worker re-imports `ocr.py`
@@ -427,14 +428,45 @@ def test_disabled_path_via_real_http_and_process_pool():
     what makes this test deterministic regardless of the real machine's
     installed binaries or language data. Also pins the new
     `code:"scanned_pdf"` field (additive) alongside the unchanged
-    message."""
+    message.
+
+    Close wave (W4): before this fix, `ScannedPdfError` was `extract()`'s
+    only failure path with no log call at all — pins that main.py's except
+    branch now logs unconditionally, with an empty `ocr_warnings` list
+    here (OCR never ran: `OCR_ENABLED` is unset)."""
     up = client.post(
         "/api/upload", files={"file": ("scan.pdf", _blank_pdf_bytes(), "application/pdf")})
     assert up.status_code == 200, up.text
     upload_id = up.json()["upload_id"]
-    resp = client.post("/api/extract", json={"upload_id": upload_id})
+    with caplog.at_level(logging.INFO):
+        resp = client.post("/api/extract", json={"upload_id": upload_id})
     assert resp.status_code == 422, resp.text
     assert resp.json()["detail"] == {"code": "scanned_pdf", "message": _SCAN_MESSAGE}
+    scan_record = next(r for r in caplog.records if r.name == "finhealth"
+                       and "scanned pdf" in r.getMessage())
+    assert f"id={upload_id}" in scan_record.getMessage()
+    assert "ocr_warnings=[]" in scan_record.getMessage()
+
+
+def test_scanned_pdf_error_carries_ocr_warnings_for_the_close_wave_log_line():
+    """Unit-level proof that `ScannedPdfError` genuinely carries whatever
+    diagnostics `extraction_ocr.ocr_pdf_pages` collected — the fact
+    `test_disabled_path_via_real_http_and_process_pool` above only
+    exercises with an EMPTY list (OCR never ran in that scenario). Drives
+    the productivity-guard raise site directly (mocked OCR pipeline, no
+    real tesseract needed) and checks the exception's own attribute,
+    independent of the HTTP/logging layer."""
+    from app.services import extraction_ocr as EO
+
+    def fake_ocr_pdf_pages(data):
+        return ["Bbipyuka  1500000  1200000\n"], ["страница 1: низкая уверенность"]
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(EO, "ocr_pdf_pages", fake_ocr_pdf_pages)
+        _enable_ocr(mp)
+        with pytest.raises(extraction.ScannedPdfError) as exc_info:
+            extraction.extract_from_pdf(_blank_pdf_bytes())
+    assert exc_info.value.ocr_warnings == ["страница 1: низкая уверенность"]
 
 
 # ---------------------------------------------------------------------------
