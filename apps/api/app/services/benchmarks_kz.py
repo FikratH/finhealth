@@ -18,10 +18,23 @@ BENCHMARKS_KZ_PATH = Path(__file__).resolve().parent.parent / "data" / "benchmar
 
 # The "all" bucket is an economy-wide (non-financial-corporate) aggregate
 # that explicitly excludes banks/insurers (see build_benchmarks_kz.py) — it
-# must never stand in for a missing "banking" entry. Every other industry
-# falls back to it when it has no entry of its own.
+# must never stand in for a missing entry on a FINANCIAL industry.
+#
+# Round-1 fix, Finding 9: this used to be a denylist ({"banking"}) — safe
+# today only because "banking" happens to be the sole financial industry
+# among the app's current ten (see app/data/benchmarks.json's
+# `industries` keys). Adding a future financial-sector industry id there
+# (insurance, fintech lending, ...) would have silently inherited the
+# non-financial aggregate — the exact mistake this exclusion exists to
+# prevent, re-armed for the next editor. An ALLOWLIST fails safe instead:
+# a brand-new industry id gets no KZ fallback at all (honest silence)
+# until someone deliberately adds it here, rather than silently getting
+# one it may not deserve.
 _ECONOMY_WIDE_KEY = "all"
-_EXCLUDED_FROM_FALLBACK = {"banking"}
+_ALLOWED_FALLBACK_INDUSTRIES = {
+    "saas", "retail", "manufacturing", "healthcare", "energy",
+    "realestate", "telecom", "transport", "aerospace_defense",
+}
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +51,7 @@ def get_kz_benchmark(industry_id: str, ratio_key: str) -> Optional[dict]:
     own = industries.get(industry_id, {}).get("ratios", {})
     if ratio_key in own:
         return own[ratio_key]
-    if industry_id in _EXCLUDED_FROM_FALLBACK:
+    if industry_id not in _ALLOWED_FALLBACK_INDUSTRIES:
         return None
     fallback = industries.get(_ECONOMY_WIDE_KEY, {}).get("ratios", {})
     return fallback.get(ratio_key)

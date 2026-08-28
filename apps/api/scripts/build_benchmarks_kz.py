@@ -18,19 +18,34 @@ National Bank of Kazakhstan (Нацбанк РК) — "Индикаторы фи
 2019 FSI Guide and also filed with the IMF:
   https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti
   (EN mirror: https://nationalbank.kz/en/page/indikatory-finansovoy-ustoychivosti)
-Downloaded file: "Индикаторы финансовой устойчивости 1К2024.xlsx"
-  direct link (as of this research pass): https://nationalbank.kz/file/download/103364
-  published by the National Bank on 12.08.2024 — the page has not been
-  refreshed past this file as of this script's writing (2026-08-28); the
-  quarters cited below are the file's own true last-populated columns, not
-  today's date. Re-run candidate: if the National Bank publishes a newer
-  FSI workbook at the same page, re-derive RAW_DATA from its "5.1 Deposit
-  takers" and "5.5 Nonfinancial corporations" sheets using the row/series
-  codes cited inline below (they are IMF-standard FS_* codes and stable
-  across vintages of this same file).
+Downloaded file (RU version — see round-1 fix note below):
+"Индикаторы финансовой устойчивости.xlsx", ~718KB,
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, sheets
+`Содержание`, `ИФУ`, `5.1 Депозитные учреждения`, `5.5 Нефинансовые
+корпорации`. Re-run candidate: if the National Bank publishes a newer FSI
+workbook at the same page, re-derive RAW_DATA from the two sheets below
+using the row/series codes cited inline (IMF-standard FS_* codes, stable
+across vintages of this same file).
+
+Round-1 fix note (review round 1, Finding 2): the FIRST version of this
+script used the EN mirror's download, whose "5.1 Deposit takers" sheet
+physically stops at 2023Q3 (149 columns total, no data past that point).
+The RU download used now is the SAME regulator table with more columns
+(282) and genuinely populated data through 1кв2024/2024Q1 on that same
+sheet — confirmed columns 62-66 (1кв2023 through 1кв2024) each satisfy the
+balance-sheet identity Обязательства + Капитал и резервы = Совокупные
+активы to within float rounding (e.g. at 1кв2024: 46,463,766,360.63 +
+7,511,585,568.16 = 53,975,351,928.79 vs reported assets
+53,975,351,928.82 — diff 0.00013, i.e. genuine reported data, not a
+stray/interpolated cell). All four banking entries below are therefore
+now sourced from 1кв2024/2024Q1, not a 2023Q3/2024Q1 mixed vintage — using
+one consistent quarter across the whole banking bucket, the same
+methodology already used for the "all" bucket. (Columns 279-281 of that
+sheet are an unrelated, disconnected 3-column tail with an incompatible
+header format — not part of the main quarterly series; ignore them.)
 
 Two sheets, two scopes:
-  - "5.5 Nonfinancial corporations" (IMF Table 5.5) — an economy-wide
+  - "5.5 Нефинансовые корпорации" (IMF Table 5.5) — an economy-wide
     aggregate across ALL of Kazakhstan's non-financial corporate sector,
     NOT broken out by industry, and explicitly EXCLUDING banks/insurers.
     Mapped here under the synthetic industry key "all" — a fallback every
@@ -40,11 +55,13 @@ Two sheets, two scopes:
     better proxy for manufacturing/energy/transport than for e.g. saas —
     shipped anyway, per the task brief's explicit allowance for
     economy-wide reference lines, with that caveat recorded in every
-    entry's `note` and in task-5-report.md.
-  - "5.1 Deposit takers" (IMF Table 5.1) — Kazakhstan's banking sector
-    specifically. Mapped under the "banking" industry key only; never used
-    as a fallback for any other industry (a bank's balance sheet has
-    nothing in common with a non-financial corporate one).
+    entry's `note`, in its `scope` field ("economy_wide" vs "industry" —
+    round-1 fix, Finding 1: the UI now renders this distinction instead of
+    only a document-level footnote), and in task-5-report.md.
+  - "5.1 Депозитные учреждения" (IMF Table 5.1) — Kazakhstan's banking
+    sector specifically. Mapped under the "banking" industry key only;
+    never used as a fallback for any other industry (a bank's balance
+    sheet has nothing in common with a non-financial corporate one).
 
 Income-statement rows in both sheets are reported CUMULATIVE from the start
 of the calendar year (the workbook's own disclaimer), so a Q1 column is
@@ -133,17 +150,20 @@ NFC_2024Q1 = {
 # rather than inventing a new one).
 NFC_2023Q4_TOTAL_ASSETS = 145_709_410_619  # row "12. Total assets", FS_NFC_A
 
-# "5.1 Deposit takers" sheet, column 2023Q3 — the sheet's own last
-# populated column in this workbook vintage (later than the NFC sheet's
-# 2024Q1 on some series, earlier on others; each sheet is cited at its own
-# true last quarter, not forced to match).
-DT_2023Q3 = {
-    "annualized_net_income_after_taxes": 2_107_383_206.99701,  # row "64.", FSNERAB
-    "average_total_assets": 47_052_365_963.5152,  # row "65.", FSDERA
-    "average_capital_and_reserves": 5_719_718_050.65979,  # row "66.", FSDERE
-    "liabilities": 42_665_130_746.13495,  # row "21. Liabilities", FS_ODX_L
-    "capital_and_reserves": 6_242_773_374.29852,  # row "29. Capital and reserves" equiv., FS_ODX_CR
-    "total_assets": 48_907_904_120.43343,  # row "12. Total assets" equiv., FS_ODX_A
+# "5.1 Депозитные учреждения" sheet, column 1кв2024/2024Q1 — the sheet's
+# own true last populated column (see round-1 fix note above). Row numbers
+# are THIS sheet's own numbering, which differs from the NFC sheet's (an
+# extra income-statement line inserted earlier in this sheet shifts every
+# subsequent row number by +2 — round-1 fix, Finding 10: the original
+# script wrongly borrowed the NFC sheet's row numbers "21."/"29."/"12.").
+DT_2024Q1 = {
+    "annualized_net_income_after_taxes": 2_278_165_455.14275,  # row "64. Чистая прибыль за вычетом налогов в годовом исчислении", FSNERAB
+    "annualized_net_income_before_taxes": 2_635_929_099.75667,  # row "63. Чистая прибыль до вычета налогов в годовом исчислении", FSNERA — see roa.note (Finding 3)
+    "average_total_assets": 53_225_651_311.3566,  # row "65. Средний объем совокупных активов", FSDERA
+    "average_capital_and_reserves": 7_185_953_307.73007,  # row "66. Средний объем капитала и резервов", FSDERE
+    "liabilities": 46_463_766_360.62876,  # row "23. Обязательства (= 28 + 29 + 30)", FS_ODX_L
+    "capital_and_reserves": 7_511_585_568.15927,  # row "31. Капитал и резервы", FS_ODX_CR
+    "total_assets": 53_975_351_928.78816,  # row "14. Совокупные активы (= 15 + 16 = 23 + 31)", FS_ODX_A
 }
 
 
@@ -156,6 +176,11 @@ def ratio(numer: float, denom: float) -> float:
 
 
 def build_all_bucket() -> dict:
+    # Every entry here carries scope="economy_wide" — the UI (round-1 fix,
+    # Finding 1) renders a distinct label for these vs. banking's
+    # scope="industry" entries below, so a reader can't mistake an
+    # aggregate across ALL non-financial corporations for a figure
+    # specific to their own industry.
     d = NFC_2024Q1
     avg_total_assets = (d["total_assets"] + NFC_2023Q4_TOTAL_ASSETS) / 2
     return {
@@ -164,6 +189,7 @@ def build_all_bucket() -> dict:
             "note": "Чистая прибыль / выручка, нефинансовые организации РК, 2024 Q1 (нарастающим итогом с начала года)."
             + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "operating_margin": {
             "value": pct(d["revenue"] - d["cost_of_sales"], d["revenue"]),
@@ -172,29 +198,34 @@ def build_all_bucket() -> dict:
             "отличаться от operating_income в отчётности конкретной компании."
             + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "interest_coverage": {
             "value": ratio(d["ebit"], d["interest_expense"]),
             "note": "EBIT / проценты к уплате, нефинансовые организации РК, 2024 Q1."
             + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "liabilities_to_equity": {
             "value": ratio(d["liabilities"], d["capital_and_reserves"]),
             "note": "Обязательства / капитал и резервы, нефинансовые организации РК, 2024 Q1."
             + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "debt_ratio": {
             "value": ratio(d["liabilities"], d["total_assets"]),
             "note": "Обязательства / активы, нефинансовые организации РК, 2024 Q1." + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "roe": {
             "value": pct(d["annualized_net_income_after_taxes"], d["average_capital_and_reserves"]),
             "note": "ROE (аннуализировано источником), нефинансовые организации РК, 2024 Q1."
             + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
         "roa": {
             "value": pct(d["annualized_net_income_after_taxes"], avg_total_assets),
@@ -203,33 +234,51 @@ def build_all_bucket() -> dict:
             "для этой таблицы; усреднение по той же схеме, что и в собственных расчётах "
             "приложения)." + ALL_NOTE_SUFFIX,
             "source": SOURCE_NFC, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "economy_wide",
         },
     }
 
 
 def build_banking_bucket() -> dict:
-    d = DT_2023Q3
+    # scope="industry": unlike the "all" bucket, this genuinely IS the
+    # banking sector specifically — no economy-wide caveat needed.
+    d = DT_2024Q1
+    pretax_roa = pct(d["annualized_net_income_before_taxes"], d["average_total_assets"])
     return {
         "roa": {
             "value": pct(d["annualized_net_income_after_taxes"], d["average_total_assets"]),
-            "note": "ROA (аннуализировано источником), банковский сектор РК, 2023 Q3.",
-            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2023Q3", "method": METHOD,
+            # Round-1 fix, Finding 3: the app's own roa formula
+            # (net_income / average_total_assets) is after-tax, so this
+            # entry deliberately uses the source's after-tax numerator
+            # (FSNERAB) rather than its own pre-tax "headline" FSI ROA
+            # (FSERA) — disclosed here the same way the operating_margin
+            # proxy is, so a reader cross-checking against the source
+            # isn't left to wonder why the numbers differ.
+            "note": f"ROA (аннуализировано источником), банковский сектор РК, 2024 Q1. "
+            f"Использован показатель ПОСЛЕ налогов (FSNERAB), как и в формуле приложения "
+            f"(net_income / average_total_assets); собственный «базовый» ИФУ-показатель "
+            f"источника (FSERA, ДО налогов) на ту же дату = {pretax_roa}%.",
+            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "industry",
         },
         "roe": {
             "value": pct(d["annualized_net_income_after_taxes"], d["average_capital_and_reserves"]),
-            "note": "ROE (аннуализировано источником), банковский сектор РК, 2023 Q3.",
-            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2023Q3", "method": METHOD,
+            "note": "ROE (аннуализировано источником), банковский сектор РК, 2024 Q1.",
+            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "industry",
         },
         "liabilities_to_equity": {
             "value": ratio(d["liabilities"], d["capital_and_reserves"]),
-            "note": "Обязательства / капитал и резервы, банковский сектор РК, 2023 Q3 — "
+            "note": "Обязательства / капитал и резервы, банковский сектор РК, 2024 Q1 — "
             "структурно высокое значение ожидаемо для банков (депозиты — обязательства).",
-            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2023Q3", "method": METHOD,
+            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "industry",
         },
         "debt_ratio": {
             "value": ratio(d["liabilities"], d["total_assets"]),
-            "note": "Обязательства / активы, банковский сектор РК, 2023 Q3.",
-            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2023Q3", "method": METHOD,
+            "note": "Обязательства / активы, банковский сектор РК, 2024 Q1.",
+            "source": SOURCE_DT, "source_url": SOURCE_URL, "as_of": "2024Q1", "method": METHOD,
+            "scope": "industry",
         },
     }
 
@@ -250,9 +299,11 @@ DISCLAIMER = (
 def _validate(data: dict) -> None:
     for ind_id, cfg in data["industries"].items():
         for rk, bm in cfg["ratios"].items():
-            for field in ("value", "source", "source_url", "as_of", "method"):
+            for field in ("value", "source", "source_url", "as_of", "method", "scope"):
                 if not bm.get(field) and bm.get(field) != 0:
                     raise ValueError(f"industries.{ind_id}.ratios.{rk}.{field} is missing")
+            if bm["scope"] not in ("economy_wide", "industry"):
+                raise ValueError(f"industries.{ind_id}.ratios.{rk}.scope: unknown {bm['scope']!r}")
 
 
 def main() -> int:

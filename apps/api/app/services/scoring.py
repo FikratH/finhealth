@@ -121,7 +121,8 @@ def apply_benchmarks(ratios: list[RatioResult], industry_id: str) -> list[RatioR
             r.benchmark_kz = IndustryBenchmarkKZ(
                 ratio=r.key, value=kz["value"], note=kz.get("note", ""),
                 source=kz.get("source", ""), source_url=kz.get("source_url", ""),
-                as_of=kz.get("as_of", ""), method=kz.get("method", ""))
+                as_of=kz.get("as_of", ""), method=kz.get("method", ""),
+                scope=kz.get("scope", ""))
         if r.value is None:
             r.status = RatioStatus.na
             if not r.explanation:

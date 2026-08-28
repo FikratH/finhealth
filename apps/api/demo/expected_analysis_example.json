@@ -1,6 +1,6 @@
 {
-  "analysis_id": "49ed66d698214f16935ffd522d778f6a",
-  "created_at": "2026-08-27T05:00:36.070652+00:00",
+  "analysis_id": "7d5dce73acfb44e58f7dafc8c52fbc76",
+  "created_at": "2026-08-28T06:42:56.308057+00:00",
   "industry": "manufacturing",
   "industry_name": "Производство",
   "currency": "KZT",
@@ -83,6 +83,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 1.66. Демонстрационный отраслевой диапазон: 1.5–3. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -118,6 +119,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 1.02. Демонстрационный отраслевой диапазон: 0.9–2. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -152,6 +154,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 0.47. Демонстрационный отраслевой диапазон: 0.2–1. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -185,6 +188,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 0.59. Демонстрационный отраслевой диапазон: 0.4–2. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -218,6 +222,7 @@
         "note": "Ориентир основан на рыночном D/E отрасли (Damodaran), а не балансовом.",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 0.38. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): ≤ 0.303. Вывод: вне желательного диапазона — требует внимания. Ориентир основан на рыночном D/E отрасли (Damodaran), а не балансовом.",
       "applicable": true,
       "warnings": []
@@ -250,6 +255,16 @@
         ],
         "note": "",
         "source": ""
+      },
+      "benchmark_kz": {
+        "ratio": "liabilities_to_equity",
+        "value": 0.939,
+        "note": "Обязательства / капитал и резервы, нефинансовые организации РК, 2024 Q1. Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
       },
       "explanation": "Значение 0.72. Демонстрационный отраслевой диапазон: ≤ 1.8. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
@@ -284,6 +299,16 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": {
+        "ratio": "debt_ratio",
+        "value": 0.484,
+        "note": "Обязательства / активы, нефинансовые организации РК, 2024 Q1. Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
+      },
       "explanation": "Значение 0.42. Демонстрационный отраслевой диапазон: ≤ 0.55. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -317,6 +342,16 @@
         "note": "Покрытие процентов критично для капиталоёмкого бизнеса.",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": {
+        "ratio": "interest_coverage",
+        "value": 5.049,
+        "note": "EBIT / проценты к уплате, нефинансовые организации РК, 2024 Q1. Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
+      },
       "explanation": "Значение 2.40. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 4.9068–10.3909. Вывод: существенно вне отраслевого ориентира. Покрытие процентов критично для капиталоёмкого бизнеса.",
       "applicable": true,
       "warnings": []
@@ -336,6 +371,7 @@
       "status": "na",
       "score": null,
       "benchmark": null,
+      "benchmark_kz": null,
       "explanation": "Справочная величина, не участвует в балльной оценке.",
       "applicable": true,
       "warnings": []
@@ -369,6 +405,7 @@
         "note": "Ориентир по валовому долгу/EBITDA отрасли (Damodaran), не по чистому долгу.",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Недостаточно данных: не найдены значения ebitda.",
       "applicable": true,
       "warnings": []
@@ -402,6 +439,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 30.03%. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 23.5477–49.8657%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -434,6 +472,16 @@
         ],
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
+      },
+      "benchmark_kz": {
+        "ratio": "operating_margin",
+        "value": 28.34,
+        "note": "Прокси: «чистый операционный доход» источника (выручка минус себестоимость реализации, МВФ FSI Табл. 5.5) — состав себестоимости в этой методологии может отличаться от operating_income в отчётности конкретной компании. Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
       },
       "explanation": "Значение 10.98%. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 8.5498–18.1054%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
@@ -468,6 +516,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Недостаточно данных: не найдены значения ebitda.",
       "applicable": true,
       "warnings": []
@@ -500,6 +549,16 @@
         ],
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
+      },
+      "benchmark_kz": {
+        "ratio": "net_margin",
+        "value": 14.98,
+        "note": "Чистая прибыль / выручка, нефинансовые организации РК, 2024 Q1 (нарастающим итогом с начала года). Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
       },
       "explanation": "Значение 4.58%. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 3.7267–7.8918%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
@@ -534,6 +593,16 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": {
+        "ratio": "roa",
+        "value": 7.96,
+        "note": "ROA = аннуализированная чистая прибыль (источник) / средние активы (среднее 2023 Q4 и 2024 Q1 — источник не публикует отдельный ряд «средние активы» для этой таблицы; усреднение по той же схеме, что и в собственных расчётах приложения). Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
+      },
       "explanation": "Значение 6.25%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -566,6 +635,16 @@
         ],
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
+      },
+      "benchmark_kz": {
+        "ratio": "roe",
+        "value": 15.32,
+        "note": "ROE (аннуализировано источником), нефинансовые организации РК, 2024 Q1. Показатель по экономике КЗ в целом (нефинансовые организации), не по отдельной отрасли — экономика Казахстана заметно смещена в сторону добычи/металлургии/торговли, так что для «Software и SaaS» или «Здравоохранение» это грубый ориентир.",
+        "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
+        "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
+        "as_of": "2024Q1",
+        "method": "kz-official-point-v1",
+        "scope": "economy_wide"
       },
       "explanation": "Значение 11.09%. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 6.6017–13.98%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
@@ -600,6 +679,7 @@
         "note": "Прокси: выручка/инвестированный капитал отрасли (Damodaran), не выручка/активы.",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 1.37. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 1.6378–3.4683. Вывод: вне желательного диапазона — требует внимания. Прокси: выручка/инвестированный капитал отрасли (Damodaran), не выручка/активы.",
       "applicable": true,
       "warnings": []
@@ -633,6 +713,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 7.55. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 3.6017–7.6272. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -666,6 +747,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 11.39. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 4.8113–10.1886. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -699,6 +781,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Значение 12.12. Отраслевой ориентир (источник: Damodaran (NYU Stern), Jan 2026, данные 2026-01): 4.7135–9.9815. Вывод: вне желательного диапазона — требует внимания.",
       "applicable": true,
       "warnings": []
@@ -718,6 +801,7 @@
       "status": "na",
       "score": null,
       "benchmark": null,
+      "benchmark_kz": null,
       "explanation": "Справочная величина, не участвует в балльной оценке.",
       "applicable": true,
       "warnings": []
@@ -751,6 +835,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 5.88%. Демонстрационный отраслевой диапазон: 4–12%. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -784,6 +869,7 @@
         "note": "",
         "source": ""
       },
+      "benchmark_kz": null,
       "explanation": "Значение 1.93. Демонстрационный отраслевой диапазон: 0.9–2.5. Вывод: в пределах отраслевого ориентира.",
       "applicable": true,
       "warnings": []
@@ -814,6 +900,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
       "applicable": false,
       "warnings": []
@@ -844,6 +931,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
       "applicable": false,
       "warnings": []
@@ -860,6 +948,7 @@
       "status": "na",
       "score": null,
       "benchmark": null,
+      "benchmark_kz": null,
       "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
       "applicable": false,
       "warnings": []
@@ -890,6 +979,7 @@
         "note": "",
         "source": "Damodaran (NYU Stern), Jan 2026"
       },
+      "benchmark_kz": null,
       "explanation": "Рыночные данные (капитализация или цена акции) отсутствуют — показатель не рассчитывается для непубличной компании.",
       "applicable": false,
       "warnings": []
@@ -913,6 +1003,7 @@
       "status": "attention",
       "score": null,
       "benchmark": null,
+      "benchmark_kz": null,
       "explanation": "Ориентиры модели: > 2.9 — безопасная зона, 1.23–2.9 — серая зона, < 1.23 — зона риска. Компонент X2 исключён (нераспределённая прибыль не извлекается); значение занижено.",
       "applicable": true,
       "warnings": [
@@ -1017,6 +1108,7 @@
       "status": "attention",
       "score": null,
       "benchmark": null,
+      "benchmark_kz": null,
       "explanation": "Ориентиры модели: > 2.9 — безопасная зона, 1.23–2.9 — серая зона, < 1.23 — зона риска. Компонент X2 исключён (нераспределённая прибыль не извлекается); значение занижено.",
       "applicable": true,
       "warnings": [

@@ -21,16 +21,44 @@ def test_kz_benchmarks_file_loads_and_every_entry_is_fully_cited():
     for ind_id, cfg in data["industries"].items():
         for rk, bm in cfg["ratios"].items():
             total += 1
-            for field in ("value", "source", "source_url", "as_of", "method"):
+            for field in ("value", "source", "source_url", "as_of", "method", "scope"):
                 assert bm.get(field) not in (None, ""), f"{ind_id}.{rk}.{field}"
+            assert bm["scope"] in ("economy_wide", "industry"), f"{ind_id}.{rk}.scope"
     assert total >= 8, "plan's own honesty bar: ship fewer only if truly nothing more is citable"
 
 
+def test_all_bucket_entries_are_scoped_economy_wide():
+    data = load_benchmarks_kz()
+    for rk, bm in data["industries"]["all"]["ratios"].items():
+        assert bm["scope"] == "economy_wide", rk
+
+
+def test_banking_bucket_entries_are_scoped_industry():
+    data = load_benchmarks_kz()
+    for rk, bm in data["industries"]["banking"]["ratios"].items():
+        assert bm["scope"] == "industry", rk
+
+
 def test_get_kz_benchmark_resolves_banking_own_entry():
+    # Round-1 fix (Finding 2): refreshed from 2023Q3 (36.84) to the same
+    # cited workbook's own 2024Q1 columns (31.70) — see
+    # build_benchmarks_kz.py's round-1 fix note for the balance-identity
+    # evidence backing this quarter.
     bm = get_kz_benchmark("banking", "roe")
     assert bm is not None
-    assert bm["value"] == pytest.approx(36.84)
+    assert bm["value"] == pytest.approx(31.70)
+    assert bm["as_of"] == "2024Q1"
     assert "банк" in bm["note"].lower()
+
+
+def test_banking_roa_discloses_the_after_tax_vs_headline_divergence():
+    # Finding 3: the shipped after-tax ROA differs from the source's own
+    # pre-tax "headline" FSI ROA — must be disclosed in the note, the same
+    # courtesy the operating_margin proxy already gets.
+    bm = get_kz_benchmark("banking", "roa")
+    assert bm["value"] == pytest.approx(4.28)
+    assert "после налог" in bm["note"].lower()
+    assert "до налог" in bm["note"].lower()
 
 
 def test_get_kz_benchmark_falls_back_to_economy_wide_for_non_banking():
@@ -42,6 +70,7 @@ def test_get_kz_benchmark_falls_back_to_economy_wide_for_non_banking():
     assert manu is not None and saas is not None
     assert manu == saas
     assert manu["value"] == pytest.approx(14.98)
+    assert manu["scope"] == "economy_wide"
 
 
 def test_banking_never_inherits_the_economy_wide_bucket():
@@ -59,8 +88,16 @@ def test_unknown_ratio_returns_none_coverage_is_partial_not_padded():
     assert get_kz_benchmark("saas", "pe") is None
 
 
-def test_unknown_industry_still_falls_back_to_all():
-    assert get_kz_benchmark("not_a_real_industry", "roe") is not None
+def test_unknown_industry_gets_no_fallback_allowlist_fails_safe():
+    # Round-1 fix (Finding 9): the fallback gate flipped from a denylist
+    # ({"banking"}) to an allowlist of known non-financial industries —
+    # an unrecognized id (or a future financial-sector id nobody added to
+    # the allowlist yet, e.g. "insurance") gets NO KZ mark at all rather
+    # than silently inheriting the non-financial "all" aggregate. Honest
+    # silence, not a padded guess.
+    assert get_kz_benchmark("not_a_real_industry", "roe") is None
+    assert get_kz_benchmark("insurance", "roe") is None
+    assert get_kz_benchmark("fintech_lending", "net_margin") is None
 
 
 # --- Additive wiring: verdicts are byte-for-byte unchanged ------------------
@@ -105,9 +142,17 @@ def test_banking_industry_gets_its_own_kz_marks_not_all_bucket():
     by_key = {r.key: r for r in ratios}
     assert by_key["roe"].benchmark_kz is not None
     assert by_key["roe"].benchmark_kz.source.endswith("(банки)")
+    assert by_key["roe"].benchmark_kz.scope == "industry"
     # net_margin has no banking-specific KZ entry and must not silently
     # inherit the non-financial "all" bucket.
     assert by_key["net_margin"].benchmark_kz is None
+
+
+def test_manufacturing_kz_marks_are_scoped_economy_wide():
+    i = _demo_inputs()
+    ratios = apply_benchmarks(compute_all(i), "manufacturing")
+    by_key = {r.key: r for r in ratios}
+    assert by_key["roe"].benchmark_kz.scope == "economy_wide"
 
 
 def test_ratio_result_schema_defaults_benchmark_kz_to_none():

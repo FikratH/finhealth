@@ -9,7 +9,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "operating_margin": {
           "value": 28.34,
@@ -17,7 +18,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "interest_coverage": {
           "value": 5.049,
@@ -25,7 +27,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "liabilities_to_equity": {
           "value": 0.939,
@@ -33,7 +36,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "debt_ratio": {
           "value": 0.484,
@@ -41,7 +45,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "roe": {
           "value": 15.32,
@@ -49,7 +54,8 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         },
         "roa": {
           "value": 7.96,
@@ -57,43 +63,48 @@
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.5 (нефин. организации)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
-          "method": "kz-official-point-v1"
+          "method": "kz-official-point-v1",
+          "scope": "economy_wide"
         }
       }
     },
     "banking": {
       "ratios": {
         "roa": {
-          "value": 4.48,
-          "note": "ROA (аннуализировано источником), банковский сектор РК, 2023 Q3.",
+          "value": 4.28,
+          "note": "ROA (аннуализировано источником), банковский сектор РК, 2024 Q1. Использован показатель ПОСЛЕ налогов (FSNERAB), как и в формуле приложения (net_income / average_total_assets); собственный «базовый» ИФУ-показатель источника (FSERA, ДО налогов) на ту же дату = 4.95%.",
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.1 (банки)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
-          "as_of": "2023Q3",
-          "method": "kz-official-point-v1"
+          "as_of": "2024Q1",
+          "method": "kz-official-point-v1",
+          "scope": "industry"
         },
         "roe": {
-          "value": 36.84,
-          "note": "ROE (аннуализировано источником), банковский сектор РК, 2023 Q3.",
+          "value": 31.7,
+          "note": "ROE (аннуализировано источником), банковский сектор РК, 2024 Q1.",
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.1 (банки)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
-          "as_of": "2023Q3",
-          "method": "kz-official-point-v1"
+          "as_of": "2024Q1",
+          "method": "kz-official-point-v1",
+          "scope": "industry"
         },
         "liabilities_to_equity": {
-          "value": 6.834,
-          "note": "Обязательства / капитал и резервы, банковский сектор РК, 2023 Q3 — структурно высокое значение ожидаемо для банков (депозиты — обязательства).",
+          "value": 6.186,
+          "note": "Обязательства / капитал и резервы, банковский сектор РК, 2024 Q1 — структурно высокое значение ожидаемо для банков (депозиты — обязательства).",
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.1 (банки)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
-          "as_of": "2023Q3",
-          "method": "kz-official-point-v1"
+          "as_of": "2024Q1",
+          "method": "kz-official-point-v1",
+          "scope": "industry"
         },
         "debt_ratio": {
-          "value": 0.872,
-          "note": "Обязательства / активы, банковский сектор РК, 2023 Q3.",
+          "value": 0.861,
+          "note": "Обязательства / активы, банковский сектор РК, 2024 Q1.",
           "source": "Нацбанк РК / МВФ, Индикаторы фин. устойчивости, Табл. 5.1 (банки)",
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
-          "as_of": "2023Q3",
-          "method": "kz-official-point-v1"
+          "as_of": "2024Q1",
+          "method": "kz-official-point-v1",
+          "scope": "industry"
         }
       }
     }

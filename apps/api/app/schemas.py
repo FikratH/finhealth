@@ -103,6 +103,12 @@ class IndustryBenchmarkKZ(BaseModel):
     source_url: str = ""
     as_of: str = ""
     method: str = ""
+    # Additive (P7.T5 round-1 fix, Finding 1): "economy_wide" | "industry" —
+    # lets the UI tell an economy-wide КЗ/РК mark (the "all" bucket — not
+    # specific to the caller's own industry) apart from a genuinely
+    # industry-specific one (e.g. banking), instead of only disclosing the
+    # distinction in a per-entry `note` that no UI surface ever rendered.
+    scope: str = ""
 
 
 class RatioResult(BaseModel):
