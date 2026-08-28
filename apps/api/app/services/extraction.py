@@ -8,11 +8,11 @@ No values are invented: metrics that are not found are reported as N/A.
 from __future__ import annotations
 
 import io
-import re
 from dataclasses import dataclass, field
 from typing import Optional
 
 from ..schemas import ExtractedValue, ExtractionResult, PeriodSelectionMeta, Scale
+from . import extraction_headers as H
 from . import metrics as M
 
 # Resource caps: a hostile or pathological file (e.g. a 40k-row "sheet of
@@ -35,6 +35,7 @@ class _Row:
     label: str
     cells: list[str]
     source: str
+    full_cells: list[str] = field(default_factory=list)  # F8: original column order
 
 
 @dataclass
@@ -42,6 +43,7 @@ class _Table:
     header: list[str] = field(default_factory=list)
     rows: list[_Row] = field(default_factory=list)
     label_col_idx: int = 0
+    code_col_idxs: frozenset[int] = frozenset()  # F2/S1: content-classified code columns
 
 
 _HEADER_LABEL_TOKENS = ("наименование", "показател")
@@ -91,8 +93,9 @@ def _label_based_column_roles(data_header_cells: list[str]) -> dict[int, str]:
     positional order (first → latest, second → previous).
 
     `data_header_cells` is already the label column's header cell excluded
-    (see _data_columns) — callers pass the same slice used to build
-    `_Row.cells`, so indices returned here line up with row.cells directly."""
+    (see extraction_headers.data_columns) — callers pass the same slice
+    used to build `_Row.cells`, so indices returned here line up with
+    row.cells directly."""
     candidates: list[int] = []
     roles: dict[int, str] = {}
     for idx, cell in enumerate(data_header_cells):
@@ -112,176 +115,6 @@ def _label_based_column_roles(data_header_cells: list[str]) -> dict[int, str]:
     return roles
 
 
-# ---------------------------------------------------------------------------
-# Column-role classifier (P7.T3a): identifies which column holds the row
-# label by *content* — mostly Cyrillic text, not parseable as a number —
-# instead of always assuming column 0. Only overrides the position-0
-# assumption when unambiguous; every existing fixture's label column is
-# already at position 0, so the confidence gate returns 0 for them too and
-# nothing about today's output changes. Code-column (RSBU 4-digit line
-# codes) and period-column (numeric density) scores are computed for the
-# same reason the spec asks for them — content-based column typing — but
-# their consumer today is this label decision alone: once the label column
-# is correctly located, code vs. period discrimination is already handled
-# position-independently by the existing header-text logic below (a
-# column's header cell either carries a detectable period or it doesn't,
-# regardless of which index it sits at), so there is no second, competing
-# decision path to keep in sync.
-# ---------------------------------------------------------------------------
-_CODE_RE = re.compile(r"^\d{4}$")
-_CYRILLIC_RE = re.compile(r"[а-яё]", re.IGNORECASE)
-_LABEL_CONFIDENCE = 0.6
-_LABEL_MARGIN = 0.15
-_MIN_ROWS_FOR_CLASSIFICATION = 3
-_CLASSIFY_SAMPLE_ROWS = 30
-
-
-def _column_content_scores(data_rows: list[list[str]], header: list[str],
-                            n_cols: int) -> list[dict[str, float]]:
-    """Per-column content scores over a sample of data rows: label
-    (Cyrillic-text ratio), code (RSBU 4-digit line-code ratio), period
-    (numeric-parse density, boosted when the column's own header cell looks
-    period-like)."""
-    sample = data_rows[:_CLASSIFY_SAMPLE_ROWS]
-    scores: list[dict[str, float]] = []
-    for col in range(n_cols):
-        non_empty = text_like = code_like = numeric_like = 0
-        for row in sample:
-            if col >= len(row):
-                continue
-            cell = row[col].strip()
-            if not cell:
-                continue
-            non_empty += 1
-            if _CODE_RE.match(cell):
-                code_like += 1
-            if M.parse_number(cell) is not None:
-                numeric_like += 1
-            elif _CYRILLIC_RE.search(cell):
-                text_like += 1
-        if non_empty == 0:
-            scores.append({"label": 0.0, "code": 0.0, "period": 0.0, "non_empty": 0.0})
-            continue
-        period_score = numeric_like / non_empty
-        header_cell = header[col] if col < len(header) else ""
-        if M.detect_period_objects([header_cell]):
-            period_score = min(1.0, period_score + 0.3)
-        scores.append({
-            "label": text_like / non_empty,
-            "code": code_like / non_empty,
-            "period": period_score,
-            "non_empty": float(non_empty),
-        })
-    return scores
-
-
-def _classify_label_column(data_rows: list[list[str]], header: list[str], n_cols: int) -> int:
-    """Content-based label-column detection. Falls back to column 0 —
-    today's positional assumption — whenever there isn't enough data to be
-    confident (fewer than a handful of data rows) or more than one column
-    plausibly looks like the label column (the genuinely-ambiguous case)."""
-    if n_cols == 0 or len(data_rows) < _MIN_ROWS_FOR_CLASSIFICATION:
-        return 0
-    scores = _column_content_scores(data_rows, header, n_cols)
-    candidates = [i for i, s in enumerate(scores)
-                  if s["non_empty"] > 0 and s["label"] >= _LABEL_CONFIDENCE]
-    if len(candidates) != 1:
-        return 0
-    winner = candidates[0]
-    runner_up = max((s["label"] for i, s in enumerate(scores) if i != winner), default=0.0)
-    if scores[winner]["label"] - runner_up < _LABEL_MARGIN:
-        return 0
-    return winner
-
-
-def _data_columns(cells: list[str], label_col_idx: int) -> list[str]:
-    """All cells except the label column, left-to-right order preserved.
-    Equivalent to today's `cells[1:]` when label_col_idx == 0 (the default
-    for every pre-existing fixture)."""
-    return [c for i, c in enumerate(cells) if i != label_col_idx]
-
-
-# ---------------------------------------------------------------------------
-# Multi-row header merge (P7.T3b): a stacked layout — e.g. a quarter marker
-# on one row («I квартал») with the year on the row directly below («2024
-# г.») — splits one logical header across physical rows. Without merging,
-# both quarter columns would canonicalize to the same bare year and collide.
-# ---------------------------------------------------------------------------
-_MAX_HEADER_MERGE_ROWS = 3
-_RU_MONTHS = ("январ", "феврал", "март", "апрел", "ма[йя]", "июн", "июл", "август",
-              "сентябр", "октябр", "ноябр", "декабр")
-_DATE_NO_YEAR_RE = re.compile(r"\b\d{1,2}\s+(?:" + "|".join(_RU_MONTHS) + r")\w*\b",
-                              re.IGNORECASE)
-
-
-def _looks_like_data_row(cells: list[str]) -> bool:
-    """A row is data (not a header fragment) once any of its cells matches a
-    known metric label — real statement rows always start with a
-    recognizable line item; header/title fragments never do."""
-    return any(M.match_label(c) is not None for c in cells if c)
-
-
-def _has_period_fragment(cells: list[str]) -> bool:
-    """Looser than a full period match: true if any *non-label* cell (index
-    ≥ 1) carries a bare year, a quarter/half-year word marker (even without
-    a year — the year may live on a neighboring stacked row), or a
-    day+RU-month phrase without a year («На 31 декабря»). Restricted to
-    cells[1:] deliberately: a title row's year is embedded in prose in cell
-    0 (e.g. «Отчёт... за 2024 год»), while a genuine stacked-header fragment
-    carries its date/quarter content in its own, separate cell — this alone
-    is what keeps title rows from being swept into the header."""
-    for cell in cells[1:]:
-        if not cell:
-            continue
-        if M.has_period_marker(cell) or _DATE_NO_YEAR_RE.search(cell):
-            return True
-    return False
-
-
-def _merge_header_block(norm_rows: list[tuple[int, list[str]]],
-                        header_pos: int) -> tuple[list[str], set[int]]:
-    """Merge `header_pos` with immediately adjacent header-fragment rows.
-    A neighbor merges in only when it is not itself a data row and it adds
-    period-bearing content — this is what keeps section-title rows (no
-    metric match, but also no period content) out. Returns the merged
-    header cells and the set of norm_rows *positions* consumed, so the
-    caller skips them when building data rows."""
-    n = len(norm_rows)
-
-    def _is_fragment(pos: int) -> bool:
-        if pos < 0 or pos >= n or pos == header_pos:
-            return False
-        _, cells = norm_rows[pos]
-        if _looks_like_data_row(cells):
-            return False
-        return _has_period_fragment(cells)
-
-    block = [header_pos]
-    pos = header_pos - 1
-    while len(block) < _MAX_HEADER_MERGE_ROWS and _is_fragment(pos):
-        block.append(pos)
-        pos -= 1
-    pos = header_pos + 1
-    while len(block) < _MAX_HEADER_MERGE_ROWS and _is_fragment(pos):
-        block.append(pos)
-        pos += 1
-
-    if len(block) == 1:
-        return norm_rows[header_pos][1], {header_pos}
-
-    block.sort()
-    width = max(len(norm_rows[p][1]) for p in block)
-    merged = [""] * width
-    for pos in block:
-        _, cells = norm_rows[pos]
-        for c in range(width):
-            cell = cells[c] if c < len(cells) else ""
-            if not cell:
-                continue
-            merged[c] = f"{merged[c]} {cell}".strip() if merged[c] else cell
-    return merged, set(block)
-
-
 def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
     table = _Table()
     norm_rows: list[tuple[int, list[str]]] = []
@@ -292,12 +125,12 @@ def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
     header_pos = _find_header_index([cells for _, cells in norm_rows])
     consumed: set[int] = set()
     if header_pos is not None:
-        table.header, consumed = _merge_header_block(norm_rows, header_pos)
+        table.header, consumed = H.merge_header_block(norm_rows, header_pos)
 
     data_rows = [cells for pos, (_, cells) in enumerate(norm_rows)
                  if pos != header_pos and pos not in consumed]
     n_cols = max((len(cells) for _, cells in norm_rows), default=0)
-    table.label_col_idx = _classify_label_column(data_rows, table.header, n_cols)
+    table.label_col_idx, table.code_col_idxs = H.classify_table(data_rows, table.header, n_cols)
 
     for pos, (i, cells) in enumerate(norm_rows):
         if pos == header_pos or pos in consumed:
@@ -305,38 +138,9 @@ def _rows_from_matrix(matrix: list[list], source_prefix: str) -> _Table:
         label = cells[table.label_col_idx] if table.label_col_idx < len(cells) else ""
         if label:
             table.rows.append(_Row(
-                label=label, cells=_data_columns(cells, table.label_col_idx),
-                source=f"{source_prefix}, строка {i + 1}"))
+                label=label, cells=H.data_columns(cells, table.label_col_idx),
+                source=f"{source_prefix}, строка {i + 1}", full_cells=cells))
     return table
-
-
-def _select_comparable_periods(
-    ordered: list[M.Period],
-) -> tuple[Optional[M.Period], Optional[M.Period], dict]:
-    """Pick the two most recent COMPARABLE periods (P7.T3c): same
-    period-type preferred (annual vs. annual, quarter vs. quarter, ...);
-    when the latest period has no earlier period of the same type, fall
-    back to the latest two periods overall. `ordered` must already be
-    sorted newest-first (by Period.sort_key, descending) — for a plain
-    annual-only file (today's only shape) this reduces to exactly
-    `ordered[0]`/`ordered[1]`, unchanged from before P7.T3."""
-    if not ordered:
-        return None, None, {"chosen": [], "rejected": [], "reason": "периоды не обнаружены"}
-    latest = ordered[0]
-    same_kind = next((p for p in ordered[1:] if p.kind == latest.kind), None)
-    if same_kind is not None:
-        previous = same_kind
-        reason = f"последние два периода одного типа ({latest.kind})"
-    elif len(ordered) > 1:
-        previous = ordered[1]
-        reason = ("второй период того же типа, что и последний, не найден — "
-                  "использованы последние два периода в целом")
-    else:
-        previous = None
-        reason = "обнаружен только один период"
-    chosen = [latest.label] + ([previous.label] if previous else [])
-    rejected = [p.label for p in ordered if p.label not in chosen]
-    return latest, previous, {"chosen": chosen, "rejected": rejected, "reason": reason}
 
 
 def _extract_from_tables(tables: list[_Table], full_text: str,
@@ -345,13 +149,37 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     currency = M.detect_currency(full_text)
     audited = M.detect_audited(full_text)
 
+    # col_period is computed once here, per table, and reused below for row
+    # value-assignment — it is the SINGLE source of truth for "which
+    # columns carry which period," so the overall latest/previous selection
+    # can never disagree with what a row actually gets assigned (round 1,
+    # F3): scanning the raw header text separately for period_objs used to
+    # let a misleading code-column header (e.g. «Код строки 2025») leak a
+    # phantom period into `all_periods`/`latest` even though the F2/S1 veto
+    # correctly kept every data column from ever being assigned to it.
+    table_header_info: list[tuple[list[str], dict[int, str]]] = []
     period_objs: dict[str, M.Period] = {}
     for t in tables:
-        for p in M.detect_period_objects(t.header):
-            period_objs.setdefault(p.label, p)
+        # header_data_cells excludes the label column so indices line up
+        # 1:1 with row.cells regardless of where the label column sits
+        # (P7.T3a) — with label_col_idx == 0 this is exactly t.header[1:].
+        header_data_cells = H.data_columns(t.header, t.label_col_idx) if t.header else []
+        col_period: dict[int, str] = {}
+        for idx, cell in enumerate(header_data_cells):
+            # F2/S1, F3: a code column never becomes a period column, even
+            # when its header text happens to contain a year («Код строки
+            # 2025») or when there is no header text to read «код» from at
+            # all (content-based veto, t.code_col_idxs, covers that case).
+            if idx in t.code_col_idxs or _KOD_TOKEN in M.normalize_label(cell):
+                continue
+            objs = M.detect_period_objects([cell])
+            if objs:
+                col_period[idx] = objs[0].label
+                period_objs.setdefault(objs[0].label, objs[0])
+        table_header_info.append((header_data_cells, col_period))
     ordered_periods = sorted(period_objs.values(), key=lambda p: p.sort_key, reverse=True)
     all_periods = [p.label for p in ordered_periods]
-    latest_obj, previous_obj, period_meta = _select_comparable_periods(ordered_periods)
+    latest_obj, previous_obj, period_meta = H.select_comparable_periods(ordered_periods)
     latest = latest_obj.label if latest_obj else None
     previous = previous_obj.label if previous_obj else None
 
@@ -359,18 +187,20 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     found_prev: dict[str, ExtractedValue] = {}
     warnings: list[str] = []
 
-    for t in tables:
-        # map column index -> canonical period label, from period-bearing
-        # header cells (plain years, or quarter/half-year markers, P7.T3c).
-        # header_data_cells excludes the label column so indices line up
-        # 1:1 with row.cells regardless of where the label column sits
-        # (P7.T3a) — with label_col_idx == 0 this is exactly t.header[1:].
-        header_data_cells = _data_columns(t.header, t.label_col_idx) if t.header else []
-        col_period: dict[int, str] = {}
-        for idx, cell in enumerate(header_data_cells):
-            objs = M.detect_period_objects([cell])
-            if objs:
-                col_period[idx] = objs[0].label
+    # F7 (round 1): the chosen pair can be non-comparable (e.g. a quarter
+    # vs. a full year, when no same-kind period exists — see
+    # select_comparable_periods' fallback branch). That pair still feeds
+    # the ratio engine and the confidence score's has-previous-period
+    # bonus; period_selection.reason records *why* in meta, but a plain
+    # ExtractionResult reader (the verify step) only sees `warnings`, so
+    # the honesty law needs it here too.
+    if latest_obj and previous_obj and latest_obj.kind != previous_obj.kind:
+        warnings.append(
+            f"Сравниваемые периоды разного типа — «{latest_obj.label}» ({latest_obj.kind}) и "
+            f"«{previous_obj.label}» ({previous_obj.kind}): показатели могут быть несопоставимы."
+        )
+
+    for t, (header_data_cells, col_period) in zip(tables, table_header_info):
         has_year_columns = bool(col_period)
 
         # No year cells anywhere in the header: try to recognize it by label
@@ -413,6 +243,9 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                 conf = min(conf, 50.0)
             values: dict[str, float | None] = {}
             for idx, raw in enumerate(row.cells):
+                if idx in t.code_col_idxs:
+                    continue  # F2/S1: content-classified code column — never a value,
+                              # on every path (year-bearing, label-header, safety-net alike)
                 num = M.parse_number(raw)
                 if num is None:
                     continue
@@ -429,7 +262,12 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
                     period = "latest"  # legacy fully-positional fallback (safety-net path)
                 if period not in values:
                     values[period] = num
-            snippet = (row.label + " | " + " | ".join(c for c in row.cells if c))[:200]
+            # F8: built from the row's *original* column order (full_cells),
+            # not label-then-data-columns — for a relocated label column
+            # (P7.T3a) that order no longer matches the source document.
+            # Identical to the pre-F8 "label | cells..." text whenever the
+            # label sits at column 0 (every pre-P7.T3 fixture and the demo).
+            snippet = " | ".join(c for c in row.full_cells if c)[:200]
 
             def put(store: dict, period_label: Optional[str], value: Optional[float]):
                 if value is None:

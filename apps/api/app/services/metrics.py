@@ -449,10 +449,18 @@ def detect_period_objects(cells: list[str]) -> list[Period]:
     return sorted(seen.values(), key=lambda p: p.sort_key, reverse=True)
 
 
-def has_period_marker(text: str) -> bool:
-    """Looser than detect_period_objects: true for a bare year OR a
-    quarter/half-year word marker even without an accompanying year in the
-    same cell — used by extraction._has_period_fragment to recognize a
-    candidate stacked-header row (P7.T3b), never to build a final label."""
+def has_quarter_marker_without_year(text: str) -> bool:
+    """True for a bare quarter/half-year *word* marker with no accompanying
+    year in the same cell (e.g. "I квартал", "Q1") — used by
+    extraction_headers.has_period_fragment to recognize a stacked-header
+    fragment that needs a neighboring row's year to complete (P7.T3b).
+
+    Deliberately excludes bare years (round 1, F1): a cell that already
+    resolves to a *complete* period on its own via detect_period_objects is
+    NOT fragment evidence — either the row it's in would already have been
+    picked as the header directly, or (the regression this guards against)
+    the "year" is coincidental, e.g. a title row's date embedded in prose
+    ("на 31 декабря 2024 года") next to an unrelated «Код» column, which
+    must never be swept into the header on that basis alone."""
     s = str(text)
-    return bool(_YEAR_RE.search(s) or _QUARTER_MARKER_ONLY_RE.search(s))
+    return bool(_QUARTER_MARKER_ONLY_RE.search(s))

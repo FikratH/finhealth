@@ -3,6 +3,13 @@ quarterly period selection (c). Six new golden fixtures, one per path plus
 the required ambiguous-fallback pin. Every expected value below was
 hand-computed from the fixture's own raw cells (see each test's docstring)
 rather than frozen from a first run of the pipeline.
+
+Round 1 (post-review) additions below the original eight: F1's adversarial
+title-date-in-cell-2 fixture, F2/S1's shuffled+statutory-no-year fixture,
+F3's inline lying-«Код»-header regression, F4's 3-period same-kind-vs.
+latest-two fixture, F7's non-comparable-pair warning, F8's snippet-ordering
+check. All expected values re-derived by hand against the *fixed* code, not
+copied from the review's counterfactual pre-fix numbers.
 """
 from pathlib import Path
 
@@ -183,3 +190,149 @@ def test_determinism_shuffled_and_multi_row_header_byte_identical_across_runs():
     x1 = extract_from_xlsx(xlsx_bytes)
     x2 = extract_from_xlsx(xlsx_bytes)
     assert x1.model_dump() == x2.model_dump()
+
+
+# ---------------------------------------------------------------------------
+# Round 1 (post-review fixes)
+# ---------------------------------------------------------------------------
+
+def test_title_date_in_second_cell_does_not_corrupt_the_header_f1():
+    """F1 (blocking): golden/title_date_in_second_cell.csv is
+    rsbu_kod_column.csv with the title's date moved into the title row's
+    *second* cell («ТОО «Тест» — баланс;на 31 декабря 2024 года;;»). Before
+    the fix, that bare year was read as fragment evidence, merging the
+    title row into the header and landing "2024" inside the «Код» column's
+    header text — promoting the line-code column to a period column, so the
+    codes (1210/1600/1400) came out as the latest period's *values* at full
+    confidence with no warning. After the fix (a cell that already resolves
+    to a complete period on its own is never fragment evidence), the title
+    row stays out of the header entirely — same outcome as
+    rsbu_kod_column.csv itself: real figures, not codes, confidence 95."""
+    res = extract_from_csv((GOLDEN / "title_date_in_second_cell.csv").read_bytes())
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["total_assets"] == 2456800
+    assert vals["total_liabilities"] == 1026200
+    prev = _prev(res)
+    assert prev["inventory"] == 289400
+    assert prev["total_assets"] == 2298500
+    assert prev["total_liabilities"] == 1051700
+    codes = {1210, 1600, 1400}
+    assert not (set(vals.values()) & codes)
+    ev = {v.metric: v for v in res.values}["total_assets"]
+    assert ev.confidence == 95.0
+    assert not any("не распознаны" in w.lower() for w in res.warnings)
+
+
+def test_shuffled_statutory_no_year_header_extracts_values_not_codes_f2_s1():
+    """F2/S1 (must close): golden/shuffled_statutory_no_year_header.csv is
+    the KZ statutory no-year layout («Наименование показателя / Код строки
+    / На конец / На начало») with the «Код» column moved to position 0.
+    There is no header text to read «код» from at all here — the header
+    itself is never even recognized (_find_header_index finds no
+    year-bearing row and cell 0 reads "Код", not "наименование") — so
+    before the F2/S1 veto, the classifier correctly relocated the label
+    column but nothing stopped the code column's own 4-digit values from
+    winning the position-0-safety-net's "first numeric cell wins" pick:
+    inventory came out as 1210 instead of 312600. The content-based
+    code-column veto (code score >= 0.6, independent of any header text)
+    closes this: the code column is skipped entirely, and the *real*
+    number — now the first non-vetoed numeric cell — wins instead. Still
+    routes through the safety net (no header recognized at all), so
+    confidence is still capped at 50 and the "не распознаны" warning still
+    fires — the veto fixes *which* number is picked, not the honesty
+    signal that periods were never resolved for this file."""
+    res = extract_from_csv((GOLDEN / "shuffled_statutory_no_year_header.csv").read_bytes())
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["total_assets"] == 2456800
+    assert vals["current_liabilities"] == 486200
+    codes = {1210, 1600, 1500}
+    assert not (set(vals.values()) & codes)
+    matched = [v for v in res.values if v.value is not None]
+    assert matched and all(v.confidence <= 50 for v in matched)
+    assert any("не распознаны" in w.lower() for w in res.warnings)
+
+
+def test_kod_header_with_embedded_year_does_not_leak_codes_as_a_period_f3():
+    """F3: a «Код» column whose header text itself happens to contain a
+    year («Код строки 2025») must not be read as a period column even
+    though has_year_columns would otherwise be true from the *other*,
+    genuine year columns — the explicit «код»-token check on the
+    col_period-building loop (added alongside F2/S1's content veto) skips
+    it regardless of what the header text otherwise says."""
+    csv = (
+        "Наименование показателя;Код строки 2025;2024;2023\n"
+        "Запасы;1210;312 600;289 400\n"
+        "Итого активы;1600;2 456 800;2 298 500\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["total_assets"] == 2456800
+    assert not (set(vals.values()) & {1210, 1600})
+    assert res.latest_period == "2024"
+
+
+def test_three_periods_prefers_same_kind_quarter_pair_and_rejects_the_odd_annual_f4():
+    """F4: golden/quarterly_three_periods_prefers_same_kind.csv carries
+    THREE periods — Q1 2024, annual 2023, Q1 2023 — where naive
+    "ordered[0]/ordered[1]" (sorted purely by recency) would pick Q1 2024 +
+    annual 2023 (since 2023-annual sorts above Q1 2023: same year, later
+    end-month), but the same-kind rule must instead skip past the annual
+    period to pair Q1 2024 with Q1 2023, rejecting "2023" outright. This is
+    the one rule item (c) is built around, and (unlike every other fixture
+    in this suite, which all have exactly two periods) it is the only test
+    where naive latest-two and same-kind-preferred selection disagree."""
+    res = extract_from_csv(
+        (GOLDEN / "quarterly_three_periods_prefers_same_kind.csv").read_bytes())
+    assert res.latest_period == "Q1 2024"
+    assert res.previous_period == "Q1 2023"
+    assert res.periods == ["Q1 2024", "2023", "Q1 2023"]
+    vals = _values(res)
+    assert vals["revenue"] == 1245000
+    assert vals["total_assets"] == 2456800
+    prev = _prev(res)
+    assert prev["revenue"] == 1180000  # Q1 2023, NOT the annual 4 780 900
+    assert prev["total_assets"] == 2150000
+    sel = res.period_selection
+    assert sel is not None
+    assert sel.chosen == ["Q1 2024", "Q1 2023"]
+    assert sel.rejected == ["2023"]
+    assert "quarter" in sel.reason
+
+
+def test_non_comparable_period_pair_raises_a_warning_f7():
+    """F7: golden/quarterly_mixed_periods.csv (from the original suite)
+    selects Q1 2024 vs. annual 2023 via the "no same-kind match" fallback —
+    a genuinely non-comparable pair that still feeds the ratio engine and
+    the confidence score's has-previous-period bonus. period_selection's
+    `reason` records the fallback in meta, but `warnings` is what a plain
+    ExtractionResult reader (the verify step) actually surfaces — it must
+    say so too, not just meta."""
+    res = extract_from_csv((GOLDEN / "quarterly_mixed_periods.csv").read_bytes())
+    assert any("разного типа" in w.lower() for w in res.warnings)
+
+
+def test_same_kind_period_pair_does_not_raise_the_non_comparable_warning():
+    """Negative case for F7: a same-kind pair (the plain annual demo shape)
+    must NOT trigger the non-comparable-periods warning — it would be a
+    false alarm on the overwhelmingly common case."""
+    csv = (
+        "Показатель;2024;2023\n"
+        "Итого активы;2 456 800;2 298 500\n"
+    ).encode()
+    res = extract_from_csv(csv)
+    assert not any("разного типа" in w.lower() for w in res.warnings)
+
+
+def test_snippet_reflects_original_document_column_order_f8():
+    """F8: for a relocated label column (golden/shuffled_columns.csv, where
+    «Код» is column 0 and «Наименование показателя» is column 1), the
+    snippet must read in the document's actual left-to-right order
+    («1210 | Запасы | 312 600 | 289 400», matching the raw CSV row) rather
+    than label-first («Запасы | 1210 | ...», which doesn't match what a
+    user sees if they open their own file next to the verify step)."""
+    res = extract_from_csv((GOLDEN / "shuffled_columns.csv").read_bytes())
+    ev = {v.metric: v for v in res.values}["inventory"]
+    assert ev.snippet == "1210 | Запасы | 312 600 | 289 400"
