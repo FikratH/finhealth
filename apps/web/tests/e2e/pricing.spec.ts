@@ -90,6 +90,18 @@ test("finish-wave fixes 1+3: both tier prices render in the segment voice and ac
 
   const litColor = await freeSegments.first().evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(litColor).toBe("rgb(25, 194, 176)");
+
+  // Finish-wave remainder: text-4xl left "1" indistinguishable from a
+  // ghost "8" at 1x — bar thickness (which scales with the figure's own
+  // font-size) is the primary legibility lever, so this pins the actual
+  // rendered size rather than a Tailwind class name (which could survive
+  // a regression if the utility's own px value ever changed). 48px is
+  // text-5xl's own size — the mobile-width floor this desktop-viewport
+  // run should clear comfortably given the sm: bump to text-6xl (60px).
+  const freeFontSize = await freePrice.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const proFontSize = await proPrice.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(freeFontSize).toBeGreaterThanOrEqual(48);
+  expect(proFontSize).toBeGreaterThanOrEqual(48);
 });
 
 test("Free tier's CTA links to /analyze", async ({ page }) => {

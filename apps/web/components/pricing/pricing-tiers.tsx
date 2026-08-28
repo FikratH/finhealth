@@ -54,11 +54,17 @@ export function PricingTiers() {
            * — the segment voice, not Inter. A lit segment zero is correct
            * here: Free's price is genuinely 0, a real value, not designed
            * absence («Н/Д» is reserved for missing data, which this
-           * isn't). */}
+           * isn't). Sized at the headline-figure register (finish-wave
+           * remainder round: text-4xl left "1" indistinguishable from the
+           * five ghost bars around it at 1x — score-header.tsx's own
+           * text-6xl sm:text-7xl scale is where bar thickness actually
+           * carries the glyph; this uses one step down from that, since
+           * the score is the app's single largest reading and a price
+           * tag shouldn't outrank it). */}
           <p className="mt-2">
             <PriceFigure
               value={Number(tFree("price"))}
-              className="text-4xl"
+              className="text-5xl sm:text-6xl"
               caption={t("priceCaption")}
             />
           </p>
@@ -80,15 +86,20 @@ export function PricingTiers() {
           {/* Currency symbol and period are PT Mono adjuncts OUTSIDE the
            * segment mask — DESIGN.md: "a SegmentDisplay/DSEG7 mask
            * carries numeric figures only." Same pattern InstrumentModule
-           * uses for its own figure+unit row. */}
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className="font-mono text-lg text-ink-muted">{tPro("priceCurrency")}</span>
+           * uses for its own figure+unit row. items-baseline keeps both
+           * adjuncts sitting on the figure's own text baseline regardless
+           * of the size difference between them — unchanged structure
+           * from the first draft; only the three font sizes moved
+           * together so the row still reads as one price, not a large
+           * digit with two disconnected labels. */}
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="font-mono text-2xl text-ink-muted">{tPro("priceCurrency")}</span>
             <PriceFigure
               value={Number(tPro("price"))}
-              className="text-4xl"
+              className="text-5xl sm:text-6xl"
               caption={t("priceCaption")}
             />
-            <span className="font-mono text-sm text-ink-muted">{tPro("pricePeriod")}</span>
+            <span className="font-mono text-base text-ink-muted">{tPro("pricePeriod")}</span>
           </div>
           <OriginTicket tone="attention" className="mt-3">
             {tPro("priceNote")}
