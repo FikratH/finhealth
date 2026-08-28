@@ -49,6 +49,7 @@ _LABEL_MARGIN = 0.15
 _MIN_ROWS_FOR_CLASSIFICATION = 3
 _CLASSIFY_SAMPLE_ROWS = 30
 _CODE_CONFIDENCE = 0.6  # same bar as the label gate (F2/S1)
+_KOD_TOKEN = "код"
 
 
 def column_content_scores(data_rows: list[list[str]], header: list[str],
@@ -107,17 +108,35 @@ def _classify_label_column(scores: list[dict[str, float]]) -> int:
     return winner
 
 
-def _code_column_relative_idxs(scores: list[dict[str, float]],
+def _code_column_relative_idxs(scores: list[dict[str, float]], header: list[str],
                                label_col_idx: int) -> frozenset[int]:
     """Absolute column indices whose content confidently looks like RSBU
     line codes, translated to the label-excluded relative indexing used by
-    `data_columns`/`_Row.cells` (F2/S1's veto)."""
+    `data_columns`/`_Row.cells` (F2/S1's veto).
+
+    Round 2 (NEW-1): gated on the column's OWN header cell, not content
+    alone. A high code score (>=60% of sampled cells matching ^\\d{4}$) is
+    common to two very different shapes: a genuine RSBU line-code column,
+    and an ordinary 4-digit VALUE column on a statement reported in
+    millions/large units («Выручка;4120;3780») or any xlsx whose numeric
+    cells simply stringify without thousands separators — content alone
+    cannot tell them apart. The header can: if the column's own header
+    cell already resolves to a complete period (`M.detect_period_objects`)
+    and doesn't itself say «код», the header is trustworthy and the veto
+    stands down — content-only vetoing here previously discarded an
+    entire statement (`{}`, no warning) on exactly this ordinary shape,
+    because the veto ran before the classifier's own period score (already
+    computed, already correct) was ever consulted."""
     idxs: set[int] = set()
     for i, s in enumerate(scores):
-        if i == label_col_idx or s["non_empty"] == 0:
+        if i == label_col_idx or s["non_empty"] == 0 or s["code"] < _CODE_CONFIDENCE:
             continue
-        if s["code"] >= _CODE_CONFIDENCE:
-            idxs.add(i - 1 if i > label_col_idx else i)
+        header_cell = header[i] if i < len(header) else ""
+        header_says_code = _KOD_TOKEN in M.normalize_label(header_cell)
+        header_is_period = bool(M.detect_period_objects([header_cell]))
+        if header_is_period and not header_says_code:
+            continue  # header text already trustworthily resolves this column
+        idxs.add(i - 1 if i > label_col_idx else i)
     return frozenset(idxs)
 
 
@@ -130,7 +149,7 @@ def classify_table(data_rows: list[list[str]], header: list[str],
         return 0, frozenset()
     scores = column_content_scores(data_rows, header, n_cols)
     label_col_idx = _classify_label_column(scores)
-    return label_col_idx, _code_column_relative_idxs(scores, label_col_idx)
+    return label_col_idx, _code_column_relative_idxs(scores, header, label_col_idx)
 
 
 def data_columns(cells: list[str], label_col_idx: int) -> list[str]:

@@ -10,9 +10,17 @@ F3's inline lying-«Код»-header regression, F4's 3-period same-kind-vs.
 latest-two fixture, F7's non-comparable-pair warning, F8's snippet-ordering
 check. All expected values re-derived by hand against the *fixed* code, not
 copied from the review's counterfactual pre-fix numbers.
+
+Round 2 additions: NEW-1's 4-digit-values-at-millions-scale fixture (the
+F2/S1 code veto over-rotated and false-positived on ordinary values),
+NEW-2's year-in-label-column-header fixture (round 1's restructure
+undeclaredly narrowed the period scan — reverted, now pinned), and a
+white-box unit test isolating the F1 merge decision itself from the
+value-level defense-in-depth that was masking it.
 """
 from pathlib import Path
 
+from app.services import extraction_headers as H
 from app.services.extraction import extract_from_csv, extract_from_xlsx
 
 GOLDEN = Path(__file__).resolve().parent / "golden"
@@ -336,3 +344,79 @@ def test_snippet_reflects_original_document_column_order_f8():
     res = extract_from_csv((GOLDEN / "shuffled_columns.csv").read_bytes())
     ev = {v.metric: v for v in res.values}["inventory"]
     assert ev.snippet == "1210 | Запасы | 312 600 | 289 400"
+
+
+# ---------------------------------------------------------------------------
+# Round 2 (post-re-review fixes)
+# ---------------------------------------------------------------------------
+
+def test_four_digit_values_at_scale_are_not_vetoed_as_codes_new1():
+    """NEW-1 (blocking): golden/four_digit_values_millions_scale.csv is an
+    ordinary statement reported at a scale where every value happens to be
+    4 digits («Выручка;4120;3780» — e.g. millions, or any xlsx whose
+    numeric cells stringify without thousands separators). The F2/S1 code
+    veto's content-only check (>=60% of sampled cells matching ^\\d{4}$)
+    can't distinguish this from a genuine RSBU line-code column, and
+    before the fix it vetoed BOTH value columns, discarding the entire
+    statement silently (`{}`, no warning) even though the classifier's own
+    period score already knew these were period columns — the veto simply
+    ran before that score was ever consulted. Fixed by gating the veto on
+    the column's own header: a header cell that already resolves to a
+    period (and doesn't say «код») is trusted, veto stands down."""
+    res = extract_from_csv((GOLDEN / "four_digit_values_millions_scale.csv").read_bytes())
+    vals = _values(res)
+    assert vals["revenue"] == 4120
+    assert vals["total_assets"] == 3102
+    assert vals["total_liabilities"] == 1450
+    matched = [v for v in res.values if v.value is not None]
+    assert matched and all(v.confidence == 95.0 for v in matched)
+    assert res.warnings == []
+    assert res.latest_period == "2024"
+    assert res.previous_period == "2023"
+
+
+def test_year_in_label_column_header_still_names_the_period_new2():
+    """NEW-2: golden/year_in_label_column_header.csv embeds the only year
+    in the whole file inside the LABEL column's own header cell («Наименование
+    показателя за 2024 год») — the period columns themselves carry no
+    year at all, just «На конец/начало отчётного периода» marker phrases.
+    Round 1's single-source restructure (F3) accidentally narrowed the
+    overall period scan to exclude the label column's header cell entirely
+    (undeclared, unledgered), so this file's period silently vanished from
+    `latest_period`/`periods[]` even though the *values* stayed correct
+    (they resolve via the synthetic latest/previous roles, independent of
+    the overall period label). Reverted to scanning the whole header again
+    — matching pre-P7.T3/round-0 behavior — while keeping F3's fix intact
+    via the narrower «код»-text-only exclusion. Pinned here so this is now
+    a declared, tested choice rather than a silent side effect."""
+    res = extract_from_csv((GOLDEN / "year_in_label_column_header.csv").read_bytes())
+    assert res.latest_period == "2024"
+    assert res.periods == ["2024"]
+    vals = _values(res)
+    assert vals["inventory"] == 312600
+    assert vals["total_assets"] == 2456800
+    ev = {v.metric: v for v in res.values}["inventory"]
+    assert ev.period == "2024"
+
+
+def test_merge_header_block_excludes_title_row_isolated_f1():
+    """F1 isolation (round 2): the round-1 end-to-end test for F1
+    (`test_title_date_in_second_cell_does_not_corrupt_the_header_f1`)
+    passes even when `_has_period_fragment` is reverted to round-0's loose
+    "any bare year counts" semantics — the merge itself still happens, but
+    the F2/S1 code veto independently keeps the «Код» column's values from
+    ever leaking, masking the F1 regression from every value-based
+    assertion. This test calls `merge_header_block` directly and asserts
+    on its own output (the header text, and which row positions were
+    consumed) so a merge regression is caught on its own, not by proxy
+    through a different defense layer."""
+    rows = [
+        (0, ["ТОО «Тест» — баланс", "на 31 декабря 2024 года", "", ""]),
+        (1, ["Наименование показателя", "Код", "31.12.2024", "31.12.2023"]),
+        (2, ["Запасы", "1210", "312 600", "289 400"]),
+    ]
+    header, consumed = H.merge_header_block(rows, header_pos=1)
+    assert header == ["Наименование показателя", "Код", "31.12.2024", "31.12.2023"]
+    assert consumed == {1}
+    assert "баланс" not in header[0].lower()
+    assert "декабря" not in header[1].lower()

@@ -149,14 +149,25 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
     currency = M.detect_currency(full_text)
     audited = M.detect_audited(full_text)
 
-    # col_period is computed once here, per table, and reused below for row
-    # value-assignment — it is the SINGLE source of truth for "which
-    # columns carry which period," so the overall latest/previous selection
-    # can never disagree with what a row actually gets assigned (round 1,
-    # F3): scanning the raw header text separately for period_objs used to
-    # let a misleading code-column header (e.g. «Код строки 2025») leak a
-    # phantom period into `all_periods`/`latest` even though the F2/S1 veto
-    # correctly kept every data column from ever being assigned to it.
+    # col_period (per table) is the single source of truth for "which
+    # columns carry which period" used below for row value-assignment
+    # (round 1, F3: scanning the raw header text separately here used to
+    # let a misleading code-column header, e.g. «Код строки 2025», leak a
+    # phantom period even though the F2/S1 veto correctly kept every data
+    # column from ever being assigned to it).
+    #
+    # period_objs (the overall latest/previous scan) is DELIBERATELY a
+    # separate, wider scan of the table's WHOLE header — including the
+    # label column's own header cell — not narrowed to header_data_cells
+    # (round 2, NEW-2: round 1's restructure undeclaredly narrowed this,
+    # silently dropping the period when a KZ statutory title embedded a
+    # year in the label header, e.g. «Наименование показателя за 2024
+    # год»; reverted to match pre-P7.T3/round-0 behavior). The one
+    # exclusion kept from F3 — skip a cell whose normalized text contains
+    # «код» — is sufficient on its own to keep the phantom-period fix
+    # intact: anything genuinely code-like but NOT period-resolving
+    # contributes nothing to this scan regardless of any veto, since
+    # detect_period_objects simply finds nothing on it either way.
     table_header_info: list[tuple[list[str], dict[int, str]]] = []
     period_objs: dict[str, M.Period] = {}
     for t in tables:
@@ -175,8 +186,13 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
             objs = M.detect_period_objects([cell])
             if objs:
                 col_period[idx] = objs[0].label
-                period_objs.setdefault(objs[0].label, objs[0])
         table_header_info.append((header_data_cells, col_period))
+
+        for cell in t.header:
+            if _KOD_TOKEN in M.normalize_label(cell):
+                continue
+            for p in M.detect_period_objects([cell]):
+                period_objs.setdefault(p.label, p)
     ordered_periods = sorted(period_objs.values(), key=lambda p: p.sort_key, reverse=True)
     all_periods = [p.label for p in ordered_periods]
     latest_obj, previous_obj, period_meta = H.select_comparable_periods(ordered_periods)
