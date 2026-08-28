@@ -89,6 +89,22 @@ class IndustryBenchmark(BaseModel):
     source: str = ""
 
 
+class IndustryBenchmarkKZ(BaseModel):
+    """Additive (P7.T5): a second, KZ-sourced reference POINT — never a
+    good/acceptable band, and never used for scoring. See
+    scripts/build_benchmarks_kz.py for provenance and
+    app/services/benchmarks_kz.py for the lookup (which industry/ratio
+    pairs resolve). The UI marks `value` alongside the global benchmark's
+    band on CalibrationScale; verdicts keep using `benchmark` only."""
+    ratio: str
+    value: float
+    note: str = ""
+    source: str = ""
+    source_url: str = ""
+    as_of: str = ""
+    method: str = ""
+
+
 class RatioResult(BaseModel):
     key: str
     name: str
@@ -101,6 +117,9 @@ class RatioResult(BaseModel):
     status: RatioStatus = RatioStatus.na
     score: Optional[float] = None    # 0..100 inside its category
     benchmark: Optional[IndustryBenchmark] = None
+    # Additive (P7.T5): present only when a citable KZ reference point
+    # exists for this (industry, ratio) — coverage is deliberately partial.
+    benchmark_kz: Optional[IndustryBenchmarkKZ] = None
     explanation: str = ""
     applicable: bool = True
     warnings: list[str] = []

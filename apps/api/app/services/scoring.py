@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Optional
 
 from ..schemas import (CategoryScore, ConfidenceBreakdown, IndustryBenchmark,
-                       RatioResult, RatioStatus)
+                       IndustryBenchmarkKZ, RatioResult, RatioStatus)
+from .benchmarks_kz import get_kz_benchmark
 from .ratios import CATEGORY_LABELS
 
 BENCHMARKS_PATH = Path(__file__).resolve().parent.parent / "data" / "benchmarks.json"
@@ -113,6 +114,14 @@ def apply_benchmarks(ratios: list[RatioResult], industry_id: str) -> list[RatioR
                 ratio=r.key, weight=bm["weight"], direction=bm["direction"],
                 good=bm["good"], acceptable=bm["acceptable"], note=bm.get("note", ""),
                 source=bm.get("source", ""))
+        # Additive (P7.T5): a second, KZ-sourced reference point, purely
+        # for display — never touches score/status/explanation below.
+        kz = get_kz_benchmark(industry_id, r.key)
+        if kz:
+            r.benchmark_kz = IndustryBenchmarkKZ(
+                ratio=r.key, value=kz["value"], note=kz.get("note", ""),
+                source=kz.get("source", ""), source_url=kz.get("source_url", ""),
+                as_of=kz.get("as_of", ""), method=kz.get("method", ""))
         if r.value is None:
             r.status = RatioStatus.na
             if not r.explanation:
