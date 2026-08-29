@@ -86,3 +86,23 @@ export function formatDate(iso: string, locale: Locale = "ru"): string {
     day: "2-digit",
   }).format(date);
 }
+
+/**
+ * Picks the locale-appropriate industry display string out of an RU/EN
+ * pair (`Industry.name`/`name_en`, or the analogous baked
+ * `industry_name`/`industry_name_en` on AnalysisResult/MyAnalysisSummary —
+ * see docs/api-contract-v1.md). RU always renders `ru`. EN renders `en`
+ * when it's a non-empty, genuinely different translation; otherwise it
+ * falls back to `ru` rather than rendering a blank chip — covers both an
+ * absent field (an analysis persisted before industry_name_en existed)
+ * and a not-yet-translated industry (scoring.py's own `name`-as-`name_en`
+ * fallback, kept here too as defense in depth).
+ */
+export function localizedIndustryName(
+  ru: string,
+  en: string | null | undefined,
+  locale: Locale,
+): string {
+  if (locale === "en" && en && en !== ru) return en;
+  return ru;
+}

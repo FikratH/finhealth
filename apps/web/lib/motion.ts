@@ -159,6 +159,42 @@ export function scanlineSweep(section: Element): gsap.core.Timeline | null {
 }
 
 /**
+ * A continuously looping variant of scanlineSweep's own line motion — the
+ * bay's own "still working" reading for an indeterminate-duration async
+ * operation (upload-step.tsx's upload+extract), where there's no
+ * scroll-revealed content behind the line to pop in, just an instrument
+ * waiting on a real external process. `section` must contain exactly one
+ * `[data-scanline]` element, the same beam markup scanlineSweep's callers
+ * already use. The line sweeps back and forth at the SAME MOTION.sweep
+ * pace/ease every other scanline in the app uses (The One-Metronome
+ * Rule) until the caller kills the returned tween — typically once the
+ * operation resolves, alongside the caller's own busy-state text (already
+ * required at every call site as the non-visual "still working" signal).
+ *
+ * Reduced motion: the line is hidden (opacity 0) and no tween is created
+ * — the caller's own status text is the sole "still working" signal,
+ * matching every other primitive's reduced-motion law.
+ */
+export function scanlineLoop(section: Element): gsap.core.Tween | null {
+  const line = section.querySelector<HTMLElement>("[data-scanline]");
+  if (!line) return null;
+
+  if (getPrefersReducedMotion()) {
+    gsap.set(line, { opacity: 0 });
+    return null;
+  }
+
+  gsap.set(line, { opacity: 1, xPercent: -100 });
+  return gsap.to(line, {
+    xPercent: 100,
+    duration: MOTION.sweep,
+    ease: MOTION.ease,
+    repeat: -1,
+    yoyo: true,
+  });
+}
+
+/**
  * The flashing-12:00 idiom, for a value that is pending/unset — never for
  * anything else. A 0.5s full duty cycle (0.25s dim, 0.25s back to lit),
  * looped indefinitely until the caller kills the returned tween (e.g. once

@@ -5,7 +5,7 @@ import { OriginTicket } from "@/components/origin-ticket";
 import { ConfidenceMeter } from "@/components/confidence-meter";
 import { ConfidenceDisclosure } from "./confidence-disclosure";
 import { verdictTone } from "@/lib/verdict";
-import { formatNumber, type Locale } from "@/lib/format";
+import { formatNumber, localizedIndustryName, type Locale } from "@/lib/format";
 import type { AnalysisResult } from "@/lib/api-types";
 
 export interface ScoreHeaderProps {
@@ -110,7 +110,9 @@ export function ScoreHeader({ analysis, locale, id }: ScoreHeaderProps) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <OriginTicket>{analysis.industry_name}</OriginTicket>
+            <OriginTicket>
+              {localizedIndustryName(analysis.industry_name, analysis.industry_name_en, locale)}
+            </OriginTicket>
             {period && <OriginTicket>{period}</OriginTicket>}
             {analysis.currency && <OriginTicket>{analysis.currency}</OriginTicket>}
             <OriginTicket>{tScale(SCALE_KEY[analysis.scale])}</OriginTicket>

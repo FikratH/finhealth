@@ -663,3 +663,17 @@ details.elevated-surface[open] {
 [data-scanline-content][data-scanline-hidden="true"] {
   opacity: 0;
 }
+
+/*
+ * upload-step.tsx's file-accepted row: the "docking" boot-grammar
+ * cascade — lib/motion's igniteSequence, reused verbatim with a custom
+ * `data-docked` attribute so it doesn't collide with SegmentDisplay/
+ * LedBar's own `data-lit` semantics — staggers the dot/filename/remove-
+ * button in one at a time via instant .set() calls, never a tween. Same
+ * no-transition-property contract as scanlineSweep's content-hiding rule
+ * above: a no-JS visitor or reduced-motion reader (neither of whom ever
+ * gets the attribute) always sees the finished chip immediately.
+ */
+[data-dock-segment][data-docked="false"] {
+  opacity: 0;
+}

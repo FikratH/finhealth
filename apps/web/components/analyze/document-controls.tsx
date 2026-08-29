@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { localizedIndustryName, type Locale } from "@/lib/format";
 import type { Industry, Scale } from "@/lib/api-types";
 
 export interface DocumentControlsProps {
@@ -19,6 +20,7 @@ export interface DocumentControlsProps {
   audited: boolean;
   latestPeriod: string | null;
   previousPeriod: string | null;
+  locale: Locale;
   onIndustryChange: (industry: string) => void;
   onApplySuggested: () => void;
   onScaleChange: (scale: Scale) => void;
@@ -42,6 +44,7 @@ export function DocumentControls({
   audited,
   latestPeriod,
   previousPeriod,
+  locale,
   onIndustryChange,
   onApplySuggested,
   onScaleChange,
@@ -55,7 +58,10 @@ export function DocumentControls({
   const scaleId = useId();
 
   const suggestionPending = suggestedIndustry !== null && suggestedIndustry !== industry;
-  const industryName = industries.find((ind) => ind.id === industry)?.name ?? industry;
+  const selectedIndustry = industries.find((ind) => ind.id === industry);
+  const industryName = selectedIndustry
+    ? localizedIndustryName(selectedIndustry.name, selectedIndustry.name_en, locale)
+    : industry;
 
   return (
     <div className="grid-paper border border-line bg-panel p-4">
@@ -74,7 +80,7 @@ export function DocumentControls({
               <SelectContent>
                 {industries.map((ind) => (
                   <SelectItem key={ind.id} value={ind.id}>
-                    {ind.name}
+                    {localizedIndustryName(ind.name, ind.name_en, locale)}
                   </SelectItem>
                 ))}
               </SelectContent>

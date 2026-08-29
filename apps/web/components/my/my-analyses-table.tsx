@@ -16,7 +16,7 @@ import { OriginTicket } from "@/components/origin-ticket";
 import { MetricNumber } from "@/components/metric-number";
 import { StatusPill } from "@/components/status-pill";
 import { verdictTone } from "@/lib/verdict";
-import { formatDate, type Locale } from "@/lib/format";
+import { formatDate, localizedIndustryName, type Locale } from "@/lib/format";
 import type { MyAnalysisSummary } from "@/lib/api-types";
 
 export interface MyAnalysesTableProps {
@@ -67,17 +67,18 @@ export function MyAnalysesTable({ analyses, locale, onDelete }: MyAnalysesTableP
         <tbody>
           {analyses.map((row) => {
             const date = formatDate(row.created_at, locale);
+            const industryName = localizedIndustryName(row.industry_name, row.industry_name_en, locale);
             // Row context for the two per-row actions' accessible names —
             // "Открыть"/"Удалить" alone is ambiguous once there's more
             // than one row (same pattern as ratio-row.tsx's
             // sourceFootnoteAria: aria-label carries the context the
             // visible label can't).
-            const ariaContext = { industry: row.industry_name, date };
+            const ariaContext = { industry: industryName, date };
             return (
               <tr key={row.analysis_id} className="border-b border-line last:border-b-0">
                 <td className="px-3 py-2 font-mono tabular-nums text-ink">{date}</td>
                 <td className="px-3 py-2">
-                  <OriginTicket>{row.industry_name}</OriginTicket>
+                  <OriginTicket>{industryName}</OriginTicket>
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap items-center gap-2">

@@ -53,6 +53,7 @@ function analysis(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
     created_at: "2026-08-27T00:00:00Z",
     industry: "manufacturing",
     industry_name: "Производство",
+    industry_name_en: "Manufacturing",
     scale: "thousands",
     overall_score: 85.1,
     health_label: "Сильное состояние",

@@ -112,6 +112,7 @@ export function VerifyStep({
         audited={audited}
         latestPeriod={extraction.latest_period ?? null}
         previousPeriod={extraction.previous_period ?? null}
+        locale={locale}
         onIndustryChange={onIndustryChange}
         onApplySuggested={onApplySuggested}
         onScaleChange={onScaleChange}

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { MyAnalysesTable } from "@/components/my/my-analyses-table";
 import ruMessages from "@/messages/ru.json";
+import enMessages from "@/messages/en.json";
 import type { MyAnalysisSummary } from "@/lib/api-types";
 
 const fixtures: MyAnalysisSummary[] = [
@@ -10,6 +11,7 @@ const fixtures: MyAnalysisSummary[] = [
     analysis_id: "an_1",
     created_at: "2026-08-27T10:00:00Z",
     industry_name: "Производство",
+    industry_name_en: "Manufacturing",
     overall_score: 78.2,
     health_label: "Хорошее состояние",
   },
@@ -17,6 +19,7 @@ const fixtures: MyAnalysisSummary[] = [
     analysis_id: "an_2",
     created_at: "2026-08-01T00:00:00Z",
     industry_name: "Розница",
+    industry_name_en: "Розница",
     overall_score: null,
     health_label: "Недостаточно данных для оценки",
   },
@@ -157,5 +160,27 @@ describe("MyAnalysesTable", () => {
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.deleteDialog.cancel }));
 
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  // Founder feedback R1: "Although I was in English, the industry is
+  // still in Russian" — the history table's industry chip is baked from
+  // the stored analysis (industry_name/industry_name_en), not looked up
+  // live, so this guards the same locale-picking logic score-header.tsx
+  // and document-controls.tsx use for their own chips.
+  it("renders the EN industry name in the en locale, falling back to RU when no translation is stored on the row", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        <MyAnalysesTable analyses={fixtures} locale="en" onDelete={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+
+    // an_1 has a real EN translation.
+    expect(screen.getByText("Manufacturing")).toBeInTheDocument();
+    expect(screen.queryByText("Производство")).not.toBeInTheDocument();
+    // an_2's industry_name_en equals industry_name (never translated) —
+    // localizedIndustryName treats that as "no real translation" and
+    // keeps the RU string rather than a name that only coincidentally
+    // reads the same in both fields.
+    expect(screen.getByText("Розница")).toBeInTheDocument();
   });
 });

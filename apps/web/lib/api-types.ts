@@ -40,7 +40,12 @@ export interface HealthResponse {
 export interface Industry {
   id: string;
   name: string;
+  /** Additive (founder feedback R1): the EN display name, alongside `name`
+   * rather than replacing it — see lib/format.ts's `localizedIndustryName`
+   * for the locale-picking + fallback logic every consumer should use. */
+  name_en: string;
   note: string;
+  note_en: string;
 }
 
 export interface IndustriesResponse {
@@ -63,7 +68,9 @@ export interface IndustriesResponse {
 export interface IndustryBenchmarksResponse {
   industry: string;
   name: string;
+  name_en: string;
   note: string;
+  note_en: string;
   category_weights: Record<string, number>;
   excluded_ratios: string[];
   /** Keyed by ratio key (e.g. "current_ratio") — the same shape as
@@ -311,6 +318,11 @@ export interface AnalysisResult {
   created_at: string;
   industry: string;
   industry_name: string;
+  /** Additive (founder feedback R1): may be `""` on an analysis persisted
+   * before this field existed — pass both this and `industry_name` through
+   * lib/format.ts's `localizedIndustryName` rather than rendering it
+   * directly. */
+  industry_name_en: string;
   currency?: string | null;
   scale: Scale;
   latest_period?: string | null;
@@ -369,6 +381,12 @@ export interface MyAnalysisSummary {
   analysis_id: string;
   created_at: string;
   industry_name: string;
+  /** Additive (founder feedback R1), same fallback rules as
+   * AnalysisResult.industry_name_en above — the projection already
+   * degrades to the RU name server-side (apps/api/app/routers/my.py) when
+   * a row predates this field, but stays a plain string here (never
+   * empty) rather than optional. */
+  industry_name_en: string;
   /** null means insufficient data to score, same meaning as
    * `AnalysisResult.overall_score` — never render as 0. */
   overall_score: number | null;

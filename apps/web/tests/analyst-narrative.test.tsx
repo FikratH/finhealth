@@ -21,6 +21,7 @@ const analysisFixture: AnalysisResult = {
   created_at: "2026-08-27T00:00:00Z",
   industry: "manufacturing",
   industry_name: "Производство",
+  industry_name_en: "Manufacturing",
   currency: "KZT",
   scale: "thousands",
   overall_score: 85.1,

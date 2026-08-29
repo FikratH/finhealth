@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ResultsDocument, revealAlreadyInView } from "@/components/results/results-document";
 import ruMessages from "@/messages/ru.json";
+import enMessages from "@/messages/en.json";
 import type { AnalysisResult, ExtractedValue } from "@/lib/api-types";
 
 // Only the "narrative-driven scroll-cinema re-sync" describe block below
@@ -56,6 +57,7 @@ const analysisFixture: AnalysisResult = {
   created_at: "2026-08-26T23:47:30.914082+00:00",
   industry: "manufacturing",
   industry_name: "Производство",
+  industry_name_en: "Manufacturing",
   currency: "KZT",
   scale: "thousands",
   latest_period: "2024",
@@ -969,5 +971,28 @@ describe("ResultsDocument — reveal sweep doesn't flicker already-revealed sect
     for (const el of [...scoreSegments, ...scoreCells]) {
       expect(el).toHaveAttribute("data-lit", "true");
     }
+  });
+});
+
+// Founder feedback R1: "Although I was in English, the industry is still
+// in Russian" — the score header's own «ОТРАСЛЬ» chip (score-header.tsx)
+// used to render analysis.industry_name unconditionally (RU, baked in at
+// analysis time), regardless of the visitor's chosen locale.
+describe("ResultsDocument — industry chip locale (score-header.tsx)", () => {
+  it("en locale: renders the EN industry name, not the RU one", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        <ResultsDocument analysis={analysisFixture} locale="en" />
+      </NextIntlClientProvider>,
+    );
+
+    expect(screen.getByText("Manufacturing")).toBeInTheDocument();
+    expect(screen.queryByText("Производство")).not.toBeInTheDocument();
+  });
+
+  it("ru locale (default, unchanged): still renders the RU industry name", () => {
+    renderDocument(analysisFixture);
+
+    expect(screen.getByText("Производство")).toBeInTheDocument();
   });
 });

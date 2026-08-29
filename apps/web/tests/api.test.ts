@@ -54,6 +54,7 @@ const analysisFixture: AnalysisResult = {
   created_at: "2026-08-27T00:00:00Z",
   industry: "retail",
   industry_name: "Розничная торговля",
+  industry_name_en: "Retail and e-commerce",
   currency: "RUB",
   scale: "units",
   latest_period: "2025 Q4",

@@ -45,3 +45,13 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
+
+// jsdom has no layout engine and doesn't implement Element.scrollIntoView
+// at all — Radix's Select (components/ui/select.tsx, used by every
+// industry/scale/currency combobox in the app) calls it internally the
+// moment its popup content mounts, to scroll the highlighted item into
+// view. Without this stub, any test that actually opens a Select (rather
+// than only asserting on its closed trigger) throws synchronously.
+if (typeof window !== "undefined" && typeof window.HTMLElement.prototype.scrollIntoView === "undefined") {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ import {
 import { ErrorBanner } from "./error-banner";
 import { bytesToMB, exceedsMaxSize, isAcceptedExtension } from "@/lib/analyze-reducer";
 import type { AnalyzeError, UploadPhase } from "@/lib/analyze-reducer";
+import { localizedIndustryName, type Locale } from "@/lib/format";
+import { igniteSequence, scanlineLoop } from "@/lib/motion";
 import type { Industry } from "@/lib/api-types";
 
 export interface UploadStepProps {
@@ -25,6 +27,7 @@ export interface UploadStepProps {
   uploadPhase: UploadPhase;
   error: AnalyzeError | null;
   retain: boolean;
+  locale: Locale;
   /** GET /api/health's `vault_enabled` (P5.T8) — whether the server
    * currently accepts `retain=1` at all. The checkbox renders only when
    * this AND signedIn are both true, so a signed-in user in the default
@@ -56,6 +59,7 @@ export function UploadStep({
   retain,
   vaultEnabled,
   ocrEnabled,
+  locale,
   onFileSelected,
   onFileCleared,
   onIndustryChange,
@@ -67,6 +71,8 @@ export function UploadStep({
   const inputId = useId();
   const retainId = `${inputId}-retain`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const bayRef = useRef<HTMLDivElement>(null);
+  const fileRowRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // isPending collapses to "not signed in" — same convention as
@@ -94,6 +100,47 @@ export function UploadStep({
 
   const busy = uploadPhase !== "idle";
   const canSubmit = file !== null && industry !== "" && !busy;
+
+  // The bay's own "still working" reading for the whole upload+extract
+  // duration (two sequential async legs behind one `busy` boolean — see
+  // analyze-flow.tsx's handleUploadSubmit) — previously the ONLY signal
+  // was the submit button's own text swapping to "Uploading…"/
+  // "Extracting…" and the step indicator's blink two components away;
+  // the bay itself sat inert for however long extraction actually takes.
+  // lib/motion's scanlineLoop already no-ops under reduced motion (see
+  // its own doc comment) — statusText below remains the sole "still
+  // working" signal there, unchanged.
+  useEffect(() => {
+    if (!busy || !bayRef.current) return;
+    const tween = scanlineLoop(bayRef.current);
+    return () => {
+      tween?.kill();
+      const line = bayRef.current?.querySelector<HTMLElement>("[data-scanline]");
+      if (line) line.style.opacity = "";
+    };
+  }, [busy]);
+
+  // File-accepted feedback: the row docking INTO the bay. Reuses
+  // igniteSequence verbatim (a custom `data-docked` attribute rather than
+  // its default `data-lit`, so this doesn't collide with SegmentDisplay/
+  // LedBar's own segment-truth semantics) — the dot, filename, and
+  // remove button light up one at a time, MOTION.step apart, via instant
+  // .set() calls, never a tween ("every change is an instant segment
+  // swap"). Keyed on the file's own identity (see the row's `key` prop
+  // below) so selecting a DIFFERENT file re-plays the dock, not just the
+  // first file→no-file transition. useLayoutEffect, not useEffect —
+  // igniteSequence's own doc comment: its reset-to-off-then-cascade must
+  // land before the browser's first paint, or the row (rendered
+  // data-docked="true" by default, the SSR/no-JS baseline) flashes fully
+  // lit for a frame before this ever runs.
+  useLayoutEffect(() => {
+    const el = fileRowRef.current;
+    if (!el) return;
+    const tl = igniteSequence(el, "[data-dock-segment]", { attribute: "data-docked" });
+    return () => {
+      tl?.kill();
+    };
+  }, [file?.name, file?.size, file?.lastModified]);
 
   function handleFiles(files: FileList | null) {
     const next = files?.[0];
@@ -144,23 +191,55 @@ export function UploadStep({
       {/* The docking bay: an empty bezel awaiting media. Idle = a plain
        * instrument slot (solid 1px border, ghost-cell perforation texture
        * inside — "unlit segments are designed too" extended to an empty
-       * bay). Drag = teal edge lighting, the transient border-accent
-       * exemption re-skinned as a lit bezel edge + soft glow rather than a
-       * filled color wash. */}
+       * bay). Drag = teal edge lighting, real Brand Teal rather than the
+       * pale accent wash (The Accent-Surface Trap). Busy (upload+extract
+       * in flight) = a dimmer, steady teal edge plus a looping scanline
+       * (lib/motion's scanlineLoop) sweeping the bay — the pending state
+       * for an operation with no single value to blink, distinct from
+       * both idle and the full-intensity drag glow so the three read as
+       * three different instrument states, not one. */}
       <div
+        ref={bayRef}
         onDragOver={(event) => {
           event.preventDefault();
           if (!busy) setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(event) => {
+          // dragleave fires on this element even when the pointer only
+          // crossed onto a CHILD inside the same bay (the label text, the
+          // browse button) — relatedTarget is where the pointer landed;
+          // only treat this as a real exit once that's OUTSIDE the bay
+          // entirely, or the edge lighting flickers on every child
+          // boundary crossing while genuinely still hovering the drop
+          // target (relatedTarget is null for a drag from outside the
+          // browser window — Node-checked below, and null safely reaches
+          // the real setDragging(false) either way).
+          if (
+            event.relatedTarget instanceof Node &&
+            event.currentTarget.contains(event.relatedTarget)
+          ) {
+            return;
+          }
+          setDragging(false);
+        }}
         onDrop={handleDrop}
         className={cn(
-          "ghost-cell-texture border bg-panel p-10 text-center transition-colors duration-150",
+          "relative ghost-cell-texture border bg-panel p-10 text-center transition-colors duration-150",
           dragging
             ? "border-brand shadow-[0_0_0_1px_var(--accent),0_0_24px_2px_color-mix(in_oklch,var(--accent)_35%,transparent)]"
-            : "border-line",
+            : busy
+              ? "border-brand/50"
+              : "border-line",
         )}
       >
+        {busy && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <span
+              data-scanline
+              className="absolute inset-y-0 left-0 w-full opacity-0 bg-[linear-gradient(90deg,transparent,var(--accent)_45%,var(--accent)_55%,transparent)]"
+            />
+          </div>
+        )}
         <input
           ref={inputRef}
           id={inputId}
@@ -186,16 +265,32 @@ export function UploadStep({
       </div>
 
       {file && (
-        <div className="flex items-center justify-between border border-line bg-panel px-3 py-2 font-mono text-sm text-ink">
+        // The file docking INTO the bay: a boot-grammar settle, not a
+        // fade-in — the dot/filename/button light up one at a time via
+        // igniteSequence's instant .set() cascade (the effect above,
+        // scoped to this ref). Keyed on the file's own identity so
+        // swapping in a DIFFERENT file (remove, pick another) re-plays
+        // the dock rather than silently updating an already-lit row.
+        <div
+          key={`${file.name}-${file.size}-${file.lastModified}`}
+          ref={fileRowRef}
+          className="flex items-center justify-between border border-line bg-panel px-3 py-2 font-mono text-sm text-ink"
+        >
           <span className="flex items-center gap-2">
             <span
+              data-dock-segment
+              data-docked="true"
               aria-hidden="true"
               className="inline-block size-1.5 shrink-0 rounded-full bg-brand shadow-[0_0_4px_1px_var(--accent)]"
             />
-            {t("selectedFile", { name: file.name })}
+            <span data-dock-segment data-docked="true">
+              {t("selectedFile", { name: file.name })}
+            </span>
           </span>
           <button
             type="button"
+            data-dock-segment
+            data-docked="true"
             onClick={onFileCleared}
             disabled={busy}
             className="text-ink-muted underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
@@ -224,7 +319,7 @@ export function UploadStep({
           <SelectContent>
             {industries.map((ind) => (
               <SelectItem key={ind.id} value={ind.id}>
-                {ind.name}
+                {localizedIndustryName(ind.name, ind.name_en, locale)}
               </SelectItem>
             ))}
           </SelectContent>

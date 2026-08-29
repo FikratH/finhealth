@@ -6,6 +6,7 @@ import {
   getPrefersReducedMotion,
   igniteSequence,
   MOTION,
+  scanlineLoop,
   scanlineSweep,
   usePrefersReducedMotion,
 } from "@/lib/motion";
@@ -181,6 +182,53 @@ describe("scanlineSweep", () => {
     expect(content.hasAttribute("data-scanline-hidden")).toBe(false);
 
     tl!.kill();
+  });
+});
+
+// upload-step.tsx's busy-bay "still working" reading (founder feedback
+// R1's second half — a real in-progress state during upload+extraction).
+// A looping sibling of scanlineSweep's own line motion: same markup
+// contract ([data-scanline]), same MOTION.sweep/ease tokens, but repeats
+// indefinitely (back and forth, yoyo) rather than sweeping once to
+// reveal content — there IS no content to reveal here, just an
+// instrument waiting on a real external process.
+describe("scanlineLoop", () => {
+  function makeSection() {
+    const section = document.createElement("section");
+    const line = document.createElement("span");
+    line.setAttribute("data-scanline", "");
+    section.append(line);
+    return { section, line };
+  }
+
+  it("returns null and hides the line when there is no [data-scanline] element in scope", () => {
+    mockMatchMedia(false);
+    const section = document.createElement("section");
+    expect(scanlineLoop(section)).toBeNull();
+  });
+
+  it("under reduced motion, hides the line and returns no tween", () => {
+    mockMatchMedia(true);
+    const { section, line } = makeSection();
+
+    const result = scanlineLoop(section);
+
+    expect(result).toBeNull();
+    expect(line.style.opacity).toBe("0");
+  });
+
+  it("without reduced motion, returns a repeating, yoyoing tween drawn from MOTION's own duration/ease", () => {
+    mockMatchMedia(false);
+    const { section } = makeSection();
+
+    const tween = scanlineLoop(section);
+
+    expect(tween).not.toBeNull();
+    expect(tween!.repeat()).toBe(-1);
+    expect(tween!.yoyo()).toBe(true);
+    expect(tween!.duration()).toBeCloseTo(MOTION.sweep);
+
+    tween!.kill();
   });
 });
 

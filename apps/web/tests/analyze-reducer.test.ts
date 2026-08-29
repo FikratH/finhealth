@@ -14,8 +14,8 @@ import {
 import type { ExtractedValue, ExtractionResult, Industry } from "@/lib/api-types";
 
 const industries: Industry[] = [
-  { id: "retail", name: "Розничная торговля", note: "" },
-  { id: "manufacturing", name: "Производство", note: "" },
+  { id: "retail", name: "Розничная торговля", name_en: "Retail and e-commerce", note: "", note_en: "" },
+  { id: "manufacturing", name: "Производство", name_en: "Manufacturing", note: "", note_en: "" },
 ];
 
 function extractedValue(overrides: Partial<ExtractedValue>): ExtractedValue {

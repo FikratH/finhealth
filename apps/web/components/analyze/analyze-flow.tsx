@@ -125,6 +125,7 @@ export function AnalyzeFlow() {
             retain={state.retain}
             vaultEnabled={state.vaultEnabled}
             ocrEnabled={state.ocrEnabled}
+            locale={locale}
             onFileSelected={(file) => dispatch({ type: "file_selected", file })}
             onFileCleared={() => dispatch({ type: "file_cleared" })}
             onIndustryChange={(industry) => dispatch({ type: "industry_selected", industry })}
