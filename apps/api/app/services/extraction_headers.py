@@ -296,3 +296,43 @@ def select_comparable_periods(
     chosen = [latest.label] + ([previous.label] if previous else [])
     rejected = [p.label for p in ordered if p.label not in chosen]
     return latest, previous, {"chosen": chosen, "rejected": rejected, "reason": reason}
+
+
+# ---------------------------------------------------------------------------
+# Honesty-law guard (English/IFRS support): zero metrics recognized from a
+# source that plainly had real content must never come back as a calm,
+# empty-looking form — a genuine parsing miss and an honestly-empty file
+# were otherwise indistinguishable (same all-N/A values, same empty
+# warnings). The text floor avoids warning about an actually-tiny/blank
+# source. Mirrors the OCR path's own productivity guard, which raises
+# instead of warning — that path is scored on OCR confidence, while a
+# source reaching this guard may be a perfectly readable file just outside
+# this engine's current label/layout vocabulary, so a warning (not a hard
+# failure) is the honest response.
+# ---------------------------------------------------------------------------
+_NEAR_TOTAL_MISS_TEXT_FLOOR = 200
+_NEAR_TOTAL_MISS_WARNING = ("Не удалось распознать показатели в документе — "
+                            "проверьте формат или введите значения вручную.")
+
+
+def fill_missing_metrics(found: dict, currency, scale, latest: Optional[str]) -> None:
+    """Mutates `found` in place: an N/A ExtractedValue for every metric key
+    not already present, so the response always accounts for every metric
+    the dictionary knows (no values invented — extraction.py's own
+    module-level contract)."""
+    from ..schemas import ExtractedValue
+    for key in M.METRICS:
+        if key not in found:
+            found[key] = ExtractedValue(
+                metric=key, original_label="", value=None, currency=currency,
+                scale=scale, period=latest, source="", confidence=0, snippet="")
+
+
+def near_total_miss_warning(values, full_text: str) -> list[str]:
+    """[] normally; a single-item list with the warning above when every
+    value is None despite `full_text` clearing the real-content floor."""
+    if any(v.value is not None for v in values):
+        return []
+    if len(full_text.strip()) <= _NEAR_TOTAL_MISS_TEXT_FLOOR:
+        return []
+    return [_NEAR_TOTAL_MISS_WARNING]

@@ -14,6 +14,7 @@ from typing import Optional
 from ..schemas import ExtractedValue, ExtractionResult, PeriodSelectionMeta
 from . import extraction_headers as H
 from . import extraction_ocr as EO
+from . import extraction_pdf_text as EPT
 from . import metrics as M
 from . import ocr as OCR
 
@@ -336,13 +337,8 @@ def _extract_from_tables(tables: list[_Table], full_text: str,
             if prev_val is not None:
                 put(found_prev, previous, prev_val)
 
-    # N/A entries for every dictionary metric that was not found
-    for key, cfg in M.METRICS.items():
-        if key not in found:
-            found[key] = ExtractedValue(
-                metric=key, original_label="", value=None, currency=currency,
-                scale=scale, period=latest, source="", confidence=0,
-                snippet="", )
+    H.fill_missing_metrics(found, currency, scale, latest)
+    warnings += H.near_total_miss_warning(found.values(), full_text)
 
     return ExtractionResult(
         upload_id="", periods=all_periods, latest_period=latest,
@@ -438,7 +434,9 @@ def extract_from_pdf(data: bytes) -> ExtractionResult:
                 tables.append(_rows_from_matrix(
                     raw_table, f"PDF, стр. {page_no}, таблица {t_no}"))
             if not page_tables:
-                matrix = EO.lines_to_matrix(page_text)
+                # No ruling-line table — reconstruct by word position (see
+                # extraction_pdf_text), else the older whitespace heuristic.
+                matrix = EPT.words_to_matrix(page) or EO.lines_to_matrix(page_text)
                 if matrix:
                     tables.append(_rows_from_matrix(matrix, f"PDF, стр. {page_no} (текст)"))
     full_text = "\n".join(text_parts)

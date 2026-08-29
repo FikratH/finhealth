@@ -40,12 +40,19 @@ METRICS: dict[str, dict] = {
     },
     "interest_expense": {
         "name": "Процентные расходы",
-        "synonyms": ["interest expense", "finance costs",
+        "synonyms": ["interest expense", "finance costs", "finance cost",
                      "процентные расходы", "проценты к уплате", "финансовые расходы"],
     },
     "net_income": {
         "name": "Чистая прибыль",
+        # "profit before (income) tax" is deliberately NOT a synonym — a
+        # different, larger figure this dictionary has no metric to hold;
+        # mapping it would misreport a real filing. The long "...for the
+        # year" phrase relies on match_label's long-anchor bypass below.
         "synonyms": ["net income", "net profit", "profit for the year",
+                     "profit for the financial year", "profit after tax",
+                     "profit after income tax",
+                     "profit after income tax expense for the year",
                      "чистая прибыль", "прибыль за год", "чистая прибыль (убыток)"],
     },
     "total_assets": {
@@ -72,7 +79,8 @@ METRICS: dict[str, dict] = {
     },
     "accounts_receivable": {
         "name": "Дебиторская задолженность",
-        "synonyms": ["accounts receivable", "trade receivables", "receivables",
+        "synonyms": ["accounts receivable", "trade receivables",
+                     "trade and other receivables", "receivables",
                      "дебиторская задолженность", "торговая дебиторская задолженность"],
     },
     "inventory": {
@@ -94,8 +102,13 @@ METRICS: dict[str, dict] = {
     "accounts_payable": {
         "name": "Кредиторская задолженность",
         "synonyms": ["accounts payable", "trade payables",
+                     "trade and other payables",
                      "кредиторская задолженность", "торговая кредиторская задолженность"],
     },
+    # total_debt / long_term_debt skip a bare "borrowings"/"loans" EN
+    # synonym: IFRS balance sheets often list "Borrowings" twice (current +
+    # non-current) with no section awareness here to tell them apart —
+    # left N/A rather than risk mislabeling current debt as long-term.
     "total_debt": {
         "name": "Процентный долг",
         "synonyms": ["total debt", "total borrowings", "loans and borrowings",
@@ -113,6 +126,7 @@ METRICS: dict[str, dict] = {
         "name": "Денежный поток от операционной деятельности",
         "synonyms": ["operating cash flow", "cash flow from operating activities",
                      "net cash provided by operating activities",
+                     "net cash from operating activities",
                      "денежный поток от операционной деятельности",
                      "чистые денежные средства от операционной деятельности",
                      "денежные потоки от операционной деятельности"],
@@ -120,6 +134,7 @@ METRICS: dict[str, dict] = {
     "capital_expenditures": {
         "name": "Капитальные затраты (CAPEX)",
         "synonyms": ["capital expenditures", "capex", "purchases of property, plant and equipment",
+                     "payments for property, plant and equipment",
                      "капитальные затраты", "приобретение основных средств"],
     },
     "shares_outstanding": {
@@ -143,7 +158,8 @@ METRICS: dict[str, dict] = {
     },
     "retained_earnings": {
         "name": "Нераспределённая прибыль",
-        "synonyms": ["retained earnings", "нераспределенная прибыль",
+        "synonyms": ["retained earnings", "retained profits",
+                     "нераспределенная прибыль",
                      "нераспределенная прибыль (непокрытый убыток)"],
     },
     "net_ppe": {
@@ -159,7 +175,8 @@ METRICS: dict[str, dict] = {
     },
     "depreciation_amortization": {
         "name": "Амортизация",
-        "synonyms": ["depreciation and amortization", "depreciation",
+        "synonyms": ["depreciation and amortization", "depreciation and amortisation",
+                     "depreciation",
                      "амортизация", "износ и амортизация", "амортизация основных средств"],
     },
     "sga_expense": {
@@ -208,6 +225,11 @@ QUALIFIER_TOKENS: frozenset[str] = frozenset({
     # EN equivalents
     "decrease", "increase", "investing", "financing", "used in", "changes",
     "deferred", "other", "intangible",
+    # "non " catches "non-current" (else "total non-current assets"
+    # contains "current assets" once the hyphen normalizes to a space).
+    # "disposal"/"proceeds" catch e.g. "Net gain on disposal of property,
+    # plant and equipment", which legitimately contains a metric's synonym.
+    "non ", "disposal", "proceeds",
 })
 
 
@@ -216,10 +238,21 @@ def _has_qualifier(norm: str, syn: str) -> bool:
     return any(tok in remainder for tok in QUALIFIER_TOKENS)
 
 
+# Real IFRS/English reports often spell a line item as a long sentence —
+# "Profit after income tax expense for the year attributable to the owners
+# of <company>" — where the company name alone can outweigh the whole
+# distinctive phrase. The ≥55%-coverage rule exists to stop a short, generic
+# fragment matching deep inside an unrelated sentence; a synonym already
+# this long is specific enough that coincidence isn't a real risk, so it
+# bypasses the ratio gate (still needs a whole-phrase, word-boundary match
+# and no disqualifying qualifier). Short synonyms are unaffected.
+_LONG_ANCHOR_MIN_LEN = 24
+
+
 def match_label(label: str) -> Optional[tuple[str, float]]:
     """Exact normalized match → 95. Whole-phrase containment → 80, only when
-    the synonym covers ≥55% of the label and the remainder carries no
-    meaning-flipping qualifier (see audit finding 1)."""
+    the synonym covers ≥55% of the label (waived at/above
+    _LONG_ANCHOR_MIN_LEN chars), remainder carries no qualifier (finding 1)."""
     norm = normalize_label(label)
     if not norm:
         return None
@@ -231,7 +264,7 @@ def match_label(label: str) -> Optional[tuple[str, float]]:
             continue
         if not re.search(rf"(?:^|\s){re.escape(syn)}(?:$|\s)", norm):
             continue
-        if len(syn) / len(norm) < 0.55:
+        if len(syn) < _LONG_ANCHOR_MIN_LEN and len(syn) / len(norm) < 0.55:
             continue
         if _has_qualifier(norm, syn):
             continue

@@ -85,3 +85,52 @@ def test_core_metrics_remains_exactly_20_keys():
     # Verify none of the new advanced metrics are in CORE_METRICS
     assert CORE_METRICS.isdisjoint(ADVANCED_METRICS)
     assert not any(m in CORE_METRICS for m in ADVANCED_METRICS)
+
+
+# --- English/IFRS support (founder-r1): long-anchor match_label bypass +
+# new qualifier tokens, found against a real IFRS annual report. ---
+
+def test_match_label_long_anchor_survives_a_verbose_real_world_sentence():
+    """A real IFRS line item spelled out as a full sentence, with the
+    synonym only a small fraction of the label — below the normal 55%
+    containment floor by design (see metrics._LONG_ANCHOR_MIN_LEN)."""
+    m = match_label(
+        "Profit after income tax expense for the year attributable to the "
+        "owners of Acme IFRS Trading Limited")
+    assert m is not None and m[0] == "net_income"
+
+
+def test_match_label_short_synonym_ratio_gate_is_unaffected_by_the_bypass():
+    """A short synonym ("cash") deep inside an unrelated long label must
+    still fail the ratio gate exactly as before — the bypass only applies
+    to synonyms at/above the long-anchor length threshold."""
+    assert match_label(
+        "Some unrelated long note about petty cash handling procedures at "
+        "regional branch offices during the reporting period") is None
+
+
+@pytest.mark.parametrize("label", [
+    "Total non-current assets",
+    "Total non-current liabilities",
+])
+def test_match_label_rejects_non_current_sections_for_the_current_metric(label):
+    """"Total non-current assets/liabilities" contains "current
+    assets"/"current liabilities" as a trailing substring once the hyphen
+    normalizes to a space — found as a real false positive against the
+    Pinnacle IFRS annual report (both sections present, as in any real
+    balance sheet)."""
+    m = match_label(label)
+    assert m is None or m[0] not in ("current_assets", "current_liabilities")
+
+
+@pytest.mark.parametrize("label,key", [
+    ("Net gain on disposal of property, plant and equipment", "net_ppe"),
+    ("Proceeds from disposal of property, plant and equipment", "net_ppe"),
+])
+def test_match_label_rejects_disposal_proceeds_lines_for_net_ppe(label, key):
+    """Real note/cash-flow lines that legitimately contain "property, plant
+    and equipment" as a full substring while describing a gain or proceeds
+    figure, not the balance-sheet carrying value — found on the same real
+    file."""
+    m = match_label(label)
+    assert m is None or m[0] != key
