@@ -22,12 +22,15 @@ layer, not a scan).
 """
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
+import pdfplumber
 from fastapi.testclient import TestClient
 
 from app import main
 from app.services import extraction
+from app.services import extraction_pdf_text as EPT
 
 GOLDEN = Path(__file__).resolve().parent / "golden"
 
@@ -296,6 +299,100 @@ def test_en_csv_golden_income_statement():
     assert vals["net_income"] == 498_600.0
     assert vals["depreciation_amortization"] == 210_400.0
     assert res.latest_period == "2024" and res.previous_period == "2023"
+
+
+# ---------------------------------------------------------------------------
+# Round 1 fixes (founder-r1 review, .superpowers/founder-r1/ifrs-en-verdict.md):
+# F1 (merge relabels a section header's total from an unmatched line item's
+# value), F2 (a label-region dash truncates the label and defeats the
+# "non-current" qualifier guard), F3 (no fit check on the band model, so a
+# non-right-aligned layout collapses silently instead of honestly).
+# ---------------------------------------------------------------------------
+def test_f1_section_header_followed_by_unmatched_line_item_is_not_relabeled():
+    """Reproduces the verdict's exact repro shape: "Current liabilities" (a
+    section header — deliberately unmapped bare "Borrowings" per
+    metrics.py's total_debt comment) directly followed by "Borrowings", a
+    real line item whose own label matches nothing. Before the F1 guard,
+    the wrap-merge relabeled "Current liabilities Borrowings" as
+    current_liabilities at the Borrowings line's value (612,278) — an 8x
+    understatement of the real total (4,937,426). With no later "Total
+    current liabilities" row at all in this minimal fixture, the correct
+    post-fix behavior is that current_liabilities matches NOTHING — not a
+    wrong number with no warning to explain it."""
+    b = _RowBuilder()
+    b.row(label="Note", val1="2025", val2="2024")
+    b.row(label="Current liabilities")
+    b.row(label="Borrowings", val1="612,278", val2="461,733")
+    b.row(label="Lease liabilities", val1="133,565", val2="60,132")
+    res = extraction.extract(_build_pdf(b.placements), "pdf")
+    vals = _values(res)
+    assert "current_liabilities" not in vals
+    assert "total_debt" not in vals  # bare "Borrowings" stays unmapped, as designed
+
+
+def test_f1_genuine_wrapped_label_still_merges_after_the_guard():
+    """Negative case for F1: the real net_income wrap must still work — its
+    earlier line ("Profit after income tax expense for the year
+    attributable to the owners") only clears match_label via the
+    long-anchor CONTAINMENT path (confidence 80), never an exact 95 match,
+    so _is_exact_metric_name never blocks it."""
+    res = extraction.extract(_build_ifrs_statement_pdf(), "pdf")
+    assert _values(res)["net_income"] == 1_800_000.0
+
+
+def test_f2_en_dash_separated_non_current_label_is_not_captured():
+    """Reproduces the verdict's F2 repro: "Trade receivables - non-current"
+    (a dash used as ordinary label punctuation, not a nil-value marker).
+    Before the fix, the dash was treated as "the first number", truncating
+    the label to "Trade receivables" — an EXACT synonym match at full
+    confidence — before the "non " qualifier guard (added for exactly this
+    class of line) ever saw the word "non-current" at all. This is the
+    ONLY receivables-bearing row in the fixture, so a wrong match here is
+    unambiguous: it must resolve to nothing, not a real-looking value."""
+    b = _RowBuilder()
+    b.row(label="Note", val1="2025", val2="2024")
+    b.row(label="Trade receivables - non-current", val1="777,000", val2="666,000")
+    res = extraction.extract(_build_pdf(b.placements), "pdf")
+    assert "accounts_receivable" not in _values(res)
+
+
+def test_f3_left_aligned_layout_fails_the_band_fit_check():
+    """Reproduces the verdict's F3 repro shape: values LEFT-aligned at a
+    fixed x0 instead of right-aligned — varying digit counts then scatter
+    the right edges (what the whole column-band model relies on) instead of
+    clustering them. words_to_matrix must recognize the reconstruction
+    doesn't fit and return [], not silently keep whatever happened to
+    survive."""
+    placements = [(LABEL_X, 750, "Note"), (300.0, 750, "2025"), (420.0, 750, "2024")]
+    y = 735.0
+    # Digit counts deliberately vary wildly row to row — at a FIXED left
+    # x0, this scatters right edges across tens/hundreds of points (52%
+    # measured drop rate below), the opposite of the real file's measured
+    # ~3pt same-column clustering. Values themselves are arbitrary digits,
+    # not real figures — this fixture tests layout geometry, not content.
+    rows = [
+        ("Line0", "2", "1409"), ("Line1", "45", "41116573584"),
+        ("Line2", "242", "890779946"), ("Line3", "2679", "98696"),
+        ("Line4", "81482", "748913461122"), ("Line5", "542417", "130201276659"),
+        ("Line6", "2571945", "329258"), ("Line7", "41227216", "8381094320374"),
+        ("Line8", "336696312", "67"), ("Line9", "7825844140", "1109031"),
+        ("Line10", "54764787985", "31879756854153"),
+        ("Line11", "472646369774", "2"),
+        ("Line12", "7683367452945", "22981052"),
+        ("Line13", "94964520328049", "5"), ("Line14", "1", "68"),
+        ("Line15", "649", "234031070"), ("Line16", "496922", "180"),
+        ("Line17", "692749116", "400"), ("Line18", "790757033266", "8995970241"),
+        ("Line19", "83", "301629"),
+    ]
+    for label, v1, v2 in rows:
+        placements.append((LABEL_X, y, label))
+        placements.append((300.0, y, v1))
+        placements.append((420.0, y, v2))
+        y -= 15.0
+    data = _build_pdf(placements)
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        matrix = EPT.words_to_matrix(pdf.pages[0])
+    assert matrix == []
 
 
 def test_en_xlsx_golden_balance_sheet():

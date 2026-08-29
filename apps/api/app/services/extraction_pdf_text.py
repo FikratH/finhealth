@@ -88,7 +88,14 @@ DEFAULT_FONT_SIZE = 10.0
 # characters (designed to parse an already-isolated cell), which is exactly
 # why it can't double as a token classifier: parse_number("SME(5.5)(a)")
 # returns 5.5, which would make a reference code look like a real number.
-_BARE_NUMBER_RE = re.compile(r"^\(?-?[0-9][0-9,.]*\)?$|^[-–—]$")
+# Used for BOTH band formation and the band-fit check (F3) — a lone dash
+# never contributes to either (see _DASH_CHARS below): it's ambiguous on
+# its own, a nil/zero value in the data columns ("51,076   -") but ordinary
+# label punctuation in the label region (an en-dash separator, e.g. "Trade
+# receivables – non-current"), and letting it seed or seek its own band
+# would make the F2 position gate below trivially true for that same dash.
+_DIGIT_NUMBER_RE = re.compile(r"^\(?-?[0-9][0-9,.]*\)?$")
+_DASH_CHARS = frozenset({"-", "–", "—"})
 
 # A "real" financial figure specifically for the label-wrap merge decision:
 # thousands-grouped or decimal, which real values in this document class
@@ -114,9 +121,16 @@ def _page_font_size(words: list[dict]) -> float:
 
 
 def _column_bands(words: list[dict], font_size: float) -> list[float]:
-    """Right-edge (x1) cluster centers, left to right, over every bare-number
-    token on the page (module docstring, point 2)."""
-    x1s = sorted(w["x1"] for w in words if _BARE_NUMBER_RE.match(w["text"]))
+    """Right-edge (x1) cluster centers, left to right, over every
+    digit-bearing token on the page (module docstring, point 2). A lone
+    dash never contributes (F2 residual): sitting alone in the label
+    region, it would seed its OWN one-point band, which then makes the F2
+    position gate in _row_to_cells trivially true for that exact dash — the
+    band and the token that "fits" it would be the same point. A genuine
+    nil-value dash in the data columns never needs to seed a band itself;
+    the column it belongs to is already anchored by every OTHER row's real
+    figure in that same position."""
+    x1s = sorted(w["x1"] for w in words if _DIGIT_NUMBER_RE.match(w["text"]))
     if not x1s:
         return []
     gap = max(BAND_GAP_FLOOR, font_size * BAND_GAP_RATIO)
@@ -134,9 +148,12 @@ def _row_to_cells(row: list[dict], bands: list[float], cutoff: float) -> list[st
     label_words: list[str] = []
     band_words: list[list[str]] = [[] for _ in bands]
     seen_number = False
+    first_band_x1 = bands[0] if bands else None
     for w in ws:
         text = w["text"]
-        is_number = bool(_BARE_NUMBER_RE.match(text))
+        is_number = bool(_DIGIT_NUMBER_RE.match(text)) or (
+            text in _DASH_CHARS and first_band_x1 is not None
+            and w["x1"] >= first_band_x1 - cutoff)
         if not seen_number and not is_number:
             label_words.append(text)
             continue
@@ -152,13 +169,40 @@ def _row_to_cells(row: list[dict], bands: list[float], cutoff: float) -> list[st
     return [" ".join(label_words)] + [" ".join(bw) for bw in band_words]
 
 
+def _is_exact_metric_name(label: str) -> bool:
+    """True when `label` ALONE already resolves to an exact (95-confidence)
+    metric match — i.e. its normalized text literally equals a known
+    synonym, not just contains one. A section header ("Current
+    liabilities") is almost always exactly this; a genuinely incomplete
+    wrapped sentence ("Profit after income tax expense for the year
+    attributable to the owners") is not — it only clears match_label via
+    the long-anchor containment path (80), never the exact path (95),
+    since its normalized text is never equal to any single synonym.
+    Verified against the real file's own wrap case: the unmerged first
+    line stays at 80 either way, so this check never blocks it."""
+    m = M.match_label(label)
+    return m is not None and m[1] == 95.0
+
+
 def _merge_wrapped_labels(matrix: list[list[str]]) -> list[list[str]]:
+    """See module docstring. F1 guard: a row whose OWN label already names
+    a metric exactly (a section header like "Current liabilities") is
+    never merged forward, even when it has no numbers and the next row's
+    own label doesn't match anything — that combination is exactly what a
+    header followed by an unrecognized line item ("Borrowings", left
+    unmapped on purpose — see metrics.py's total_debt comment) looks like,
+    and merging would relabel that one line's value as the section's
+    total. Found on a synthetic reproduction of the real file's own
+    layout: without this guard, "Current liabilities" + "Borrowings"
+    merges into a text that matches current_liabilities, attributing a
+    single current-liability line's value to the whole section total."""
     out: list[list[str]] = []
     i, n = 0, len(matrix)
     while i < n:
         cells = matrix[i]
         has_substantial = any(_SUBSTANTIAL_NUMBER_RE.match(c) for c in cells[1:] if c)
-        if cells and cells[0] and not has_substantial and i + 1 < n:
+        if (cells and cells[0] and not has_substantial
+                and not _is_exact_metric_name(cells[0]) and i + 1 < n):
             nxt = matrix[i + 1]
             nxt_substantial = any(_SUBSTANTIAL_NUMBER_RE.match(c) for c in nxt[1:] if c)
             if nxt_substantial and nxt[0] and M.match_label(nxt[0]) is None:
@@ -171,13 +215,42 @@ def _merge_wrapped_labels(matrix: list[list[str]]) -> list[list[str]]:
     return out
 
 
+# F3: the right-alignment premise this whole module rests on doesn't hold
+# for every layout (left-aligned columns, wildly varying value widths) — on
+# those, values get silently DROPPED (never misassigned to the wrong
+# column, since the cutoff still guards that), but a partial collapse
+# produces no signal on its own: near_total_miss_warning only fires at
+# ZERO values, so a page that keeps just enough to look plausible (e.g. the
+# header losing "2025" while other numbers still land somewhere) can
+# silently report the wrong year with no previous period, or drop entire
+# line items with nothing to show for it. Measured on the real file: a
+# healthy (right-aligned) page drops ~1.6% of its digit-bearing tokens
+# (worst page 15%); synthetic left-aligned layouts drop 60-80%. 30% cleanly
+# separates the two — below it, trust the reconstruction; at/above it,
+# treat this page as unreconstructable and let the caller's existing
+# `words_to_matrix(page) or lines_to_matrix(page_text)` fall through.
+# Digits only, matching _column_bands — a lone dash never seeds or is
+# required to join a band (see _column_bands), so counting it here would
+# measure label-punctuation noise, not whether the figures are aligned.
+BAND_FIT_MAX_DROP_RATE = 0.30
+
+
+def _band_fit_ok(words: list[dict], bands: list[float], cutoff: float) -> bool:
+    numbers = [w for w in words if _DIGIT_NUMBER_RE.match(w["text"])]
+    if not numbers:
+        return True
+    dropped = sum(1 for w in numbers if min(abs(b - w["x1"]) for b in bands) > cutoff)
+    return dropped / len(numbers) <= BAND_FIT_MAX_DROP_RATE
+
+
 def words_to_matrix(page) -> list[list[str]]:
     """Reconstructs a [[label, *values], ...] matrix from a page's word
     positions — the text-layer counterpart to extraction_ocr.lines_to_matrix
     for pages with no ruling-line tables. Returns [] when the page has no
     bare-number tokens at all (nothing to anchor columns to, e.g. a pure
-    narrative page) — the caller's existing "no table on this page"
-    handling is unchanged."""
+    narrative page) or when the reconstruction doesn't fit the page well
+    enough to trust (F3, `_band_fit_ok`) — the caller's existing "no table
+    on this page" handling covers both the same way."""
     words = page.extract_words(extra_attrs=["size"])
     if not words:
         return []
@@ -186,6 +259,8 @@ def words_to_matrix(page) -> list[list[str]]:
     if not bands:
         return []
     cutoff = max(ASSIGN_FLOOR, font_size * ASSIGN_RATIO)
+    if not _band_fit_ok(words, bands, cutoff):
+        return []
     matrix = [_row_to_cells(row, bands, cutoff) for row in _cluster_rows(words)]
     matrix = [cells for cells in matrix if any(c for c in cells)]
     return _merge_wrapped_labels(matrix)
