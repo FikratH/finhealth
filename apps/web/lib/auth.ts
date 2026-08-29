@@ -5,18 +5,26 @@
 //
 // Two providers, both additive to the anonymous flow, which this file never
 // touches:
-//   - magicLink: the only provider always available. `sendMagicLink` is a
-//     dev transport — it logs the URL to the server console instead of
-//     emailing it, because SMTP isn't wired up yet (docs/founder-todo.md
-//     tracks EMAIL_* as a launch blocker). If EMAIL_HOST is ever set before
-//     a real transport is implemented here, sending fails loudly rather
-//     than silently pretending an email went out. **Fails closed in
-//     production** (fix round 1, security ruling): without EMAIL_HOST,
-//     `NODE_ENV==="production"` rejects the send instead of logging the URL
-//     — a production deploy must never print a live single-use credential
-//     into server logs/aggregators. Dev (`next dev`) keeps the console
-//     transport either way. Until EMAIL_* is configured, production
-//     magic-link sign-in is disabled by design, not merely unlogged.
+//   - magicLink: the only provider always available. `sendMagicLink`
+//     branches on NODE_ENV, read lazily inside the callback (not at
+//     module-eval time) so a build's env is always what's checked:
+//       - dev (`next dev`): logs the URL to the server console instead of
+//         emailing it. This IS the "email" for local testing, unconditionally
+//         — tests/e2e/auth.spec.ts and tests/auth-token-route.test.ts both
+//         depend on this exact log line, so it stays even if RESEND_API_KEY
+//         happens to be set in a dev shell.
+//       - production, RESEND_API_KEY set: sends via Resend (lib/resend.ts;
+//         fix round 2, founder key). A Resend failure (network or non-2xx)
+//         fails closed there too — generic Error, nothing link-bearing
+//         logged — so it reaches the signin form's same generic-error path.
+//       - production, RESEND_API_KEY unset: **fails closed** (fix round 1,
+//         security ruling) — rejects the send instead of logging the URL,
+//         because printing a live single-use credential into production
+//         server logs/aggregators is a real exposure, not a convenience.
+//         The signin form's existing generic-error path is what a user
+//         sees — no half-signed-in state, no link anyone can act on.
+//         Configuring RESEND_API_KEY is what turns production sign-in back
+//         on, by design.
 //   - google: registered only when GOOGLE_CLIENT_ID/SECRET are both present
 //     (also a founder-todo item) — its absence from `socialProviders`
 //     entirely, not a disabled button, is what "not configured" means to
@@ -35,6 +43,7 @@ import { betterAuth } from "better-auth";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { getMigrations } from "better-auth/db/migration";
+import { sendMagicLinkEmail } from "./resend";
 
 // Overridable so tests can point at an isolated ":memory:" database instead
 // of the real dev file — see tests/auth-token-route.test.ts.
@@ -43,11 +52,6 @@ const DB_PATH = process.env.BETTER_AUTH_DB_PATH ?? path.join(process.cwd(), ".da
 if (DB_PATH !== ":memory:") {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 }
-
-// EMAIL_HOST is the one env var founder-todo.md names for the future SMTP
-// transport; its mere presence is the gate, independent of whether that
-// transport is actually implemented below yet (it isn't).
-const emailTransportConfigured = Boolean(process.env.EMAIL_HOST);
 
 export const googleAuthEnabled = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
@@ -72,31 +76,30 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {
-        if (emailTransportConfigured) {
-          // Honest-failure, not a fabricated "email sent" claim: no SMTP
-          // client is wired up in this codebase yet.
-          throw new Error(
-            "EMAIL_HOST is set, but no SMTP transport is implemented yet " +
-              "(docs/founder-todo.md tracks it) — unset EMAIL_HOST to use " +
-              "the dev console transport instead.",
-          );
-        }
         if (process.env.NODE_ENV === "production") {
-          // Fail closed (fix round 1, security ruling): logging a live,
-          // single-use sign-in credential to production server
-          // logs/aggregators is a real exposure, not a convenience. The
-          // signin form's existing generic-error path is what a user sees
-          // — no half-signed-in state, no link anyone can act on. This
-          // only ever fires without EMAIL_HOST configured (the branch
-          // above handles EMAIL_HOST-set-but-unimplemented separately);
-          // configuring real SMTP is what turns production sign-in back
-          // on, by design.
-          throw new Error("magic_link_transport_unconfigured");
+          if (!process.env.RESEND_API_KEY) {
+            // Fail closed (fix round 1, security ruling): logging a live,
+            // single-use sign-in credential to production server
+            // logs/aggregators is a real exposure, not a convenience. The
+            // signin form's existing generic-error path is what a user
+            // sees — no half-signed-in state, no link anyone can act on.
+            // Configuring RESEND_API_KEY is what turns production sign-in
+            // back on, by design (fix round 2: lib/resend.ts is the real
+            // transport now).
+            throw new Error("magic_link_transport_unconfigured");
+          }
+          // sendMagicLinkEmail itself fails closed on any Resend error
+          // (network or non-2xx) — a generic, link-free throw that reaches
+          // the same signin-form error path as the branch above.
+          await sendMagicLinkEmail({ email, url });
+          return;
         }
-        // Dev transport (`next dev`): this line IS the "email" until SMTP
-        // lands. Prefix is grepped by nothing in this codebase (see
-        // tests/e2e/auth.spec.ts's header comment) but kept stable for a
-        // developer/operator reading logs.
+        // Dev transport (`next dev`): this line IS the "email" for local
+        // testing, unconditionally — even if RESEND_API_KEY happens to be
+        // set in a dev shell, deterministic local testing wins (both
+        // tests/e2e/auth.spec.ts and tests/auth-token-route.test.ts read
+        // this exact log line). Prefix is grepped by nothing in this
+        // codebase but kept stable for a developer/operator reading logs.
         console.log(`MAGIC_LINK: ${url} (to: ${email})`);
       },
     }),
