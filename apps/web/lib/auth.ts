@@ -1,7 +1,8 @@
 // Better Auth server instance (P5.T3). Session storage lives in its own
 // SQLite file at .data/auth.db (gitignored) — deliberately separate from
 // apps/api's analyses/uploads store; this file only ever answers "who is
-// signed in," never product data.
+// signed in," never product data. In production (Vercel serverless), that
+// SQLite file cannot exist — see the DATABASE_URL branch below.
 //
 // Two providers, both additive to the anonymous flow, which this file never
 // touches:
@@ -39,6 +40,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { Pool } from "pg";
 import { betterAuth } from "better-auth";
 import { magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -49,7 +51,20 @@ import { sendMagicLinkEmail } from "./resend";
 // of the real dev file — see tests/auth-token-route.test.ts.
 const DB_PATH = process.env.BETTER_AUTH_DB_PATH ?? path.join(process.cwd(), ".data", "auth.db");
 
-if (DB_PATH !== ":memory:") {
+// Vercel's serverless functions have a read-only filesystem (only /tmp is
+// writable, and it's wiped between invocations) — better-sqlite3 opening
+// (or creating) a file under the repo's working directory throws there,
+// which is what took every /auth/* route down in production. DATABASE_URL
+// being set is what switches storage to Postgres (the same Neon database
+// apps/api uses; see apps/api/app/storage.py) instead: dev (`next dev`) and e2e
+// (playwright.config.ts) never set it, so both keep using the sqlite file
+// below completely unchanged. IMPORTANT: this must be the PLAIN
+// `postgresql://` scheme the `pg` driver expects — never apps/api's
+// `postgresql+psycopg://` scheme, which is SQLAlchemy-specific and `pg`
+// cannot parse. See .env.example for the two-scheme note.
+const usePostgres = Boolean(process.env.DATABASE_URL);
+
+if (!usePostgres && DB_PATH !== ":memory:") {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 }
 
@@ -58,7 +73,9 @@ export const googleAuthEnabled = Boolean(
 );
 
 export const auth = betterAuth({
-  database: new Database(DB_PATH),
+  database: usePostgres
+    ? new Pool({ connectionString: process.env.DATABASE_URL })
+    : new Database(DB_PATH),
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   // Deliberately NOT under /api/* (Better Auth's own default): next.config.ts
@@ -123,11 +140,15 @@ export const auth = betterAuth({
     : {}),
 });
 
-// Better Auth never auto-migrates its own schema — the CLI's `migrate`
-// command normally does this once before deploy. There's no such deploy
-// step in this repo yet, so this runs the equivalent migration
-// programmatically, once per process, the first time anything needs the
-// database (every entry point below awaits it before touching `auth`).
+// Better Auth never auto-migrates its own schema. In production the
+// Postgres schema is applied once, out of band, via
+// `npx @better-auth/cli@latest migrate` against Neon (see
+// docs/founder-todo.md) — this call is then a no-op diff check on every
+// cold start. For the sqlite path (dev, e2e) there's no such deploy step,
+// so this is what actually creates/updates the schema, once per process,
+// the first time anything needs the database (every entry point below
+// awaits it before touching `auth`). Either way it's idempotent, so
+// leaving it in place for both backends is strictly a safety net.
 let migrationsPromise: Promise<void> | null = null;
 
 export function authReady(): Promise<void> {
