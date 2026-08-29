@@ -25,3 +25,4 @@ apps/web/playwright-report/
 apps/web/blob-report/
 # ruflo/claude-flow runtime state — never committed
 .claude-flow/
+.neon
