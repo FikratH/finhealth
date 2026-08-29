@@ -36,6 +36,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from . import scoring as S
 from .i18n_ratios import (
     localize_ratio, localize_ratio_warning, localize_ratio_warnings,
 )
@@ -89,8 +90,10 @@ CATEGORY_LABELS_EN: dict[str, str] = {
 # Reverse-keyed by the RU display name (not the dict key) because that's
 # what's already baked into stored payloads (AnalysisResult.missing_metrics
 # is a list of *names*, not keys) — see localize_missing_metrics below.
-# Mirrors apps/web/lib/metric-names.ts's EN column exactly so the same
-# metric reads identically whether it's named by the API or the web.
+# Mirrors apps/web/lib/metric-names.ts's EN column so the same metric
+# reads identically whether it's named by the API or the web (F5 fix:
+# `sga_expense` had drifted to a spelled-out variant — corrected to
+# metric-names.ts's own "SG&A Expenses").
 # ---------------------------------------------------------------------------
 METRIC_NAME_RU_TO_EN: dict[str, str] = {
     "Выручка": "Revenue",
@@ -121,7 +124,7 @@ METRIC_NAME_RU_TO_EN: dict[str, str] = {
     "Основные средства": "Property, Plant & Equipment",
     "Долгосрочные займы": "Long-Term Debt",
     "Амортизация": "Depreciation & Amortization",
-    "Коммерческие и управленческие расходы": "Selling, General & Administrative Expenses",
+    "Коммерческие и управленческие расходы": "SG&A Expenses",
 }
 
 
@@ -159,6 +162,18 @@ def localize_missing_metrics(missing_metrics: list[str]) -> list[str]:
 # already-localized missing_metrics list, mirroring
 # scoring.compute_confidence's note-building order exactly (no-previous,
 # manual, audited, missing — see that function).
+#
+# DELIBERATE upward divergence, do not "fix" to match RU: the RU note's
+# own missing-values list (scoring.compute_confidence's `missing = [v.metric
+# for v in values if v.value is None]`) uses raw metric KEYS ("ebitda",
+# "shares_outstanding"), not the display names `AnalysisResult.
+# missing_metrics` carries. The EN note below uses `missing_metrics_en` —
+# real display names ("EBITDA", "Shares Outstanding") — because there's no
+# reason to import the RU sentence's own rougher edge into a fresh
+# translation when a cleaner source was already sitting right there. A
+# future parity pass should leave this alone; if anything, the RU sentence
+# is the one that should eventually switch to display names too (tracked
+# as a both-locales backlog item, not part of this round).
 # ---------------------------------------------------------------------------
 def confidence_notes_en(confidence: dict, missing_metrics_en: list[str]) -> list[str]:
     notes: list[str] = []
@@ -205,6 +220,18 @@ _STATIC_TOP_WARNING_EN: dict[str, str] = {
 
 
 def _score_note_en(category_scores: list[dict]) -> Optional[str]:
+    """Mirrors scoring.overall_score's own branch order exactly: it checks
+    `available` (categories that actually scored) FIRST, and only talks
+    about renormalization in the branch where at least one category did.
+    F1 fix: the earlier version skipped straight to the renormalization
+    sentence whenever any category lacked a score — which, when NO
+    category has data at all (`overall_score` is null, a first-class UI
+    state), asserted a renormalization that never happened, listing every
+    category as if weights had been redistributed among the others."""
+    available = [c for c in category_scores
+                if c.get("score") is not None and (c.get("weight") or 0) > 0]
+    if not available:
+        return "Not enough data in any scoring category."
     skipped = [CATEGORY_LABELS_EN.get(c.get("category"), c.get("label"))
                for c in category_scores
                if c.get("score") is None and (c.get("weight") or 0) > 0]
@@ -291,6 +318,32 @@ def localize_source_values(source_values: list[dict]) -> list[dict]:
     return [{**v, "source": localize_source_ref(v.get("source", ""))} for v in source_values]
 
 
+def industry_name_en(payload: dict, industry: str) -> str:
+    """F3 fix: `industry_name_en` was only added to `AnalysisResult` in a
+    prior founder-R1 round, so a genuinely legacy payload stored before
+    that round has it absent/empty — the old fallback
+    (`industry_name_en or industry_name`) then silently returned the RU
+    name under `?locale=en`. `benchmarks.json` has carried `name_en` for
+    every industry since that same round, so a FRESH lookup by the
+    payload's own `industry` id (same pattern `i18n_ratios.py`'s
+    `_industry_benchmark_entry` already uses for benchmark notes) gets the
+    real EN name for a legacy payload too, rather than only ever reading
+    what happened to be stored at analysis time. Falls back to the stored
+    RU name only if the industry id itself is now unknown (a genuinely
+    unrecoverable case — an industry removed from benchmarks.json since
+    this analysis was made)."""
+    stored_en = payload.get("industry_name_en")
+    if stored_en:
+        return stored_en
+    try:
+        cfg = S.get_industry(industry)
+    except KeyError:
+        cfg = None
+    if cfg and cfg.get("name_en"):
+        return cfg["name_en"]
+    return payload.get("industry_name", "")
+
+
 # ---------------------------------------------------------------------------
 # Top-level orchestrator.
 # ---------------------------------------------------------------------------
@@ -306,7 +359,7 @@ def localize_payload(payload: dict) -> dict:
     industry = payload.get("industry", "")
 
     out["health_label"] = health_label_en(payload.get("overall_score"))
-    out["industry_name"] = payload.get("industry_name_en") or payload.get("industry_name", "")
+    out["industry_name"] = industry_name_en(payload, industry)
 
     out["category_scores"] = [
         {**c, "label": CATEGORY_LABELS_EN.get(c.get("category"), c.get("label"))}

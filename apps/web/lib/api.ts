@@ -314,10 +314,16 @@ export function deleteAnalysis(id: string): Promise<DeleteAnalysisResponse> {
 /** GET /api/my/analyses — the signed-in user's own analyses, newest
  * first, capped at 50. A summary projection (id, created_at,
  * industry_name, overall_score, health_label) — never the full
- * `AnalysisResult` payload. 401 (`auth_required`) when signed out. */
-export function getMyAnalyses(): Promise<MyAnalysesResponse> {
+ * `AnalysisResult` payload. 401 (`auth_required`) when signed out.
+ * `locale` (additive, founder feedback R1 fix-round F2, optional):
+ * forwarded as `?locale=` — each row's `health_label` (free-text RU
+ * prose, unlike `industry_name`/`industry_name_en`'s already-dual-field
+ * shape) is rendered server-side in the requested locale. Omitted, the
+ * API's own `ru` default applies. */
+export function getMyAnalyses(locale?: string): Promise<MyAnalysesResponse> {
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
   return request<MyAnalysesResponse>(
-    "/api/my/analyses",
+    `/api/my/analyses${query}`,
     { method: "GET" },
     DEFAULT_TIMEOUT_MS,
   );

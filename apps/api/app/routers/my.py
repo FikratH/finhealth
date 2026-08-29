@@ -28,7 +28,7 @@ from fastapi.responses import StreamingResponse
 from .. import auth, entitlements, storage
 from ..ratelimit import rate_limit
 from ..schemas import MyAnalysesResponse, MyDocumentsResponse
-from ..services import vault
+from ..services import i18n, vault
 
 log = logging.getLogger("finhealth.my")
 
@@ -86,32 +86,44 @@ def _content_disposition(filename: str) -> str:
 
 
 @router.get("/api/my/analyses", response_model=MyAnalysesResponse)
-def my_analyses(user_id: str = Depends(auth.require_user)):
+def my_analyses(locale: str | None = None, user_id: str = Depends(auth.require_user)):
     """«Мои анализы» — the signed-in user's own analyses, newest first,
     capped at 50. Auth-gated (401 anonymous, via require_user); a summary
     projection only, never the full stored payload. Also carries the
     caller's plan (get_or_create is cheap and idempotent) so the frontend
-    can show a quiet plan chip without a second request."""
+    can show a quiet plan chip without a second request.
+
+    `?locale=ru|en` (additive, founder-r1 fix-round F2, default `ru`):
+    `health_label` is a free-text RU sentence («Хорошее состояние»), not a
+    machine-picked field the web could localize on its own the way it
+    already does for `industry_name`/`industry_name_en` (both are always
+    returned side by side — the frontend has picked between them since
+    the original founder-R1 round). `?locale=en` swaps `health_label` for
+    `i18n.health_label_en()`'s equivalent, recomputed straight from
+    `overall_score` — the same score/band logic `GET /api/analysis/{id}`
+    already uses, so a row here always agrees with what that analysis's
+    own results page shows. `industry_name_en` also gets the same F3 fix
+    applied (a fresh `benchmarks.json` lookup by the row's own `industry`
+    id when the stored field is empty/legacy) rather than silently
+    returning the RU name for a pre-founder-R1 row."""
+    loc = i18n.normalize_locale(locale)
     rows = storage.list_analyses_for_user(user_id, limit=50)
     plan = entitlements.get_or_create(user_id)["plan"]
-    return {
-        "plan": plan,
-        "analyses": [
-            {
-                "analysis_id": row["id"],
-                "created_at": row["created_at"],
-                "industry_name": row["payload"].get("industry_name", ""),
-                # Additive (founder feedback R1): absent on analyses
-                # persisted before industry_name_en existed, so this falls
-                # back to the RU name rather than rendering a blank chip.
-                "industry_name_en": (row["payload"].get("industry_name_en")
-                                      or row["payload"].get("industry_name", "")),
-                "overall_score": row["payload"].get("overall_score"),
-                "health_label": row["payload"].get("health_label", ""),
-            }
-            for row in rows
-        ]
-    }
+    analyses = []
+    for row in rows:
+        payload = row["payload"]
+        score = payload.get("overall_score")
+        health_label = (i18n.health_label_en(score) if loc == "en"
+                        else payload.get("health_label", ""))
+        analyses.append({
+            "analysis_id": row["id"],
+            "created_at": row["created_at"],
+            "industry_name": payload.get("industry_name", ""),
+            "industry_name_en": i18n.industry_name_en(payload, payload.get("industry", "")),
+            "overall_score": score,
+            "health_label": health_label,
+        })
+    return {"plan": plan, "analyses": analyses}
 
 
 @router.delete("/api/my/analyses/{analysis_id}")

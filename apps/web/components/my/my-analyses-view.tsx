@@ -111,7 +111,7 @@ function MyAnalysesContent({ locale, onAuthFailure }: MyAnalysesContentProps) {
     // the remount a key change on MyAnalysesView produces), which covers
     // this case; the only state changes below happen inside the promise
     // callbacks.
-    getMyAnalyses()
+    getMyAnalyses(locale)
       .then((res) => {
         if (cancelled) return;
         setAnalyses(res.analyses);
@@ -136,7 +136,7 @@ function MyAnalysesContent({ locale, onAuthFailure }: MyAnalysesContentProps) {
     return () => {
       cancelled = true;
     };
-  }, [onAuthFailure]);
+  }, [onAuthFailure, locale]);
 
   async function handleDelete(id: string) {
     try {

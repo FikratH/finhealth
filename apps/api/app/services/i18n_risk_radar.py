@@ -94,7 +94,7 @@ _PIOTROSKI_NAME_EN = {
     "roa_improved": "Return on assets improved",
     "accruals": "Operating cash flow exceeds net income",
     "leverage_down": "Leverage decreased",
-    "liquidity_up": "Current liquidity improved",
+    "liquidity_up": "Current ratio improved",
     "no_dilution": "No share dilution",
     "gross_margin_up": "Gross margin improved",
     "turnover_up": "Asset turnover improved",
@@ -311,7 +311,11 @@ def _beneish_interpretation_en(beneish: dict) -> str:
     if m_score is None:
         available = [k for k in _BENEISH_INDEX_ORDER if indices.get(k) is not None]
         missing = [k for k in _BENEISH_INDEX_ORDER if indices.get(k) is None]
-        names = ", ".join(_BENEISH_LABEL_EN[k] for k in missing)
+        # F4 fix: .get(k, k) — an index key this table doesn't recognize
+        # (a future beneish.py addition this module hasn't been updated
+        # for) must fall back to the raw key, never KeyError the whole
+        # EN path into a 500.
+        names = ", ".join(_BENEISH_LABEL_EN.get(k, k) for k in missing)
         return (f"The Beneish M-Score was not calculated: {len(available)} of 8 indices "
                 f"are available (a minimum of {_BENEISH_MIN_AVAILABLE} is required). "
                 f"Could not compute: {names}.")
@@ -320,7 +324,7 @@ def _beneish_interpretation_en(beneish: dict) -> str:
     text = f"M-Score = {m_score:.4f}. The value {zone}."
     substituted = beneish.get("substituted") or []
     if substituted:
-        names = ", ".join(_BENEISH_LABEL_EN[k] for k in substituted)
+        names = ", ".join(_BENEISH_LABEL_EN.get(k, k) for k in substituted)
         text += f" Indices without data were replaced with a neutral value: {names}."
     return text
 

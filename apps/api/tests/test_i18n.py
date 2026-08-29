@@ -491,8 +491,127 @@ def test_localize_payload_degrades_gracefully_on_legacy_shape():
         # risk_radar deliberately absent — pre-2026-08-27 shape.
     }
     out = i18n.localize_payload(legacy)
-    assert out["industry_name"] == "Производство"  # falls back, doesn't blank out
+    # F3 fix: a legacy row with no industry_name_en re-derives the EN name
+    # live from benchmarks.json (still known for "manufacturing") rather
+    # than falling back to the stored RU name.
+    assert out["industry_name"] == "Manufacturing"
     assert out["health_label"] == "Good condition"
     assert "risk_radar" not in out
     # An unrecognized warning message degrades to itself, not a crash.
     assert out["warnings"][0]["message"] == "какое-то новое сообщение"
+
+
+def test_industry_name_en_falls_back_to_stored_ru_when_industry_id_is_unknown():
+    # A genuinely unrecoverable case: the industry itself no longer exists
+    # in benchmarks.json (removed since this analysis was made) — the live
+    # lookup can't help, so this degrades to the stored RU name rather
+    # than raising.
+    payload = {"industry": "no_longer_exists", "industry_name": "Устаревшая отрасль",
+              "industry_name_en": ""}
+    assert i18n.industry_name_en(payload, "no_longer_exists") == "Устаревшая отрасль"
+
+
+# ---------------------------------------------------------------------------
+# Fix round F1: overall_score None (no category scored at all) must never
+# be reported as a renormalization that didn't happen.
+# ---------------------------------------------------------------------------
+def test_score_note_en_when_no_category_has_data():
+    category_scores = [
+        {"category": "liquidity", "label": "Ликвидность", "score": None, "weight": 1.0},
+        {"category": "leverage", "label": "Долговая нагрузка", "score": None, "weight": 1.0},
+    ]
+    assert i18n._score_note_en(category_scores) == "Not enough data in any scoring category."
+
+
+def test_score_note_en_when_some_categories_skipped_but_others_scored():
+    category_scores = [
+        {"category": "liquidity", "label": "Ликвидность", "score": 80.0, "weight": 1.0},
+        {"category": "leverage", "label": "Долговая нагрузка", "score": None, "weight": 1.0},
+    ]
+    note = i18n._score_note_en(category_scores)
+    assert note is not None
+    assert note.startswith("Categories without data were excluded")
+    assert "Leverage" in note
+
+
+def test_overall_score_none_in_both_locales_end_to_end():
+    # No values at all -> every category is unscored -> overall_score None.
+    req = AnalysisRequest(industry="manufacturing", scale=Scale.units, values=[])
+    result = run_analysis(req)
+    payload = result.model_dump(mode="json")
+    assert payload["overall_score"] is None
+    score_warning_ru = next(w for w in payload["warnings"] if w["code"] == "score")
+    assert score_warning_ru["message"] == "Недостаточно данных ни для одной категории оценки."
+    localized = i18n.localize_payload(payload)
+    score_warning_en = next(w for w in localized["warnings"] if w["code"] == "score")
+    assert score_warning_en["message"] == "Not enough data in any scoring category."
+    assert "renormalized" not in score_warning_en["message"]
+    assert localized["health_label"] == "Not enough data to score"
+
+
+# ---------------------------------------------------------------------------
+# Fix round F2: GET /api/my/analyses honors ?locale= per row. Same
+# JWT-based auth convention as tests/test_my_analyses.py (AUTH_JWT_SECRET
+# + a real signed token), not a dependency override, so this exercises the
+# actual auth.require_user path end to end.
+# ---------------------------------------------------------------------------
+def test_my_analyses_locale_en_localizes_health_label(monkeypatch):
+    import jwt
+    from datetime import datetime, timedelta, timezone
+    from app import storage
+
+    secret = "test-only-secret-i18n-f2-needs-32-bytes-min"
+    monkeypatch.setenv("AUTH_JWT_SECRET", secret)
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {"sub": "test-user-f2", "iss": "tonus-web", "aud": "tonus-api",
+         "iat": now, "exp": now + timedelta(hours=1)},
+        secret, algorithm="HS256")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    storage.save_analysis(
+        "f2-analysis-id", "2026-08-29T00:00:00Z",
+        {"analysis_id": "f2-analysis-id", "industry": "manufacturing",
+         "industry_name": "Производство", "industry_name_en": "",
+         "overall_score": 93.2, "health_label": "Сильное состояние"},
+        user_id="test-user-f2")
+
+    ru = client.get("/api/my/analyses", headers=headers).json()
+    en = client.get("/api/my/analyses?locale=en", headers=headers).json()
+
+    row_ru = next(r for r in ru["analyses"] if r["analysis_id"] == "f2-analysis-id")
+    row_en = next(r for r in en["analyses"] if r["analysis_id"] == "f2-analysis-id")
+    assert row_ru["health_label"] == "Сильное состояние"
+    assert row_en["health_label"] == "Strong condition"
+    assert row_en["health_label"] == i18n.health_label_en(row_en["overall_score"])
+    # F2's companion fix: industry_name_en re-derives live too, even
+    # though this row's stored industry_name_en was never populated.
+    assert row_en["industry_name_en"] == "Manufacturing"
+
+
+# ---------------------------------------------------------------------------
+# Fix round F4: an unrecognized Beneish index/flag must never 500 the EN path.
+# ---------------------------------------------------------------------------
+def test_beneish_unknown_index_key_falls_back_instead_of_crashing():
+    beneish = {"m_score": None, "indices": {"DSRI": None, "NEWIDX": None},
+              "flag": None, "substituted": []}
+    # Patch the index order so "NEWIDX" is actually walked (simulates a
+    # future beneish.py adding a 9th index this table hasn't learned yet).
+    RR._BENEISH_INDEX_ORDER.append("NEWIDX")
+    try:
+        interp = RR._beneish_interpretation_en(beneish)
+    finally:
+        RR._BENEISH_INDEX_ORDER.remove("NEWIDX")
+    assert "NEWIDX" in interp  # raw key passthrough, not a KeyError
+
+
+def test_beneish_unknown_substituted_key_falls_back_instead_of_crashing():
+    beneish = {"m_score": -2.0, "flag": "grey", "substituted": ["NEWIDX"]}
+    interp = RR._beneish_interpretation_en(beneish)
+    assert "NEWIDX" in interp
+
+
+def test_beneish_unknown_flag_falls_back_instead_of_crashing():
+    beneish = {"m_score": -2.0, "flag": "mystery-flag", "substituted": []}
+    interp = RR._beneish_interpretation_en(beneish)
+    assert "mystery-flag" in interp

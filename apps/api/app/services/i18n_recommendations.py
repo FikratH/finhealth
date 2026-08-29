@@ -18,7 +18,7 @@ from typing import Optional
 _RULES_EN: dict[str, dict] = {
     "current_ratio": {
         "low": dict(
-            problem="Current liquidity is below the industry benchmark: current liabilities "
+            problem="The current ratio is below the industry benchmark: current liabilities "
                     "are not adequately covered by current assets.",
             action="Consider reducing short-term debt: refinance part of the short-term debt "
                    "into longer maturities, renegotiate payment schedules with suppliers, "
@@ -28,7 +28,7 @@ _RULES_EN: dict[str, dict] = {
                       "out payments to suppliers can worsen purchasing terms.",
             priority="high", difficulty="medium"),
         "high": dict(
-            problem="Current liquidity is noticeably above the industry norm — working "
+            problem="The current ratio is noticeably above the industry norm — working "
                     "capital may be sitting idle.",
             action="Review the structure of current assets: excess inventory or cash could "
                    "instead be used to pay down debt, invest, or pay dividends.",
@@ -39,7 +39,7 @@ _RULES_EN: dict[str, dict] = {
     },
     "quick_ratio": {
         "low": dict(
-            problem="Quick liquidity is below the benchmark: without selling inventory, the "
+            problem="The quick ratio is below the benchmark: without selling inventory, the "
                     "company may not be able to cover its current liabilities.",
             action="Improve receivables management (shorter payment terms, active collection "
                    "of overdue amounts, factoring) and maintain a larger cash balance.",
@@ -141,7 +141,7 @@ _RULES_EN: dict[str, dict] = {
     "inventory_turnover": {
         "low": dict(
             problem="Inventory turnover is below the industry benchmark — capital is tied "
-                    "up in the warehouse.",
+                    "up in inventory.",
             action="Speed up inventory turnover: ABC/XYZ analysis, clearing out slow-moving "
                    "stock, switching to more frequent smaller purchase batches, and demand "
                    "forecasting.",
@@ -244,7 +244,17 @@ def strengths_and_risks_en(ratios: list[dict]) -> tuple[list[str], list[str]]:
     exactly, built directly from structured fields (name/value/unit/
     status/score) rather than truncating the localized `explanation`
     string at a "Verdict:" marker — that would be fragile, silently
-    breaking the moment either sentence's wording changes."""
+    breaking the moment either sentence's wording changes.
+
+    DELIBERATE upward divergence, do not "fix" to match RU: the RU
+    sentence (`r.explanation.split('Вывод:')[0].strip()`) carries the
+    ratio's own "Значение X. Диапазон: A–B." prefix along for the ride —
+    an accident of string-splitting an existing sentence, not a design
+    choice. The EN sentence below is deliberately just "{name}: {value} —
+    within the industry benchmark", without re-stating the range that's
+    already visible on the ratio's own row. Cleaner, not a translation
+    gap — a future parity pass should leave this alone (tracked as a
+    both-locales backlog item, not part of this round)."""
     strengths, risks = [], []
     for r in ratios:
         if not r.get("applicable", True) or r.get("value") is None or not r.get("benchmark"):
