@@ -122,7 +122,17 @@ export const auth = betterAuth({
   basePath: "/auth",
   plugins: [
     magicLink({
-      sendMagicLink: async ({ email, url }) => {
+      sendMagicLink: async ({ email, url, metadata }) => {
+        // Locale-aware email (founder round 3): signin-form.tsx passes the
+        // page's own locale through as `metadata.locale` on the client
+        // call (authClient.signIn.magicLink) — Better Auth forwards it
+        // here untouched via the magic-link plugin's own `metadata` field,
+        // so this stays a request-scoped value with no extra state. Only
+        // "en" opts into the English copy; every other value (undefined,
+        // "ru", or anything unrecognized) keeps the original Russian
+        // email, matching every locale-unaware caller (dev transport,
+        // tests, auth.api.signInMagicLink called directly).
+        const locale = metadata?.locale === "en" ? "en" : "ru";
         if (process.env.NODE_ENV === "production") {
           if (!process.env.RESEND_API_KEY) {
             // Fail closed (fix round 1, security ruling): logging a live,
@@ -138,7 +148,7 @@ export const auth = betterAuth({
           // sendMagicLinkEmail itself fails closed on any Resend error
           // (network or non-2xx) — a generic, link-free throw that reaches
           // the same signin-form error path as the branch above.
-          await sendMagicLinkEmail({ email, url });
+          await sendMagicLinkEmail({ email, url, locale });
           return;
         }
         // Dev transport (`next dev`): this line IS the "email" for local

@@ -14,9 +14,9 @@ vi.mock("@/lib/auth-client", () => ({
 
 const { SigninForm } = await import("@/components/signin-form");
 
-function renderForm(googleEnabled = false) {
+function renderForm(googleEnabled = false, locale = "ru") {
   return render(
-    <NextIntlClientProvider locale="ru" messages={ruMessages}>
+    <NextIntlClientProvider locale={locale} messages={ruMessages}>
       <SigninForm googleEnabled={googleEnabled} />
     </NextIntlClientProvider>,
   );
@@ -51,9 +51,33 @@ describe("SigninForm", () => {
         ruMessages.SignIn.sentDescription.replace("{email}", "founder@example.com"),
       ),
     ).toBeInTheDocument();
-    expect(magicLink).toHaveBeenCalledWith({ email: "founder@example.com", callbackURL: "/" });
+    // metadata.locale (founder round 3) threads the page's own locale
+    // through to lib/auth.ts's sendMagicLink callback, which uses it to
+    // pick the email's language — see lib/resend.ts for the two copies.
+    expect(magicLink).toHaveBeenCalledWith({
+      email: "founder@example.com",
+      callbackURL: "/",
+      metadata: { locale: "ru" },
+    });
     // The form itself is gone — a composed replacement, not an inline toast.
     expect(screen.queryByLabelText(ruMessages.SignIn.emailLabel)).not.toBeInTheDocument();
+  });
+
+  it("threads the current locale through as metadata.locale on an /en signin", async () => {
+    magicLink.mockResolvedValue({ data: { status: true }, error: null });
+    renderForm(false, "en");
+
+    fireEvent.change(screen.getByLabelText(ruMessages.SignIn.emailLabel), {
+      target: { value: "founder@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: ruMessages.SignIn.submitButton }));
+
+    await screen.findByText(ruMessages.SignIn.sentTitle);
+    expect(magicLink).toHaveBeenCalledWith({
+      email: "founder@example.com",
+      callbackURL: "/",
+      metadata: { locale: "en" },
+    });
   });
 
   it("P7 T1b: the role=status live region is present from first render, not just once sent — the more reliable shape for AT announcements", () => {

@@ -4,9 +4,18 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AccountMenu } from "@/components/account-menu";
+import { AccountMenu, AccountNavLink } from "@/components/account-menu";
 import { CURRENT_LINK_CLASS, IDLE_LINK_CLASS } from "@/components/nav-link-class";
 import { cn } from "@/lib/utils";
+
+// The hairline that separates the header's three right-side clusters (NAV /
+// ACCOUNT / PREFS — founder round 3's regrouping, see the flex row below).
+// Hidden below `sm`: at a cramped 390px header the gap rhythm alone still
+// reads as grouped, and a bare 1px rule between five-plus items has less
+// room to breathe than the spacing itself needs.
+function ClusterDivider() {
+  return <span aria-hidden="true" className="hidden h-4 w-px bg-line sm:block" />;
+}
 
 // The landing route composes its own utility row (locale switch, theme
 // toggle) directly, and its own hero-scale logo reveal is the page's one
@@ -66,20 +75,39 @@ export function SiteHeader() {
           />
           <span className="sr-only">{t("wordmark")}</span>
         </Link>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/pricing"
-            aria-current={pathname === "/pricing" ? "page" : undefined}
-            className={cn(
-              "rounded-sm font-mono text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              pathname === "/pricing" ? CURRENT_LINK_CLASS : IDLE_LINK_CLASS,
-            )}
-          >
-            {t("pricing")}
-          </Link>
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* NAV cluster: primary navigation, unchanged grammar — mono-caps
+           * links with the shared current-location glow. "Мои анализы"
+           * joins Pricing here (not the ACCOUNT cluster) because it's a
+           * destination, not an identity control. */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/pricing"
+              aria-current={pathname === "/pricing" ? "page" : undefined}
+              className={cn(
+                "rounded-sm font-mono text-xs uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                pathname === "/pricing" ? CURRENT_LINK_CLASS : IDLE_LINK_CLASS,
+              )}
+            >
+              {t("pricing")}
+            </Link>
+            <AccountNavLink />
+          </div>
+
+          <ClusterDivider />
+
+          {/* ACCOUNT cluster: the signed-in identity chip + "Выйти", or
+           * "Войти" signed-out — see account-menu.tsx's own header comment
+           * for the full split rationale. */}
           <AccountMenu />
-          <LocaleSwitch />
-          <ThemeToggle />
+
+          <ClusterDivider />
+
+          {/* PREFS cluster: locale + theme, unchanged. */}
+          <div className="flex items-center gap-3">
+            <LocaleSwitch />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </header>

@@ -52,8 +52,66 @@ describe("lib/resend.ts — sendMagicLinkEmail", () => {
     expect(body.subject).toBe("Вход в Tonus");
     expect(body.text).toContain(MAGIC_URL);
     expect(body.html).toContain(MAGIC_URL);
-    // No invented branding claims — a plain-text disclaimer line only.
     expect(body.text).toContain("Если вы не запрашивали вход");
+  });
+
+  it("defaults to Russian when no locale is given (every locale-unaware caller keeps the original copy)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { id: "email_123" })));
+
+    await sendMagicLinkEmail({ email: EMAIL, url: MAGIC_URL });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(String(init?.body));
+    expect(body.subject).toBe("Вход в Tonus");
+    expect(body.html).toContain("Вход в Tonus");
+  });
+
+  it("sends the English copy when locale is 'en' (founder round 3, /en signins)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { id: "email_123" })));
+
+    await sendMagicLinkEmail({ email: EMAIL, url: MAGIC_URL, locale: "en" });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(String(init?.body));
+    expect(body.subject).toBe("Sign in to Tonus");
+    expect(body.text).toContain(MAGIC_URL);
+    expect(body.html).toContain(MAGIC_URL);
+    expect(body.html).toContain("Sign in to Tonus");
+    expect(body.text).toContain("If you didn't request this");
+  });
+
+  it("builds a professional table-based HTML layout: hosted logo, a real button, and no external stylesheet", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, { id: "email_123" })));
+
+    await sendMagicLinkEmail({ email: EMAIL, url: MAGIC_URL });
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(String(init?.body));
+    const html: string = body.html;
+
+    // Hosted brand wordmark, not a re-typeset one (The Wordmark Rule).
+    expect(html).toContain('src="https://tonusai.vercel.app/brand/logo-teal.png"');
+    expect(html).toContain('alt="Tonus"');
+    expect(html).toContain('width="140"');
+
+    // A real button CTA — bulletproof pattern: bgcolor'd table cell around
+    // a padded link — plus the raw link repeated as fallback text.
+    expect(html).toContain("bgcolor=");
+    expect(html).toContain(`href="${MAGIC_URL}"`);
+    // Button href, fallback href, and the fallback's own visible link text
+    // all carry the same URL — the "raw link below it as fallback text"
+    // convention on top of the button.
+    expect(
+      html.match(new RegExp(MAGIC_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))?.length,
+    ).toBe(3);
+    expect(html).toContain("Войти в Tonus");
+
+    // Table-based layout with inline styles only — no external CSS/fonts.
+    expect(html).toContain("<table");
+    expect(html).not.toContain("<link");
+    expect(html).not.toContain("<style");
+    expect(html).not.toMatch(/@import/);
+    expect(html).not.toMatch(/fonts\.googleapis\.com/);
   });
 
   it("uses EMAIL_FROM when set, instead of the Resend shared address", async () => {

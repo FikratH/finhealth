@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { OriginTicket } from "@/components/origin-ticket";
@@ -21,6 +21,7 @@ type Status = "idle" | "pending" | "sent" | "error";
 
 export function SigninForm({ googleEnabled }: SigninFormProps) {
   const t = useTranslations("SignIn");
+  const locale = useLocale();
   const emailId = useId();
   const emailErrorId = useId();
   const [email, setEmail] = useState("");
@@ -35,7 +36,17 @@ export function SigninForm({ googleEnabled }: SigninFormProps) {
     }
     setValidationError(null);
     setStatus("pending");
-    const { error } = await authClient.signIn.magicLink({ email, callbackURL: "/" });
+    // The redirect target (callbackURL) stays "/" regardless of locale —
+    // Better Auth resolves it against baseURL, and the locale-less "/"
+    // already lands on the visitor's own locale via next-intl's routing.
+    // The email's *language* is a separate concern threaded through
+    // `metadata`, which the magic-link plugin forwards verbatim to
+    // lib/auth.ts's sendMagicLink callback (see that file's own comment).
+    const { error } = await authClient.signIn.magicLink({
+      email,
+      callbackURL: "/",
+      metadata: { locale },
+    });
     setStatus(error ? "error" : "sent");
   }
 
