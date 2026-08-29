@@ -98,7 +98,7 @@ export function AnalyzeFlow() {
     if (state.industry === "") return;
     dispatch({ type: "analyze_started" });
     try {
-      const result = await analyze(buildAnalysisRequest(state));
+      const result = await analyze(buildAnalysisRequest(state), locale);
       dispatch({ type: "analyze_succeeded", analysisId: result.analysis_id });
     } catch (err) {
       dispatch({ type: "analyze_failed", error: toAnalyzeError(err, "errors.network") });

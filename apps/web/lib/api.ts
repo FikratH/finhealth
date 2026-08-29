@@ -29,6 +29,15 @@ import type {
 
 const UPLOAD_EXTRACT_TIMEOUT_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 15_000;
+// The narrative endpoint's OWN generation call (not the cached-retry path,
+// which returns instantly — see main.py's `if cached and not refresh:
+// return cached`) can run close to the API's EXTRACT_TIMEOUT_SECONDS-style
+// budget for a slow LLM response; 15s was tight enough that a founder's
+// real click timed out client-side while the server call was still
+// completing normally. 90s matches the upload/extract tier's own budget
+// for "an operation that can genuinely take a while," not the 15s default
+// every small JSON call gets.
+const NARRATIVE_TIMEOUT_MS = 90_000;
 
 /** Registered by a small client bootstrap (components/auth-bootstrap.tsx)
  * once a Better Auth session exists — this module otherwise knows nothing
@@ -243,15 +252,29 @@ export function extract(uploadId: string): Promise<ExtractionResult> {
   );
 }
 
-/** POST /api/analyze — 400 unknown industry id. */
-export function analyze(req: AnalysisRequest): Promise<AnalysisResult> {
-  return requestJson<AnalysisResult>("/api/analyze", "POST", req, DEFAULT_TIMEOUT_MS);
+/** POST /api/analyze — 400 unknown industry id. `locale` (additive,
+ * founder feedback R1, optional): forwarded as `?locale=` on the request
+ * URL (not the JSON body) — affects only the shape of THIS response, not
+ * what gets stored; see apps/api/app/services/i18n.py's module docstring.
+ * Omitted, the API's own `ru` default applies, matching every pre-existing
+ * caller unmodified. */
+export function analyze(req: AnalysisRequest, locale?: string): Promise<AnalysisResult> {
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+  return requestJson<AnalysisResult>(`/api/analyze${query}`, "POST", req, DEFAULT_TIMEOUT_MS);
 }
 
-/** GET /api/analysis/{id} — the stored AnalysisResult payload. 404 unknown id. */
-export function getAnalysis(id: string): Promise<AnalysisResult> {
+/** GET /api/analysis/{id} — the stored AnalysisResult payload. 404 unknown id.
+ * `locale` (additive, founder feedback R1, optional): forwarded as
+ * `?locale=` — omitted, the API's own `ru` default applies, so every
+ * existing caller keeps working unmodified. The results route itself
+ * fetches server-side (lib/api-server.ts's getAnalysisServer) rather than
+ * through this client function; this parameter exists for any future
+ * client-side caller (e.g. a locale-switch re-fetch without a full page
+ * navigation) to stay consistent with the server path. */
+export function getAnalysis(id: string, locale?: string): Promise<AnalysisResult> {
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
   return request<AnalysisResult>(
-    `/api/analysis/${encodeURIComponent(id)}`,
+    `/api/analysis/${encodeURIComponent(id)}${query}`,
     { method: "GET" },
     DEFAULT_TIMEOUT_MS,
   );
@@ -481,6 +504,6 @@ export function generateNarrative(
   return request<NarrativeResult>(
     `/api/analysis/${encodeURIComponent(id)}/narrative${query}`,
     { method: "POST" },
-    DEFAULT_TIMEOUT_MS,
+    NARRATIVE_TIMEOUT_MS,
   );
 }

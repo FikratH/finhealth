@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: ResultsPageProps) {
   // it (see docs/superpowers/plans/2026-08-27-plan-4-diagnosis-experience.md,
   // Task 6's share-metadata privacy requirement).
   try {
-    const analysis = await getAnalysisServer(id, requestId);
+    const analysis = await getAnalysisServer(id, requestId, locale as Locale);
     return {
       title: t("titleWithLabel", { label: analysis.health_label }),
       description: t("description"),
@@ -58,7 +58,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   let analysis;
   try {
-    analysis = await getAnalysisServer(id, requestId);
+    analysis = await getAnalysisServer(id, requestId, locale as Locale);
   } catch (err) {
     // 404 (unknown/expired id) gets the designed not-found.tsx below.
     // Anything else (network, timeout, malformed response) is a real

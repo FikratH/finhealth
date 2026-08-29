@@ -10,6 +10,7 @@
 import { cache } from "react";
 import { ApiError, fallbackKey, readDetail } from "./api";
 import type { AnalysisResult } from "./api-types";
+import type { Locale } from "./format";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -43,15 +44,28 @@ function isAbortError(err: unknown): boolean {
  * upstream of this server (e.g. a proxy/CDN header on the incoming page
  * request — see the results page's own call site) can be carried through
  * rather than starting a second, disconnected trace for the same page
- * load. */
-export const getAnalysisServer = cache(async (id: string, requestId?: string): Promise<AnalysisResult> => {
+ * load.
+ *
+ * `locale` (additive, founder feedback R1 — full API i18n, optional):
+ * forwarded as `?locale=` — the API's own default (`ru`, everything
+ * stored/returned untouched) applies when omitted, so every pre-existing
+ * caller of this function keeps working unmodified. Included in
+ * `cache()`'s memoization key alongside `id`/`requestId` (it's a plain
+ * function argument, and React's `cache()` keys on all of them), so a
+ * locale switch on the results route always re-fetches rather than
+ * silently serving the other locale's already-cached response within the
+ * same render pass. */
+export const getAnalysisServer = cache(async (
+  id: string, requestId?: string, locale?: Locale,
+): Promise<AnalysisResult> => {
   const apiUrl = process.env.API_URL ?? "http://localhost:8000";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
 
   let response: Response;
   try {
-    response = await fetch(`${apiUrl}/api/analysis/${encodeURIComponent(id)}`, {
+    response = await fetch(`${apiUrl}/api/analysis/${encodeURIComponent(id)}${query}`, {
       signal: controller.signal,
       cache: "no-store",
       ...(requestId ? { headers: { "X-Request-ID": requestId } } : {}),
