@@ -101,6 +101,11 @@ def my_analyses(user_id: str = Depends(auth.require_user)):
                 "analysis_id": row["id"],
                 "created_at": row["created_at"],
                 "industry_name": row["payload"].get("industry_name", ""),
+                # Additive (founder feedback R1): absent on analyses
+                # persisted before industry_name_en existed, so this falls
+                # back to the RU name rather than rendering a blank chip.
+                "industry_name_en": (row["payload"].get("industry_name_en")
+                                      or row["payload"].get("industry_name", "")),
                 "overall_score": row["payload"].get("overall_score"),
                 "health_label": row["payload"].get("health_label", ""),
             }

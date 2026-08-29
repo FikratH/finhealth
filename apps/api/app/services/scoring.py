@@ -43,7 +43,15 @@ def load_benchmarks() -> dict:
 
 def list_industries() -> list[dict]:
     data = load_benchmarks()["industries"]
-    return [{"id": k, "name": v["name"], "note": v.get("note", "")}
+    # Additive (founder feedback R1): `name_en`/`note_en` sit alongside the
+    # RU `name`/`note` rather than replacing them — the API stays backward
+    # compatible for any caller still reading `name` only, while a
+    # locale-aware caller (apps/web's industry combobox/chips) picks
+    # whichever field matches its own locale. Falls back to the RU value
+    # when an entry hasn't been translated yet, so a missing translation
+    # degrades to the status quo rather than rendering blank.
+    return [{"id": k, "name": v["name"], "name_en": v.get("name_en", v["name"]),
+             "note": v.get("note", ""), "note_en": v.get("note_en", v.get("note", ""))}
             for k, v in data.items()]
 
 

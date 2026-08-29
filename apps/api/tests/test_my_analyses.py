@@ -140,6 +140,10 @@ def test_projection_fields(monkeypatch):
         "analysis_id": "p1",
         "created_at": "2026-08-20T12:00:00Z",
         "industry_name": "Розница",
+        # Additive (founder feedback R1): absent from the seeded payload
+        # (no industry_name_en key), so the my.py projection falls back to
+        # industry_name rather than a blank string.
+        "industry_name_en": "Розница",
         "overall_score": 63.4,
         "health_label": "Удовлетворительное состояние",
     }

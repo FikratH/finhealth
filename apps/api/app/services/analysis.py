@@ -102,6 +102,7 @@ def run_analysis(req: AnalysisRequest) -> AnalysisResult:
         created_at=datetime.now(timezone.utc).isoformat(),
         industry=req.industry,
         industry_name=industry_cfg["name"],
+        industry_name_en=industry_cfg.get("name_en", industry_cfg["name"]),
         currency=req.currency,
         scale=req.scale,
         latest_period=req.latest_period,

@@ -233,6 +233,13 @@ class AnalysisResult(BaseModel):
     created_at: str
     industry: str
     industry_name: str
+    # Additive (founder feedback R1): the EN industry name baked in at
+    # analysis time, mirroring `industry_name` — see
+    # services/analysis.py's run_analysis and scoring.py's `name_en`.
+    # Defaults to "" so a payload persisted before this field existed still
+    # validates; the frontend falls back to `industry_name` when this is
+    # empty rather than rendering a blank chip.
+    industry_name_en: str = ""
     currency: Optional[str] = None
     scale: Scale
     latest_period: Optional[str] = None
@@ -266,6 +273,9 @@ class MyAnalysisSummary(BaseModel):
     analysis_id: str
     created_at: str
     industry_name: str
+    # Additive (founder feedback R1), same shape/fallback rules as
+    # AnalysisResult.industry_name_en above.
+    industry_name_en: str = ""
     overall_score: Optional[float]
     health_label: str
 

@@ -3,7 +3,9 @@
   "industries": {
     "saas": {
       "name": "Software и SaaS",
+      "name_en": "Software and SaaS",
       "note": "Приоритет — маржинальность, денежный поток и умеренная долговая нагрузка; запасы и их оборачиваемость не характерны для отрасли.",
+      "note_en": "Priority: margin, cash flow, and moderate leverage; inventory and its turnover are not characteristic of this industry.",
       "category_weights": {
         "liquidity": 0.15,
         "leverage": 0.2,
@@ -368,7 +370,9 @@
     },
     "retail": {
       "name": "Розничная торговля и e-commerce",
+      "name_en": "Retail and e-commerce",
       "note": "Низкая маржинальность компенсируется высокой оборачиваемостью запасов; критичны ликвидность и управление оборотным капиталом.",
+      "note_en": "Low margins are offset by high inventory turnover; liquidity and working-capital management are critical.",
       "category_weights": {
         "liquidity": 0.25,
         "leverage": 0.2,
@@ -764,7 +768,9 @@
     },
     "manufacturing": {
       "name": "Производство",
+      "name_en": "Manufacturing",
       "note": "Капиталоёмкая отрасль: важны запасы, долговая нагрузка и покрытие процентов.",
+      "note_en": "A capital-intensive industry: inventory, leverage, and interest coverage matter.",
       "category_weights": {
         "liquidity": 0.2,
         "leverage": 0.25,
@@ -1160,7 +1166,9 @@
     },
     "healthcare": {
       "name": "Здравоохранение и фармацевтика",
+      "name_en": "Healthcare and pharmaceuticals",
       "note": "Высокие затраты на R&D и регуляторные риски; важны маржинальность и денежный поток.",
+      "note_en": "High R&D spending and regulatory risk; margin and cash flow matter most.",
       "category_weights": {
         "liquidity": 0.2,
         "leverage": 0.2,
@@ -1556,7 +1564,9 @@
     },
     "banking": {
       "name": "Банки и финансовые услуги",
+      "name_en": "Banking and financial services",
       "note": "Классические Current/Quick Ratio и Altman Z-Score не применимы к банковскому балансу. В MVP оцениваются рентабельность, качество капитала и рыночные мультипликаторы; полноценный банковский анализ требует CAR, NIM, NPL и других специализированных метрик.",
+      "note_en": "Classic Current/Quick Ratio and Altman Z-Score don't apply to a bank's balance sheet. This MVP evaluates profitability, capital quality, and market multiples; full banking analysis requires CAR, NIM, NPL, and other specialized metrics.",
       "category_weights": {
         "liquidity": 0.0,
         "leverage": 0.3,
@@ -1759,7 +1769,9 @@
     },
     "energy": {
       "name": "Энергетика, нефтегаз и коммунальные услуги",
+      "name_en": "Energy, oil & gas, and utilities",
       "note": "Высокая капиталоёмкость и долговая нагрузка; критичны денежные потоки и покрытие процентов.",
+      "note_en": "High capital intensity and leverage; cash flow and interest coverage are critical.",
       "category_weights": {
         "liquidity": 0.15,
         "leverage": 0.3,
@@ -2155,7 +2167,9 @@
     },
     "realestate": {
       "name": "Недвижимость и строительство",
+      "name_en": "Real estate and construction",
       "note": "Допустима более высокая долговая нагрузка, но особенно важны покрытие процентов и денежные потоки.",
+      "note_en": "Higher leverage is acceptable, but interest coverage and cash flow are especially important.",
       "category_weights": {
         "liquidity": 0.15,
         "leverage": 0.3,
@@ -2536,7 +2550,9 @@
     },
     "telecom": {
       "name": "Телекоммуникации",
+      "name_en": "Telecommunications",
       "note": "Высокая капиталоёмкость и стабильные денежные потоки; долговая нагрузка выше средней допустима.",
+      "note_en": "High capital intensity and stable cash flows; above-average leverage is acceptable.",
       "category_weights": {
         "liquidity": 0.1,
         "leverage": 0.3,
@@ -2917,7 +2933,9 @@
     },
     "transport": {
       "name": "Транспорт и логистика",
+      "name_en": "Transport and logistics",
       "note": "Капиталоёмкий парк активов, чувствительность к топливу и загрузке; важны долговая нагрузка и денежные потоки.",
+      "note_en": "A capital-intensive asset fleet, sensitive to fuel costs and utilization; leverage and cash flow matter.",
       "category_weights": {
         "liquidity": 0.15,
         "leverage": 0.25,
@@ -3298,7 +3316,9 @@
     },
     "aerospace_defense": {
       "name": "Аэрокосмическая и оборонная промышленность",
+      "name_en": "Aerospace and defense",
       "note": "Длительные контракты, зависимость от крупных заказчиков и специфический оборотный капитал (авансы, незавершённое производство).",
+      "note_en": "Long-term contracts, dependence on large customers, and distinctive working capital (advances, work in progress).",
       "category_weights": {
         "liquidity": 0.2,
         "leverage": 0.25,
