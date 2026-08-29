@@ -234,7 +234,7 @@ def _translate_piotroski_detail(key: str, detail: str) -> str:
 
     m = _S6_RE.match(detail) if key == "liquidity_up" else None
     if m:
-        return (f"Current liquidity: {m['cr_t']} (current period) vs "
+        return (f"Current ratio: {m['cr_t']} (current period) vs "
                 f"{m['cr_p']} (prior period).")
 
     m = _S7_RE.match(detail) if key == "no_dilution" else None
