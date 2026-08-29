@@ -63,6 +63,10 @@ export async function sendMagicLinkEmail({ email, url }: SendMagicLinkEmailArgs)
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ from, to: email, subject, text, html }),
+      // A hung Resend API must not hang the user's signin POST — abort
+      // after 10s. AbortError lands in the bare catch below, which already
+      // fails closed without referencing the caught error.
+      signal: AbortSignal.timeout(10_000),
     });
   } catch {
     // Network-level failure (DNS, TLS, timeout, ...). Log only that it

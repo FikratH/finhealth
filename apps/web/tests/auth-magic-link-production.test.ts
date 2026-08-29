@@ -57,6 +57,7 @@ describe("magic-link transport selection in production (fix rounds 1 and 2)", ()
     expect(process.env.RESEND_API_KEY).toBeUndefined();
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
       auth.api.signInMagicLink({
@@ -66,8 +67,13 @@ describe("magic-link transport selection in production (fix rounds 1 and 2)", ()
     ).rejects.toThrow();
 
     // The one thing this fix exists to prevent: a live sign-in URL landing
-    // in production stdout/log aggregators.
+    // in production stdout/log aggregators. Better Auth's own onError DOES
+    // console.error the thrown Error — assert that whatever it prints never
+    // carries a URL, at the same level the Resend-path tests check.
     expect(logSpy).not.toHaveBeenCalled();
+    for (const call of errorSpy.mock.calls) {
+      expect(call.map(String).join(" ")).not.toMatch(/https?:\/\//);
+    }
   });
 
   it("sends via Resend and logs nothing when RESEND_API_KEY is set in production", async () => {

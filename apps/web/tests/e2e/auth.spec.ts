@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/test";
 //     correctly, Google is correctly absent when unconfigured, and — since
 //     fix round 1 — submitting a real email against this webServer (which
 //     always runs `npm run build && npm run start`, i.e. production mode,
-//     with no EMAIL_HOST configured) correctly fails closed instead of
+//     with no RESEND_API_KEY configured) correctly fails closed instead of
 //     reaching the sent-state. That's the same security-critical path a
 //     real unconfigured production deploy hits, exercised end to end
 //     through an actual browser and an actual Better Auth instance.
@@ -61,7 +61,7 @@ test("submitting a real email against an unconfigured production deploy fails cl
 
   // Fix round 1's security ruling, exercised through a real browser
   // against the real route: this webServer runs `npm run build && npm run
-  // start` (production mode) with no EMAIL_HOST, so lib/auth.ts's
+  // start` (production mode) with no RESEND_API_KEY, so lib/auth.ts's
   // sendMagicLink rejects the send rather than logging a live sign-in URL.
   // The form's own visible-error path is what a real user sees — no
   // half-signed-in state, and specifically NOT the composed sent-state
