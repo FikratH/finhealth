@@ -184,6 +184,25 @@ def _is_exact_metric_name(label: str) -> bool:
     return m is not None and m[1] == 95.0
 
 
+def _has_period_cell(cells: list[str]) -> bool:
+    """True when any of `cells` (a row's band values) resolves to a period
+    label ("2025", "Q1 2024", ...) — the hallmark of the HEADER row itself,
+    never a genuine wrapped data label (NEW-1 guard). A bare year like
+    "2025" doesn't satisfy _SUBSTANTIAL_NUMBER_RE (no thousands grouping,
+    no decimal point), so without this check the header row reads as
+    "label-only" exactly like a genuine wrap candidate — and merging it
+    forward replaces its own period-bearing cells with whatever the next
+    row's cells happen to be (`out.append([merged_label] + list(nxt[1:]))`),
+    silently destroying the header. Reproduced: a header immediately
+    followed by a first data row whose label matches nothing merges the
+    header away entirely — periods become [], the previous-period value is
+    lost outright, and the latest value survives only via the positional
+    safety-net fallback. A genuine wrapped label's cells are always empty
+    at this point (no substantial number, and no period token either), so
+    this never blocks the real net_income case."""
+    return any(M.detect_period_objects([c]) for c in cells if c)
+
+
 def _merge_wrapped_labels(matrix: list[list[str]]) -> list[list[str]]:
     """See module docstring. F1 guard: a row whose OWN label already names
     a metric exactly (a section header like "Current liabilities") is
@@ -195,14 +214,17 @@ def _merge_wrapped_labels(matrix: list[list[str]]) -> list[list[str]]:
     total. Found on a synthetic reproduction of the real file's own
     layout: without this guard, "Current liabilities" + "Borrowings"
     merges into a text that matches current_liabilities, attributing a
-    single current-liability line's value to the whole section total."""
+    single current-liability line's value to the whole section total.
+    NEW-1 guard: a row carrying period cells (the header itself) is never
+    merged forward either — see `_has_period_cell`."""
     out: list[list[str]] = []
     i, n = 0, len(matrix)
     while i < n:
         cells = matrix[i]
         has_substantial = any(_SUBSTANTIAL_NUMBER_RE.match(c) for c in cells[1:] if c)
         if (cells and cells[0] and not has_substantial
-                and not _is_exact_metric_name(cells[0]) and i + 1 < n):
+                and not _is_exact_metric_name(cells[0])
+                and not _has_period_cell(cells[1:]) and i + 1 < n):
             nxt = matrix[i + 1]
             nxt_substantial = any(_SUBSTANTIAL_NUMBER_RE.match(c) for c in nxt[1:] if c)
             if nxt_substantial and nxt[0] and M.match_label(nxt[0]) is None:

@@ -395,6 +395,31 @@ def test_f3_left_aligned_layout_fails_the_band_fit_check():
     assert matrix == []
 
 
+def test_new1_header_followed_by_unmatched_first_data_row_keeps_both_periods():
+    """Reproduces the verdict's NEW-1 repro shape: a header row ("Note"
+    label, "2025"/"2024" band cells) directly followed by a first data row
+    whose own label matches no metric. A bare year like "2025" doesn't
+    satisfy _SUBSTANTIAL_NUMBER_RE (no thousands grouping, no decimal
+    point), so before the fix the header itself read as "label-only" —
+    exactly the shape _merge_wrapped_labels treats as a wrap candidate —
+    and merged forward, discarding its own period cells for whatever the
+    next row's cells happened to be
+    (`out.append([merged_label] + list(nxt[1:]))`). The result was silent,
+    not a crash: periods [], the previous-period value lost outright, and
+    the latest value only surviving via the positional safety-net
+    fallback. Both periods must survive with this exact row order."""
+    b = _RowBuilder()
+    b.row(label="Note", val1="2025", val2="2024")
+    b.row(label="Unusual opening line item", val1="9,000,000", val2="8,200,000")
+    b.row(label="Revenue", val1="5,000,000", val2="4,500,000")
+    res = extraction.extract(_build_pdf(b.placements), "pdf")
+    assert res.periods == ["2025", "2024"]
+    assert res.latest_period == "2025" and res.previous_period == "2024"
+    assert _values(res)["revenue"] == 5_000_000.0
+    assert _values(res, previous=True)["revenue"] == 4_500_000.0
+    assert res.warnings == []
+
+
 def test_en_xlsx_golden_balance_sheet():
     res = extraction.extract_from_xlsx((GOLDEN / "ifrs_en_balance_sheet.xlsx").read_bytes())
     vals = _values(res)
