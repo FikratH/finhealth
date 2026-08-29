@@ -10,7 +10,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "Net income / revenue, Kazakhstan non-financial corporations, 2024 Q1 (cumulative year-to-date). This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "operating_margin": {
           "value": 28.34,
@@ -19,7 +21,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "Proxy: the source's \"net operating income\" (revenue minus cost of sales, IMF FSI Table 5.5) — the composition of cost of sales under this methodology may differ from operating_income in a given company's own financial statements. This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "interest_coverage": {
           "value": 5.049,
@@ -28,7 +32,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "EBIT / interest payable, Kazakhstan non-financial corporations, 2024 Q1. This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "liabilities_to_equity": {
           "value": 0.939,
@@ -37,7 +43,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "Liabilities / capital and reserves, Kazakhstan non-financial corporations, 2024 Q1. This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "debt_ratio": {
           "value": 0.484,
@@ -46,7 +54,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "Liabilities / assets, Kazakhstan non-financial corporations, 2024 Q1. This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "roe": {
           "value": 15.32,
@@ -55,7 +65,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "ROE (annualized by the source), Kazakhstan non-financial corporations, 2024 Q1. This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         },
         "roa": {
           "value": 7.96,
@@ -64,7 +76,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "economy_wide"
+          "scope": "economy_wide",
+          "note_en": "ROA = annualized net income (source) / average assets (average of 2023 Q4 and 2024 Q1 — the source does not publish a separate \"average assets\" series for this table; averaged the same way the app computes its own ratios). This is an economy-wide Kazakhstan figure (non-financial corporations), not industry-specific — Kazakhstan's economy skews heavily toward mining/metals/trade, so for industries like Software and SaaS or Healthcare this is a rough guide at best.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.5 (non-financial corporations)"
         }
       }
     },
@@ -77,7 +91,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "industry"
+          "scope": "industry",
+          "note_en": "ROA (annualized by the source), Kazakhstan banking sector, 2024 Q1. The AFTER-tax figure (FSNERAB) was used, matching the app's own formula (net_income / average_total_assets); the source's own \"base\" FSI figure (FSERA, BEFORE tax) for the same date = 4.95%.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.1 (banks)"
         },
         "roe": {
           "value": 31.7,
@@ -86,7 +102,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "industry"
+          "scope": "industry",
+          "note_en": "ROE (annualized by the source), Kazakhstan banking sector, 2024 Q1.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.1 (banks)"
         },
         "liabilities_to_equity": {
           "value": 6.186,
@@ -95,7 +113,9 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "industry"
+          "scope": "industry",
+          "note_en": "Liabilities / capital and reserves, Kazakhstan banking sector, 2024 Q1 — a structurally high value is expected for banks (deposits are liabilities).",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.1 (banks)"
         },
         "debt_ratio": {
           "value": 0.861,
@@ -104,9 +124,12 @@
           "source_url": "https://nationalbank.kz/ru/page/indikatory-finansovoy-ustoychivosti",
           "as_of": "2024Q1",
           "method": "kz-official-point-v1",
-          "scope": "industry"
+          "scope": "industry",
+          "note_en": "Liabilities / assets, Kazakhstan banking sector, 2024 Q1.",
+          "source_en": "National Bank of Kazakhstan / IMF, Financial Soundness Indicators, Table 5.1 (banks)"
         }
       }
     }
-  }
+  },
+  "_disclaimer_en": "KZ benchmarks (`benchmark_kz`) are a reference point, not a range and not a substitute for the industry benchmark: calculated from official National Bank of Kazakhstan data (Financial Soundness Indicators, IMF methodology, FSI Guide 2019). The \"all\" section is a figure for Kazakhstan's non-financial corporations as a whole (not industry-specific); the \"banking\" section covers the banking sector separately. Ratio verdicts (\"good\"/\"attention\"/\"critical\") are still decided solely by the global (Damodaran-based) benchmark — the KZ section is shown in addition, not as a replacement. Coverage is partial: see the docs research log / task-5-report.md for the full list of sources considered and rejected."
 }

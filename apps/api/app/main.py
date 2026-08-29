@@ -37,6 +37,7 @@ from .schemas import (
     WaitlistResponse,
 )
 from .services import extraction, ocr, vault
+from .services import i18n
 from .services import narrative as narrative_service
 from .services.analysis import run_analysis
 from .services.scoring import get_industry, list_industries
@@ -385,7 +386,17 @@ def extract(payload: ExtractRequest):
 
 
 @app.post("/api/analyze", dependencies=[Depends(rate_limit)])
-def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current_user_id)):
+def analyze(req: AnalysisRequest, locale: str | None = None,
+           user_id: str | None = Depends(auth.get_current_user_id)):
+    """`?locale=ru|en` (additive, founder feedback R1's full API i18n —
+    default `ru`) affects ONLY the shape of THIS response — the stored
+    payload is always the canonical RU analysis (see app/services/i18n.py's
+    module docstring for why re-deriving at read time made storing a
+    baked locale unnecessary). Reusing GET /api/analysis/{id}'s own
+    localizer here means a caller that renders the immediate POST response
+    directly (rather than always following up with a GET) still sees a
+    fully English payload under `?locale=en`, with zero duplicated
+    translation logic."""
     try:
         result = run_analysis(req)
     except KeyError:
@@ -404,6 +415,8 @@ def analyze(req: AnalysisRequest, user_id: str | None = Depends(auth.get_current
             entitlements.increment_analyses(user_id)
         except Exception:
             log.warning("entitlements increment failed user_id=%s", user_id, exc_info=True)
+    if i18n.normalize_locale(locale) == "en":
+        return i18n.localize_payload(payload)
     return payload
 
 
@@ -424,10 +437,22 @@ def join_waitlist(payload: WaitlistRequest, user_id: str | None = Depends(auth.g
 
 
 @app.get("/api/analysis/{analysis_id}")
-def get_analysis(analysis_id: str):
+def get_analysis(analysis_id: str, locale: str | None = None):
+    """`?locale=ru|en` (additive, founder feedback R1) — `ru` (the
+    default, including any unrecognized value) returns the stored payload
+    completely untouched: this is the exact byte-for-byte response every
+    caller got before this parameter existed, and every RU golden test
+    keeps passing unmodified. `en` runs it through
+    app/services/i18n.py's `localize_payload`, which re-derives every RU
+    string from the payload's own structured numeric fields rather than
+    machine-translating stored text — see that module's docstring for the
+    full design rationale, including why it works identically for
+    analyses persisted long before this parameter existed."""
     payload = storage.get_analysis(analysis_id)
     if payload is None:
         raise HTTPException(status_code=404, detail="Анализ не найден.")
+    if i18n.normalize_locale(locale) == "en":
+        return i18n.localize_payload(payload)
     return payload
 
 

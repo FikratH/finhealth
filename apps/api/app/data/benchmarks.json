@@ -31,7 +31,8 @@
             6.0
           ],
           "note": "Для SaaS ликвидность важна из-за подписной модели и авансов.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Liquidity matters for SaaS because of the subscription model and advance payments."
         },
         "quick_ratio": {
           "weight": 1,
@@ -90,7 +91,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "SaaS companies are typically equity-funded rather than debt-funded. The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -104,7 +106,8 @@
             2.0
           ],
           "note": "Отложенная выручка увеличивает обязательства — это нормально.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Deferred revenue increases liabilities — this is normal."
         },
         "debt_ratio": {
           "weight": 0.8,
@@ -152,7 +155,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1.5,
@@ -169,7 +173,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A high gross margin is a key sign of a healthy SaaS business."
         },
         "operating_margin": {
           "weight": 1.2,
@@ -268,7 +273,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "receivables_turnover": {
           "weight": 0.5,
@@ -395,7 +401,8 @@
             3.5
           ],
           "note": "Слишком высокий Current Ratio может означать затоваривание.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "An excessively high Current Ratio can signal overstocking."
         },
         "quick_ratio": {
           "weight": 1,
@@ -409,7 +416,8 @@
             2.5
           ],
           "note": "Запасы — основной актив, поэтому Quick Ratio ниже, чем в других отраслях.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Inventory is the primary asset, so the Quick Ratio runs lower than in other industries."
         },
         "cash_ratio": {
           "weight": 0.6,
@@ -454,7 +462,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -468,7 +477,8 @@
             3.0
           ],
           "note": "Кредиторская задолженность поставщикам — источник финансирования отрасли.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Trade payables to suppliers are a source of financing for this industry."
         },
         "debt_ratio": {
           "weight": 0.8,
@@ -516,7 +526,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1,
@@ -550,7 +561,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Thin margins are normal for retail."
         },
         "ebitda_margin": {
           "weight": 0.8,
@@ -632,7 +644,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "High asset turnover is fundamental to the retail model. Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "inventory_turnover": {
           "weight": 1.5,
@@ -649,7 +662,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wcdata.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A key indicator for this industry."
         },
         "receivables_turnover": {
           "weight": 0.6,
@@ -852,7 +866,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -897,7 +912,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Interest coverage is critical for a capital-intensive business."
         },
         "net_debt_to_ebitda": {
           "weight": 1.2,
@@ -914,7 +930,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1,
@@ -1030,7 +1047,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "inventory_turnover": {
           "weight": 1.2,
@@ -1250,7 +1268,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -1312,7 +1331,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1.2,
@@ -1329,7 +1349,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Pharma is traditionally high-margin."
         },
         "operating_margin": {
           "weight": 1.2,
@@ -1428,7 +1449,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "inventory_turnover": {
           "weight": 0.7,
@@ -1603,7 +1625,8 @@
             14
           ],
           "note": "Для банка высокое плечо — норма бизнес-модели; критичны крайние значения.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "High leverage is normal for a bank's business model; extreme values are what matter."
         },
         "debt_ratio": {
           "weight": 1,
@@ -1631,7 +1654,8 @@
             50
           ],
           "note": "Маржа считается от операционных доходов.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Margin is calculated on operating revenue."
         },
         "operating_margin": {
           "weight": 1,
@@ -1662,7 +1686,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/roe.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A key efficiency indicator for banks."
         },
         "roa": {
           "weight": 1.2,
@@ -1676,7 +1701,8 @@
             4.0
           ],
           "note": "Для банков нормальный ROA существенно ниже, чем в реальном секторе.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Normal ROA for banks is substantially lower than in the real economy."
         },
         "asset_turnover": {
           "weight": 0.5,
@@ -1746,7 +1772,8 @@
             3.5
           ],
           "note": "P/B — основной мультипликатор для банков.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "P/B is the primary valuation multiple for banks."
         },
         "debt_to_equity": {
           "weight": 0.5,
@@ -1763,7 +1790,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A bank's interest-bearing debt is part of its funding, not a sign of trouble. The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         }
       }
     },
@@ -1853,7 +1881,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Higher debt is acceptable given stable cash flows. The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -1898,7 +1927,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A key risk indicator for a highly leveraged industry."
         },
         "net_debt_to_ebitda": {
           "weight": 1.5,
@@ -1915,7 +1945,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 0.7,
@@ -1966,7 +1997,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "EBITDA is the industry's primary metric because of high depreciation."
         },
         "net_margin": {
           "weight": 1,
@@ -2031,7 +2063,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Low turnover is normal for capital-intensive assets. Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "inventory_turnover": {
           "weight": 0.6,
@@ -2208,7 +2241,8 @@
             3.0
           ],
           "note": "Незавершённое строительство искажает быстрые активы.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Construction in progress distorts quick assets."
         },
         "cash_ratio": {
           "weight": 0.6,
@@ -2253,7 +2287,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Project financing makes high leverage typical. The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -2298,7 +2333,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A key survival indicator for developers."
         },
         "net_debt_to_ebitda": {
           "weight": 1.5,
@@ -2315,7 +2351,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1,
@@ -2431,7 +2468,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "receivables_turnover": {
           "weight": 0.6,
@@ -2577,7 +2615,8 @@
             3.0
           ],
           "note": "Низкий Current Ratio типичен из-за предоплатной модели.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "A low Current Ratio is typical given the prepayment model."
         },
         "quick_ratio": {
           "weight": 0.7,
@@ -2636,7 +2675,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -2698,7 +2738,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A standard covenant metric for the industry. Benchmark for gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 0.8,
@@ -2749,7 +2790,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "EBITDA margin is telecom's key operating metric."
         },
         "net_margin": {
           "weight": 1,
@@ -2814,7 +2856,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "receivables_turnover": {
           "weight": 0.7,
@@ -2876,7 +2919,8 @@
             6.0
           ],
           "note": "Высокая амортизация делает OCF заметно выше прибыли.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "High depreciation makes operating cash flow noticeably higher than profit."
         },
         "pe": {
           "weight": 1,
@@ -3019,7 +3063,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Fleet leasing raises typical leverage. The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -3081,7 +3126,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 0.7,
@@ -3197,7 +3243,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Fleet utilization shows up directly in asset turnover. Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "receivables_turnover": {
           "weight": 1,
@@ -3341,7 +3388,8 @@
             3.0
           ],
           "note": "Авансы заказчиков занижают показатель; крайние значения важнее середины.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Customer advances understate the ratio; extreme values matter more than the midpoint."
         },
         "quick_ratio": {
           "weight": 0.8,
@@ -3400,7 +3448,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "The benchmark is based on the industry's market D/E (Damodaran), not book D/E."
         },
         "liabilities_to_equity": {
           "weight": 0.8,
@@ -3414,7 +3463,8 @@
             4.0
           ],
           "note": "Авансы по долгосрочным контрактам увеличивают обязательства.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Advances on long-term contracts increase liabilities."
         },
         "debt_ratio": {
           "weight": 0.8,
@@ -3462,7 +3512,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/dbtfund.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Benchmark for the industry's gross debt/EBITDA (Damodaran), not net debt."
         },
         "gross_margin": {
           "weight": 1,
@@ -3496,7 +3547,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/margin.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Margin on state defense orders is typically set by contract."
         },
         "ebitda_margin": {
           "weight": 1,
@@ -3578,7 +3630,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/mgnroc.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Proxy: the industry's revenue/invested capital (Damodaran), not revenue/assets."
         },
         "inventory_turnover": {
           "weight": 1,
@@ -3595,7 +3648,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wcdata.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "A long production cycle lowers inventory turnover."
         },
         "receivables_turnover": {
           "weight": 1,
@@ -3612,7 +3666,8 @@
           "source": "Damodaran (NYU Stern), Jan 2026",
           "source_url": "https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/wcdata.html",
           "as_of": "2026-01",
-          "method": "band-around-center-v1"
+          "method": "band-around-center-v1",
+          "note_en": "Concentration among large government customers lengthens settlement cycles."
         },
         "payables_turnover": {
           "weight": 0.6,
@@ -3657,7 +3712,8 @@
             5.0
           ],
           "note": "Авансы делают денежный поток «рваным» по годам.",
-          "method": "demo"
+          "method": "demo",
+          "note_en": "Advance payments make cash flow uneven from year to year."
         },
         "pe": {
           "weight": 1,
