@@ -22,13 +22,13 @@ const fixtures: MyDocumentSummary[] = [
   { doc_id: "doc_2", filename: "otchet.pdf", kind: "pdf", size_bytes: 2048 * 1024, created_at: "2026-08-01T00:00:00Z" },
 ];
 
-function renderSection(onSessionExpired = vi.fn()) {
+function renderSection(onAuthFailure = vi.fn()) {
   render(
     <NextIntlClientProvider locale="ru" messages={ruMessages}>
-      <MyDocumentsSection locale="ru" onSessionExpired={onSessionExpired} />
+      <MyDocumentsSection locale="ru" onAuthFailure={onAuthFailure} />
     </NextIntlClientProvider>,
   );
-  return { onSessionExpired };
+  return { onAuthFailure };
 }
 
 afterEach(() => {
@@ -60,12 +60,19 @@ describe("MyDocumentsSection", () => {
     expect(await screen.findByText(ruMessages.My.documents.loadError)).toBeInTheDocument();
   });
 
-  it("a 401 on load calls onSessionExpired instead of showing the error line", async () => {
+  // A 401 here doesn't by itself prove the Better Auth session (what the
+  // header reads) is gone — see my-analyses-view.tsx's header comment for
+  // the reported bug this guards against. This section can't decide that
+  // on its own, so it both re-verifies via onAuthFailure (Better Auth's
+  // own refetch()) AND shows the ordinary load error — never a silent
+  // hang, and never a claim about sign-in state this section has no way
+  // to make honestly.
+  it("a 401 on load calls onAuthFailure to re-verify, and still shows the load error rather than hanging silently", async () => {
     vi.mocked(getMyDocuments).mockRejectedValueOnce(new ApiError(401, "auth_required"));
-    const { onSessionExpired } = renderSection();
+    const { onAuthFailure } = renderSection();
 
-    await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
-    expect(screen.queryByText(ruMessages.My.documents.loadError)).not.toBeInTheDocument();
+    await waitFor(() => expect(onAuthFailure).toHaveBeenCalled());
+    expect(await screen.findByText(ruMessages.My.documents.loadError)).toBeInTheDocument();
   });
 
   it("delete flow: confirming removes the row after the API call succeeds", async () => {
@@ -109,10 +116,10 @@ describe("MyDocumentsSection", () => {
     expect(screen.getByText("Баланс.csv")).toBeInTheDocument();
   });
 
-  it("a 401 on delete calls onSessionExpired", async () => {
+  it("a 401 on delete calls onAuthFailure to re-verify the session", async () => {
     vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
     vi.mocked(deleteMyDocument).mockRejectedValueOnce(new ApiError(401, "auth_required"));
-    const { onSessionExpired } = renderSection();
+    const { onAuthFailure } = renderSection();
 
     await screen.findByText("Баланс.csv");
     fireEvent.click(
@@ -124,7 +131,7 @@ describe("MyDocumentsSection", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: ruMessages.My.documents.deleteDialog.confirm }));
 
-    await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+    await waitFor(() => expect(onAuthFailure).toHaveBeenCalled());
   });
 
   it("download flow: clicking download calls downloadMyDocument with the row's id and filename, no dialog involved", async () => {
@@ -165,10 +172,10 @@ describe("MyDocumentsSection", () => {
     expect(screen.getByText("Баланс.csv")).toBeInTheDocument();
   });
 
-  it("a 401 on download calls onSessionExpired instead of showing the error line", async () => {
+  it("a 401 on download calls onAuthFailure to re-verify the session instead of showing the error line", async () => {
     vi.mocked(getMyDocuments).mockResolvedValueOnce({ documents: fixtures });
     vi.mocked(downloadMyDocument).mockRejectedValueOnce(new ApiError(401, "auth_required"));
-    const { onSessionExpired } = renderSection();
+    const { onAuthFailure } = renderSection();
 
     await screen.findByText("Баланс.csv");
     fireEvent.click(
@@ -179,7 +186,7 @@ describe("MyDocumentsSection", () => {
       }),
     );
 
-    await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+    await waitFor(() => expect(onAuthFailure).toHaveBeenCalled());
     expect(screen.queryByText(ruMessages.My.documents.downloadError)).not.toBeInTheDocument();
   });
 

@@ -196,10 +196,49 @@ describe("MyAnalysesView", () => {
     expect(await screen.findByText("Строительство")).toBeInTheDocument();
   });
 
-  it("a 401 mid-view (expired session) on load falls back to the signed-out prompt", async () => {
-    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false });
+  // Regression coverage for the founder-reported bug: the header (which
+  // reads useSession() independently) showed the signed-in identity while
+  // this page's main content showed the signed-out gate underneath it —
+  // simultaneously, on a session that was never actually invalid. Root
+  // cause: a 401 from getMyAnalyses() used to set a page-local
+  // `sessionExpired` flag that forced the gate regardless of what
+  // `session` said, but apps/api's require_user returns that exact same
+  // 401 for reasons that have nothing to do with the Better Auth session
+  // being gone (e.g. the web<->API JWT bridge itself failing). The fix:
+  // a 401 now asks Better Auth's own `refetch()` to re-verify — the same
+  // shared store the header reads — instead of deciding locally.
+  it("a 401 from the resource API does NOT force the signed-out prompt while Better Auth's own session is still valid — that would contradict the header, which reads the same session", async () => {
+    const refetch = vi.fn();
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false, refetch });
     vi.mocked(getMyAnalyses).mockRejectedValueOnce(new ApiError(401, "auth_required"));
     renderView();
+
+    expect(await screen.findByText(ruMessages.My.loadError)).toBeInTheDocument();
+    expect(screen.queryByText(ruMessages.My.signedOut.heading)).not.toBeInTheDocument();
+    // The 401 triggers a re-verification against Better Auth itself,
+    // rather than a silent, un-investigated assumption.
+    expect(refetch).toHaveBeenCalled();
+  });
+
+  it("when Better Auth's own refetch() confirms the session really is gone, the shared session store (not a local flag) is what drives the sign-in prompt — the same source of truth the header uses", async () => {
+    const refetch = vi.fn();
+    useSession.mockReturnValue({ data: { user: { id: "u_1" } }, isPending: false, refetch });
+    vi.mocked(getMyAnalyses).mockRejectedValueOnce(new ApiError(401, "auth_required"));
+    const { rerender } = renderView();
+
+    await screen.findByText(ruMessages.My.loadError);
+    expect(refetch).toHaveBeenCalled();
+
+    // Simulate the shared Better Auth session store settling on "actually
+    // signed out" — exactly what SiteHeader's own useSession() call would
+    // also observe, since it's the same store. No page-local state is
+    // involved in this transition.
+    useSession.mockReturnValue({ data: null, isPending: false, refetch });
+    rerender(
+      <NextIntlClientProvider locale="ru" messages={ruMessages}>
+        <MyAnalysesView locale="ru" />
+      </NextIntlClientProvider>,
+    );
 
     expect(await screen.findByText(ruMessages.My.signedOut.heading)).toBeInTheDocument();
   });

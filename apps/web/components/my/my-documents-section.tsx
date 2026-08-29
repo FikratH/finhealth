@@ -10,7 +10,7 @@ import type { Locale } from "@/lib/format";
 
 export interface MyDocumentsSectionProps {
   locale: Locale;
-  onSessionExpired: () => void;
+  onAuthFailure: () => void;
 }
 
 type LoadState = "loading" | "ready" | "error";
@@ -19,10 +19,14 @@ type LoadState = "loading" | "ready" | "error";
 // already-auth-gated /my page (MyAnalysesView owns the signed-in gate and
 // the identity-keyed remount; this component only owns its own fetch/
 // delete state, the same split MyAnalysesContent uses for analyses). A
-// 401 here reuses the exact same onSessionExpired callback as the
-// analyses section, so an expired session collapses to one shared
-// signed-out prompt regardless of which section's request hit it first.
-export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSectionProps) {
+// 401 here calls the exact same onAuthFailure callback as the analyses
+// section — Better Auth's own session refetch(), not a local "you're
+// signed out" flag (see my-analyses-view.tsx's header comment for why: a
+// 401 from this resource API doesn't by itself prove the Better Auth
+// session the header reads is gone, and asserting it was is what produced
+// the reported bug — this section's own load failure below stays an
+// ordinary error message so it never contradicts the header either).
+export function MyDocumentsSection({ locale, onAuthFailure }: MyDocumentsSectionProps) {
   const t = useTranslations("My.documents");
   const [state, setState] = useState<LoadState>("loading");
   const [documents, setDocuments] = useState<MyDocumentSummary[]>([]);
@@ -45,15 +49,20 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
-          onSessionExpired();
-          return;
+          // Re-verify via Better Auth rather than assuming — see this
+          // file's own header comment. Still surfaces as a normal load
+          // error (never a silent hang): if the session really is gone,
+          // MyAnalysesView's own gate takes over and this whole section
+          // unmounts; if it's still valid, the user sees an honest
+          // "couldn't load" line instead of nothing at all.
+          onAuthFailure();
         }
         setState("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [onSessionExpired]);
+  }, [onAuthFailure]);
 
   async function handleDelete(id: string) {
     try {
@@ -62,7 +71,7 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
       setDeleteError(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        onSessionExpired();
+        onAuthFailure();
         return;
       }
       setDeleteError(true);
@@ -82,7 +91,7 @@ export function MyDocumentsSection({ locale, onSessionExpired }: MyDocumentsSect
       setDownloadError(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        onSessionExpired();
+        onAuthFailure();
         return;
       }
       setDownloadError(true);

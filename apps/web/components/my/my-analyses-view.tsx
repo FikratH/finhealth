@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/auth-client";
 import { Link } from "@/i18n/navigation";
@@ -28,20 +28,31 @@ type LoadState = "loading" | "ready" | "error";
 // briefly shows the prompt before settling into the real table reads
 // better than a loading skeleton for something this size.
 //
-// A 401 from either request inside MyAnalysesContent (session expired
-// mid-view — Better Auth's client-side session cache can outlive the JWT
-// it minted) reuses the exact same designed-absence prompt via
-// `sessionExpired`, rather than a separate "your session expired" state.
+// This gate is driven by `session`/`isPending` ONLY, from the exact same
+// `useSession()` store SiteHeader's AccountMenu/AccountNavLink read (see
+// lib/auth-client.ts — one shared Better Auth nanostores atom, same
+// instance everywhere) — never by a page-local flag. Earlier this page had
+// a `sessionExpired` boolean that a 401 from MyAnalysesContent's own fetch
+// set directly, forcing this gate regardless of what `session` said. That
+// was wrong: apps/api/app/auth.py's `require_user` returns the identical
+// 401 whether the caller's Bearer JWT is genuinely invalid/expired OR the
+// web<->API bridge itself failed to mint one at all (misconfigured
+// AUTH_JWT_SECRET, a transient /auth/token failure, a race before
+// AuthBootstrap registers lib/api.ts's tokenProvider) — a 401 from that
+// endpoint does NOT mean the Better Auth session is gone. Trusting it
+// anyway produced a real, reproduced bug: the header (reading only
+// Better Auth's own session) correctly showed the signed-in identity while
+// this page's main content showed "Требуется вход" underneath it — two
+// contradictory answers to "am I signed in?" on the same screen, from two
+// components subscribed to the same store. See MyAnalysesContent's own
+// comment for what a 401 does instead (asks Better Auth's `refetch()` —
+// the one honest source of truth both surfaces already share — rather
+// than deciding locally).
 export function MyAnalysesView({ locale }: MyAnalysesViewProps) {
   const t = useTranslations("My");
-  const { data: session, isPending } = useSession();
-  const [sessionExpired, setSessionExpired] = useState(false);
-  // Stable across re-renders so it's safe as MyAnalysesContent's fetch
-  // effect dependency below without forcing a re-fetch on every parent
-  // render.
-  const handleSessionExpired = useCallback(() => setSessionExpired(true), []);
+  const { data: session, isPending, refetch } = useSession();
 
-  if (isPending || !session || sessionExpired) {
+  if (isPending || !session) {
     // Designed absence, same grammar as results/[id]/not-found.tsx and the
     // upload dropzone's empty state: an unlit instrument bay (ghost-cell
     // perforation texture, hairline bezel), never a bare "please sign in"
@@ -73,17 +84,19 @@ export function MyAnalysesView({ locale }: MyAnalysesViewProps) {
       // change has no such window by construction.
       key={session.user.id}
       locale={locale}
-      onSessionExpired={handleSessionExpired}
+      onAuthFailure={refetch}
     />
   );
 }
 
 interface MyAnalysesContentProps {
   locale: Locale;
-  onSessionExpired: () => void;
+  // Better Auth's own session refetch (see MyAnalysesView's header comment)
+  // — called, never trusted blindly, on a 401 from either request below.
+  onAuthFailure: () => void;
 }
 
-function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps) {
+function MyAnalysesContent({ locale, onAuthFailure }: MyAnalysesContentProps) {
   const t = useTranslations("My");
   const [state, setState] = useState<LoadState>("loading");
   const [analyses, setAnalyses] = useState<MyAnalysisSummary[]>([]);
@@ -108,15 +121,22 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
-          onSessionExpired();
-          return;
+          // Ask Better Auth to re-verify its own session rather than
+          // assuming this 401 means "signed out" — see MyAnalysesView's
+          // header comment. Still surfaces as an ordinary load error here
+          // (never a silent hang): if the session really is gone, this
+          // component unmounts in favor of MyAnalysesView's own gate the
+          // instant the shared store updates; if it's still valid (a
+          // bridge-only failure), the user sees a normal, honest "couldn't
+          // load" message instead of a false "please sign in" screen.
+          onAuthFailure();
         }
         setState("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [onSessionExpired]);
+  }, [onAuthFailure]);
 
   async function handleDelete(id: string) {
     try {
@@ -125,7 +145,7 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
       setDeleteError(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        onSessionExpired();
+        onAuthFailure();
         return;
       }
       setDeleteError(true);
@@ -177,7 +197,7 @@ function MyAnalysesContent({ locale, onSessionExpired }: MyAnalysesContentProps)
        * loading/empty/error rendering — deliberately not blocked on the
        * analyses table above finishing first (a slow/failed analyses list
        * must not hide an unrelated, already-loaded documents section). */}
-      <MyDocumentsSection locale={locale} onSessionExpired={onSessionExpired} />
+      <MyDocumentsSection locale={locale} onAuthFailure={onAuthFailure} />
     </div>
   );
 }
