@@ -7,9 +7,16 @@
 // /auth/sign-in/magic-link — all 500). The fix is a DATABASE_URL branch in
 // lib/auth.ts that swaps storage to a `pg` Pool (same Neon database
 // apps/api uses, plain `postgresql://` scheme — never apps/api's
-// SQLAlchemy-specific `postgresql+psycopg://`) when DATABASE_URL is set,
-// and otherwise keeps the existing sqlite file exactly as before (dev,
-// e2e — playwright.config.ts never sets DATABASE_URL for the web server).
+// SQLAlchemy-specific `postgresql+psycopg://`) when DATABASE_URL is set
+// AND NODE_ENV === "production", and otherwise keeps the existing sqlite
+// file exactly as before (dev, e2e — playwright.config.ts never sets
+// DATABASE_URL for the web server). The NODE_ENV half of that gate matters
+// on its own, not just as a belt-and-suspenders check: a `vercel env pull`
+// run from inside apps/web (rather than the repo root, where it's run
+// today) would drop the production Neon DATABASE_URL straight into
+// apps/web/.env.local, which `next dev` auto-loads — without gating on
+// NODE_ENV too, that would silently point local dev at production auth
+// data.
 //
 // This test only exercises the *selection* logic — which constructor
 // lib/auth.ts reaches for — by mocking both `pg` and `better-sqlite3` and
@@ -70,8 +77,9 @@ describe("Better Auth storage selection (Postgres on Vercel serverless, sqlite e
     vi.unstubAllEnvs();
   });
 
-  it("picks a pg Pool built from DATABASE_URL when it is set, and never touches sqlite", async () => {
+  it("picks a pg Pool built from DATABASE_URL when it is set AND NODE_ENV is production, and never touches sqlite", async () => {
     const connectionString = "postgresql://mock-user:mock-pass@mock-host/mock-db";
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DATABASE_URL", connectionString);
 
     await import("@/lib/auth");
@@ -82,11 +90,28 @@ describe("Better Auth storage selection (Postgres on Vercel serverless, sqlite e
   });
 
   it("falls back to the better-sqlite3 file when DATABASE_URL is unset", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     // Defensive, not merely redundant: guards against a DATABASE_URL that
     // leaked into this process's env (e.g. a developer's shell, or a CI
     // matrix that sets it for unrelated jobs) rather than assuming the
     // ambient environment is clean.
     delete process.env.DATABASE_URL;
+
+    await import("@/lib/auth");
+
+    expect(databaseConstructor).toHaveBeenCalledTimes(1);
+    expect(databaseConstructor).toHaveBeenCalledWith(":memory:");
+    expect(poolConstructor).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the better-sqlite3 file when DATABASE_URL is set but NODE_ENV is not production (the vercel-env-pull-from-apps/web footgun)", async () => {
+    // Regression case for the review finding: DATABASE_URL's mere presence
+    // must never be enough on its own — a `next dev` run that happens to
+    // have a production Neon DATABASE_URL in its env (e.g. from a
+    // misplaced `vercel env pull`) must still use sqlite, not silently
+    // read/write the production auth database.
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("DATABASE_URL", "postgresql://mock-user:mock-pass@mock-host/mock-db");
 
     await import("@/lib/auth");
 

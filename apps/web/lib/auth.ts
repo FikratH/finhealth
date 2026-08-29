@@ -62,7 +62,17 @@ const DB_PATH = process.env.BETTER_AUTH_DB_PATH ?? path.join(process.cwd(), ".da
 // `postgresql://` scheme the `pg` driver expects — never apps/api's
 // `postgresql+psycopg://` scheme, which is SQLAlchemy-specific and `pg`
 // cannot parse. See .env.example for the two-scheme note.
-const usePostgres = Boolean(process.env.DATABASE_URL);
+//
+// Gated on NODE_ENV === "production" too, mirroring the RESEND_API_KEY
+// branch below — DATABASE_URL's mere presence isn't a safe enough signal
+// on its own. The founder's Neon credentials already live in the repo
+// root's .env.local (`vercel env pull` run from there); running that same
+// command from inside apps/web instead would drop DATABASE_URL straight
+// into apps/web/.env.local, which `next dev` auto-loads. Without this
+// gate, a stray local `npm run dev` would then silently start reading and
+// writing the production auth database — no error, no warning.
+const usePostgres =
+  process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
 
 if (!usePostgres && DB_PATH !== ":memory:") {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -72,10 +82,30 @@ export const googleAuthEnabled = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
 );
 
+// pg-pool emits an 'error' event on the *pool itself* whenever a client
+// sitting idle in the pool throws — e.g. Neon terminating an idle
+// connection, which it does routinely. Node's EventEmitter contract makes
+// an unhandled 'error' event an uncaught exception that crashes the whole
+// process, not just the request that happened to be using that client —
+// on a warm, reused Vercel serverless instance holding this Pool open,
+// that would reintroduce the exact same blast radius (every /auth/* route
+// down) that this file exists to fix, just via a different trigger. No
+// rethrow: this handler's only job is to stop the crash. Logs a short
+// message and the error code only — never the error object itself, which
+// nothing here confirms is free of driver/config context, so it's kept
+// out of logs on principle (same credential-hygiene bar lib/resend.ts's
+// error logging holds to).
+function createDatabase(): InstanceType<typeof Database> | Pool {
+  if (!usePostgres) return new Database(DB_PATH);
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  pool.on("error", (err: NodeJS.ErrnoException) => {
+    console.error("PG_POOL_IDLE_CLIENT_ERROR", err.code ?? "unknown");
+  });
+  return pool;
+}
+
 export const auth = betterAuth({
-  database: usePostgres
-    ? new Pool({ connectionString: process.env.DATABASE_URL })
-    : new Database(DB_PATH),
+  database: createDatabase(),
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   // Deliberately NOT under /api/* (Better Auth's own default): next.config.ts
