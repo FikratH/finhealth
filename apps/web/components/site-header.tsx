@@ -47,7 +47,14 @@ export function SiteHeader() {
             aria-hidden="true"
             width={800}
             height={450}
-            className="h-7 w-auto [.paper_&]:hidden"
+            // Founder round 1: h-7 (28px) read as an afterthought next to
+            // the hero's own logo treatment (h-14 at its smallest
+            // breakpoint, landing/hero.tsx) — bumped to a confident size
+            // for a persistent console-strip header while staying well
+            // under hero scale, and kept responsive (mobile stays h-9,
+            // the header's own py-4 has plenty of room) rather than the
+            // old flat single size.
+            className="h-9 w-auto sm:h-10 [.paper_&]:hidden"
           />
           <img
             src="/brand/logo-black.png"
@@ -55,7 +62,7 @@ export function SiteHeader() {
             aria-hidden="true"
             width={800}
             height={266}
-            className="hidden h-7 w-auto [.paper_&]:block"
+            className="hidden h-9 w-auto sm:h-10 [.paper_&]:block"
           />
           <span className="sr-only">{t("wordmark")}</span>
         </Link>

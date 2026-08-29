@@ -191,7 +191,18 @@
   /* Paper has no separate bezel surface in this rendition — panels sit
    * flush with the page, same as before the Monitor world existed. */
   --panel: #fbfaf7;
-  --ghost: rgba(14, 117, 105, 0.08);
+  /* Founder round 1 (general paper pass): 8% teal against near-white
+   * paper composites to within ~1.05:1 of the paper ground itself —
+   * verified live, a LedBar's unlit track and a SegmentDisplay's ghost
+   * pad cells were reading as functionally invisible, defeating "unlit
+   * segments are designed too" on this register specifically. The
+   * monitor register's own 10%-over-near-black ghost doesn't have this
+   * problem (human contrast sensitivity near black tolerates a much
+   * smaller absolute luminance step than near white does), so this is a
+   * paper-only bump, tuned by eye against the same LedBar/SegmentDisplay
+   * instances: clearly present as "this cell exists, it's just off"
+   * without competing with a genuinely lit cell for attention. */
+  --ghost: rgba(14, 117, 105, 0.22);
   /* Register-invariant, same value as :root/.dark — see --scrim's own
    * comment there. */
   --scrim: rgba(10, 12, 14, 0.6);
@@ -504,7 +515,22 @@
 
 .segment-active[data-lit="true"] {
   background-color: var(--accent);
-  box-shadow: 0 0 0.12em 0.02em color-mix(in oklch, var(--accent) 70%, transparent);
+  /*
+   * Founder round 1 (readability): the joints between a cell's own bars
+   * are deliberately tiny — 0.5-1% of the 1em cell height (see the bar
+   * bounding-box comment above) — so the prior 0.12em blur / 0.02em
+   * spread glow, measured live, bled clean across every joint and lit up
+   * the adjacent GHOST bar too. At the landing hero's demo size that
+   * turned "4,58%" into a smear that read as "8.88": verified via a
+   * computed-style dump (blur 7.2px against a sub-1px gap at text-6xl)
+   * and confirmed by pulling the glow entirely, which alone fixed
+   * legibility. This keeps a whisper of bloom — still reads as a lit LED,
+   * still visible at the text-7xl score header — while staying inside
+   * the joint gap at every shipped size, since both scale off the same
+   * em unit. Verified on real screenshots at hero (text-6xl), score
+   * (text-7xl) and step-indicator (default) sizes before landing.
+   */
+  box-shadow: 0 0 0.03em 0.008em color-mix(in oklch, var(--accent) 65%, transparent);
 }
 .segment-active[data-lit="false"] {
   background-color: var(--ghost);
@@ -525,7 +551,12 @@
  */
 .led-cell[data-lit="true"] {
   background-color: var(--cell-tone);
-  box-shadow: 0 0 3px 0.5px var(--cell-tone);
+  /* Same joint-bleed fix as .segment-active above, scaled to LedBar's own
+   * geometry: adjacent cells sit a bare 1px apart (gap-px), so the prior
+   * 3px blur reached clean across that gap into the next cell — most
+   * visible at the lit/unlit boundary, which is the one pixel that
+   * actually carries the reading (how much is lit). */
+  box-shadow: 0 0 1px 0.25px var(--cell-tone);
 }
 .led-cell[data-lit="false"] {
   background-color: var(--ghost);
